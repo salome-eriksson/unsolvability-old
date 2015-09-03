@@ -1,0 +1,5 @@
+In order to use this code, first install the latest CUDD libraries. If you
+compile the libraries yourself, make sure to call "make" AND "make objlib",
+the latter is used for the C++ interface used in this code. Then set the
+variable CUDD_DIR in the Makefile to the root folder of your CUDD installation.
+
