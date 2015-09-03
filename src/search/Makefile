@@ -25,6 +25,12 @@ DOWNWARD_GUROBI_INCDIR ?=
 DOWNWARD_GUROBI_LIBDIR ?=
 
 
+## Set DOWNWARD_USE_CUDD to 1 to enable bdd related code (like unsolvability certificates)
+DOWNWARD_USE_CUDD ?= 0
+## Set the root directory of your CUDD installation
+DOWNWARD_CUDD_ROOT ?= /home/simsal00/progs/cudd
+
+
 ## Set DOWNWARD_LINK_RELEASE_STATICALLY to 0 or 1 (default) to
 ## disable/enable static linking of the executable in release mode.
 ## On OS X, this is unsupported and will be silently disabled.
@@ -383,6 +389,27 @@ POSTLINKOPT_PROFILE += -Wl,-Bdynamic
 endif
 
 endif # LP code
+
+
+ifeq ($(DOWNWARD_USE_CUDD),1)
+
+CUDD_ROOT_FOUND := $(shell test -d $(DOWNWARD_CUDD_ROOT) && echo 1)
+
+ifneq ($(CUDD_ROOT_FOUND),1)
+    $(error CUDD not found. Please install CUDD and set up the environment variable DOWNWARD_COIN_CUDD to its path.)
+endif
+
+CUDD_LIBS = obj cudd mtr st util epd
+CUDD_CXXFLAGS = -I$(DOWNWARD_CUDD_ROOT)/include -D USE_CUDD
+CUDD_LDFLAGS = $(foreach lib,$(CUDD_LIBS),-L$(DOWNWARD_CUDD_ROOT)/$(lib) -l$(lib))
+
+CXXFLAGS += $(CUDD_CXXFLAGS)
+
+POSTLINKOPT_RELEASE += $(CUDD_LDFLAGS)
+POSTLINKOPT_DEBUG += $(CUDD_LDFLAGS)
+POSTLINKOPT_PROFILE += $(CUDD_LDFLAGS)
+endif # CUDD code
+
 
 all: release debug profile
 
