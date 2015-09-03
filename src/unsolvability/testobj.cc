@@ -57,9 +57,6 @@ using namespace std;
 /* Variable declarations                                                     */
 /*---------------------------------------------------------------------------*/
 
-#ifndef lint
-static char rcsid[] UNUSED = "$Id: testobj.cc,v 1.7 2012/02/05 01:06:40 fabio Exp fabio $";
-#endif
 
 /*---------------------------------------------------------------------------*/
 /* Static function prototypes                                                */

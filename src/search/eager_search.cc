@@ -9,6 +9,10 @@
 #include "successor_generator.h"
 #include "sum_evaluator.h"
 
+#ifdef USE_CUDD
+#include "cuddObj.hh"
+#endif
+
 #include <cassert>
 #include <cstdlib>
 #include <set>
@@ -70,6 +74,15 @@ void EagerSearch::initialize() {
     }
 
     print_initial_h_values(eval_context);
+
+#ifdef USE_CUDD
+    Cudd mgr(0,2);
+    BDD x = mgr.bddVar();
+    BDD y = mgr.bddVar();
+    BDD f = x*y;
+    BDD g = y + !x;
+    std::cout << "f is" << (f <= g ? "" : " not") << " less than or equal to g" << std::endl;
+#endif
 }
 
 void EagerSearch::print_checkpoint_line(int g) const {
