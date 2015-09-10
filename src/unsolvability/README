@@ -1,5 +1,15 @@
-In order to use this code, first install the latest CUDD libraries. If you
-compile the libraries yourself, make sure to call "make" AND "make objlib",
-the latter is used for the C++ interface used in this code. Then set the
-variable CUDD_DIR in the Makefile to the root folder of your CUDD installation.
+In order to use this code, first install the latest CUDD libraries. If
+you compile the libraries yourself, make sure to call "make" AND "make
+objlib", the latter is used for the C++ interface used in this code. Also
+make sure that the libraries are compiled in 32bit mode (if the planner is
+also compiled in 32bit). For this, uncomment line 72 in the cudd Makefile
+and instead comment out line 70. In the Makefile in the obj Folder, add -m32
+to the CXXFLAGS variable on line 17.
 
+When the libraries are compiled, set the variable CUDD_DIR in the Makefile
+in this directory to the root folder of your CUDD installation.
+
+In order to use CUDD in the fast Downward code, modify the Makefile in the
+search directory in the following way:
+1) Line 29: set DOWNWARD_USE_CUDD to 1
+2) Line 31: set the root directory of your CUDD installation

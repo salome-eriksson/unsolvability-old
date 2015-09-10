@@ -399,7 +399,7 @@ ifneq ($(CUDD_ROOT_FOUND),1)
     $(error CUDD not found. Please install CUDD and set up the environment variable DOWNWARD_COIN_CUDD to its path.)
 endif
 
-CUDD_LIBS = obj cudd mtr st util epd
+CUDD_LIBS = obj cudd mtr st util epd dddmp
 CUDD_CXXFLAGS = -I$(DOWNWARD_CUDD_ROOT)/include -D USE_CUDD
 CUDD_LDFLAGS = $(foreach lib,$(CUDD_LIBS),-L$(DOWNWARD_CUDD_ROOT)/$(lib) -l$(lib))
 
