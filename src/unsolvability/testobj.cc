@@ -45,11 +45,13 @@
   POSSIBILITY OF SUCH DAMAGE.]
 
 ******************************************************************************/
-
+#include "dddmp.h"
 #include "cuddObj.hh"
 #include <math.h>
 #include <iostream>
 #include <cassert>
+#include <stdio.h>
+
 
 using namespace std;
 
@@ -100,18 +102,35 @@ main(int argc, char **argv)
     } else if (argc != 1) {
         return 1;
     }
-
-    Cudd mgr(0,2);
+    
+    Cudd mgr(0,0);
+    BDD b = mgr.bddVar();
+    BDD c = mgr.bddVar();
+    BDD a = b+!c;
+    std::vector<std::string> names;
+    names.push_back("blablib");
+    names.push_back("blablub");
+    names.push_back("invalid");
+    
+    char ** nameschar = new char*[names.size()];
+    for(size_t i = 0; i < names.size(); i++){
+        nameschar[i] = new char[names[i].size() + 1];
+        strcpy(nameschar[i], names[i].c_str());
+    }
+    
+    std::string bddname = "testbdd";
+    std::string outfile = "bdd.txt";
+    FILE* f = fopen(outfile.c_str(), "w");
+    
+    Dddmp_cuddBddStore(mgr.getManager(),&bddname[0], a.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], f);
+    
+    //Cudd mgr(0,2);
     // mgr.makeVerbose();		// trace constructors and destructors
-    testBdd(mgr,verbosity);
-    testAdd(mgr,verbosity);
-    testAdd2(mgr,verbosity);
-    testZdd(mgr,verbosity);
-    testBdd2(mgr,verbosity);
-    testBdd3(mgr,verbosity);
-    testZdd2(mgr,verbosity);
-    testBdd4(mgr,verbosity);
-    testBdd5(mgr,verbosity);
+    //testBdd(mgr,verbosity);
+    //testBdd2(mgr,verbosity);
+    //testBdd3(mgr,verbosity);
+    //testBdd4(mgr,verbosity);
+    //testBdd5(mgr,verbosity);
     if (verbosity) mgr.info();
     return 0;
 
@@ -165,134 +184,6 @@ testBdd(
     if (verbosity) cout << "h"; h.print(2,verbosity);
 
 } // testBdd
-
-
-/**Function********************************************************************
-
-  Synopsis    [Test basic operators on ADDs.]
-
-  Description [Test basic operators on ADDs. The function returns void
-  because it relies on the error handling done by the interface. The
-  default error handler causes program termination.]
-
-  SideEffects [May create ADD variables in the manager.]
-
-  SeeAlso     [testAdd2]
-
-******************************************************************************/
-static void
-testAdd(
-  Cudd& mgr,
-  int verbosity)
-{
-    if (verbosity) cout << "Entering testAdd\n";
-    // Create two ADD variables. If we called method addVar without an
-    // argument, we would get two new indices. If testAdd is indeed called
-    // after testBdd, then those indices would be 2 and 3. By specifying the
-    // arguments, on the other hand, we avoid creating new unnecessary BDD
-    // variables.
-    ADD p = mgr.addVar(0);
-    ADD q = mgr.addVar(1);
-
-    // Test arithmetic operators.
-    ADD r = p + q;
-    if (verbosity) cout << "r"; r.print(2,verbosity);
-
-    // CUDD_VALUE_TYPE is double.
-    ADD s = mgr.constant(3.0);
-    s *= p * q;
-    if (verbosity) cout << "s"; s.print(2,verbosity);
-
-    s += mgr.plusInfinity();
-    if (verbosity) cout << "s"; s.print(2,verbosity);
-
-    // Test relational operators.
-    if (verbosity) 
-        cout << "p is" << (p <= r ? "" : " not") << " less than or equal to r\n";
-
-    // Test logical operators.
-    r = p | q;
-    if (verbosity) cout << "r"; r.print(2,verbosity);
-
-} // testAdd
-
-
-/**Function********************************************************************
-
-  Synopsis    [Test some more operators on ADDs.]
-
-  Description [Test some more operators on ADDs. The function returns void
-  because it relies on the error handling done by the interface. The
-  default error handler causes program termination.]
-
-  SideEffects [May create ADD variables in the manager.]
-
-  SeeAlso     [testAdd]
-
-******************************************************************************/
-static void
-testAdd2(
-  Cudd& mgr,
-  int verbosity)
-{
-    if (verbosity) cout << "Entering testAdd2\n";
-    // Create two ADD variables. If we called method addVar without an
-    // argument, we would get two new indices.
-    int i;
-    vector<ADD> x(2);
-    for (i = 0; i < 2; i++) {
-	x[i] = mgr.addVar(i);
-    }
-
-    // Build a probability density function: [0.1, 0.2, 0.3, 0.4].
-    ADD f0 = x[1].Ite(mgr.constant(0.2), mgr.constant(0.1));
-    ADD f1 = x[1].Ite(mgr.constant(0.4), mgr.constant(0.3));
-    ADD f  = x[0].Ite(f1, f0);
-    if (verbosity) cout << "f"; f.print(2,verbosity);
-
-    // Compute the entropy.
-    ADD l = f.Log();
-    if (verbosity) cout << "l"; l.print(2,verbosity);
-    ADD r = f * l;
-    if (verbosity) cout << "r"; r.print(2,verbosity);
-
-    ADD e = r.MatrixMultiply(mgr.constant(-1.0/log(2.0)),x);
-    if (verbosity) cout << "e"; e.print(2,verbosity);
-
-} // testAdd2
-
-
-/**Function********************************************************************
-
-  Synopsis    [Test basic operators on ZDDs.]
-
-  Description [Test basic operators on ZDDs. The function returns void
-  because it relies on the error handling done by the interface. The
-  default error handler causes program termination.]
-
-  SideEffects [May create ZDD variables in the manager.]
-
-  SeeAlso     [testZdd2]
-
-******************************************************************************/
-static void
-testZdd(
-  Cudd& mgr,
-  int verbosity)
-{
-    if (verbosity) cout << "Entering testZdd\n";
-    ZDD v = mgr.zddVar(0);
-    ZDD w = mgr.zddVar(1);
-
-    ZDD s = v + w;
-    if (verbosity) cout << "s"; s.print(2,verbosity);
-
-    if (verbosity) cout << "v is" << (v < s ? "" : " not") << " less than s\n";
-
-    s -= v;
-    if (verbosity) cout << "s"; s.print(2,verbosity);
-
-} // testZdd
 
 
 /**Function********************************************************************
@@ -400,88 +291,6 @@ testBdd3(
 
 } // testBdd3
 
-
-/**Function********************************************************************
-
-  Synopsis    [Test cover manipulation with BDDs and ZDDs.]
-
-  Description [Test cover manipulation with BDDs and ZDDs.  The
-  function returns void because it relies on the error handling done by
-  the interface.  The default error handler causes program
-  termination.  This function builds the BDDs for a transformed adder:
-  one in which the inputs are transformations of the original
-  inputs. It then creates ZDDs for the covers from the BDDs.]
-
-  SideEffects [May create BDD and ZDD variables in the manager.]
-
-  SeeAlso     [testZdd]
-
-******************************************************************************/
-static void
-testZdd2(
-  Cudd& mgr,
-  int verbosity)
-{
-    if (verbosity) cout << "Entering testZdd2\n";
-    int N = 3;			// number of bits
-    // Create variables.
-    vector<BDD> a(N);
-    vector<BDD> b(N);
-    vector<BDD> c(N+1);
-    for (int i = 0; i < N; i++) {
-	a[N-1-i] = mgr.bddVar(2*i);
-	b[N-1-i] = mgr.bddVar(2*i+1);
-    }
-    c[0] = mgr.bddVar(2*N);
-    // Build functions.
-    vector<BDD> s(N);
-    for (int i = 0; i < N; i++) {
-	s[i] = a[i].Xnor(c[i]);
-	c[i+1] = a[i].Ite(b[i],c[i]);
-    }
-
-    // Create array of outputs and print it.
-    vector<BDD> p(N+1);
-    for (int i = 0; i < N; i++) {
-	p[i] = s[i];
-    }
-    p[N] = c[N];
-    if (verbosity) {
-        for (size_t i = 0; i < p.size(); i++) {
-            cout << "p[" << i << "]"; p[i].print(2*N+1,verbosity);
-        }
-    }
-    const char* onames[] = {"s0", "s1", "s2", "c3"};
-    if (verbosity) {
-        const char* inames[] = {"a2", "b2", "a1", "b1", "a0", "b0", "c0"};
-        mgr.DumpDot(p, (char **)inames,(char **)onames);
-    }
-
-    // Create ZDD variables and build ZDD covers from BDDs.
-    mgr.zddVarsFromBddVars(2);
-    vector<ZDD> z(N+1);
-    for (int i = 0; i < N+1; i++) {
-	ZDD temp;
-	BDD dummy = p[i].zddIsop(p[i],&temp);
-	z[i] = temp;
-    }
-
-    // Print out covers.
-    if (verbosity) {
-        for (size_t i = 0; i < z.size(); i++) {
-            cout << "z[" << i << "]"; z[i].print(4*N+2,verbosity);
-        }
-        for (size_t i = 0; i < z.size(); i++) {
-            cout << "z[" << i << "]\n"; z[i].PrintCover();
-        }
-        const char* znames[] = {"a2+", "a2-", "b2+", "b2-", "a1+", "a1-", "b1+",
-                                "b1-", "a0+", "a0-", "b0+", "b0-", "c0+", "c0-"};
-        mgr.DumpDot(z, (char **)znames,(char **)onames);
-    }
-
-} // testZdd2
-
-
 /**Function********************************************************************
 
   Synopsis    [Test transfer between BDD managers.]
@@ -562,7 +371,7 @@ testBdd5(
         z.push_back(f);
         z.push_back(primes);
         z.push_back(lprime);
-        mgr.DumpDot(z, (char **)inames, (char **)onames);
+        mgr.DumpBlif(z, (char **)inames, (char **)onames);
         cout << "primes(1)"; primes.print(4,verbosity);
     }
 
