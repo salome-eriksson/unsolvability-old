@@ -41,14 +41,6 @@ int main(int argc, const char **argv) {
         exit_with(EXIT_INPUT_ERROR);
     }
 
-    BDDWrapper b = BDDWrapper();
-    BDDWrapper c = BDDWrapper(3,1);
-    BDDWrapper d = BDDWrapper(0,3, true);
-    b.dumpBDD("testbdd.txt", "testbdd");
-    c.dumpBDD("testbdd2.txt", "testbdd2");
-    d.dumpBDD("testbdd3.txt", "testbdd3");
-    exit(0);
-
     Timer search_timer;
     engine->search();
     search_timer.stop();
