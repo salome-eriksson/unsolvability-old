@@ -32,7 +32,8 @@ void BDDWrapper::initializeManager() {
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         fact_ids[i].resize(g_variable_domain[i]);
         for(int j = 0; j < g_variable_domain[i]; ++j) {
-            fact_ids[i][j]= count++;
+            fact_ids[i][j]= count;
+            count += 2;
         }
     }
 
@@ -43,10 +44,14 @@ void BDDWrapper::initializeManager() {
         for(int j = 0; j < g_variable_domain[i]; ++j) {
             fact_names[count] = new char[g_fact_names[i][j].size()+1];
             strcpy(fact_names[count], g_fact_names[i][j].c_str());
+            //add primed version of fact
+            std::string tmp = g_fact_names[i][j] + "'";
+            count++;
+            fact_names[count] = new char[tmp.size()+1];
+            strcpy(fact_names[count], tmp.c_str());
             count++;
         }
     }
-
 
     manager = new Cudd(count,0);
 }
@@ -56,5 +61,45 @@ void BDDWrapper::dumpBDD(std::string filename, std::string bddname) {
     Dddmp_cuddBddStore(manager->getManager(),&bddname[0], bdd.getNode(), fact_names, NULL,
             DDDMP_MODE_TEXT, DDDMP_VARNAMES, &filename[0], f);
     fclose(f);
+}
+
+void BDDWrapper::land(int var, int val, bool neg) {
+    BDD tmp = manager->bddVar(fact_ids[var][val]);
+    if(neg) {
+        tmp = !tmp;
+    }
+    bdd = bdd * tmp;
+}
+
+void BDDWrapper::land(BDDWrapper &bdd2) {
+    bdd = bdd * bdd2.bdd;
+}
+
+void BDDWrapper::lor(int var, int val, bool neg) {
+    BDD tmp = manager->bddVar(fact_ids[var][val]);
+    if(neg) {
+        tmp = !tmp;
+    }
+    bdd = bdd + tmp;
+}
+
+void BDDWrapper::lor(BDDWrapper &bdd2) {
+    bdd = bdd + bdd2.bdd;
+}
+
+void BDDWrapper::negate() {
+    bdd = !bdd;
+}
+
+bool BDDWrapper::isOne() {
+    return bdd.IsOne();
+}
+
+bool BDDWrapper::isZero() {
+    return bdd.IsZero();
+}
+
+bool BDDWrapper::isEqualTo(BDDWrapper &bdd2) {
+    return bdd == bdd2.bdd;
 }
 #endif
