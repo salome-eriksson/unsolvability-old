@@ -32,8 +32,7 @@ void BDDWrapper::initializeManager() {
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         fact_ids[i].resize(g_variable_domain[i]);
         for(int j = 0; j < g_variable_domain[i]; ++j) {
-            fact_ids[i][j]= count;
-            count += 2;
+            fact_ids[i][j]= count++;
         }
     }
 
@@ -43,13 +42,7 @@ void BDDWrapper::initializeManager() {
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         for(int j = 0; j < g_variable_domain[i]; ++j) {
             fact_names[count] = new char[g_fact_names[i][j].size()+1];
-            strcpy(fact_names[count], g_fact_names[i][j].c_str());
-            //add primed version of fact
-            std::string tmp = g_fact_names[i][j] + "'";
-            count++;
-            fact_names[count] = new char[tmp.size()+1];
-            strcpy(fact_names[count], tmp.c_str());
-            count++;
+            strcpy(fact_names[count++], g_fact_names[i][j].c_str());
         }
     }
 
