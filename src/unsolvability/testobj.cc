@@ -106,7 +106,7 @@ main(int argc, char **argv)
     Cudd mgr(0,0);
     BDD b = mgr.bddVar();
     BDD c = mgr.bddVar();
-    BDD a = b+!c;
+    BDD a = !c;
     std::vector<std::string> names;
     names.push_back("blablib");
     names.push_back("blablub");

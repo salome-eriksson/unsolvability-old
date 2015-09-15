@@ -113,3 +113,7 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
 string Heuristic::get_description() const {
     return description;
 }
+
+BDDWrapper* Heuristic::get_unsolvability_certificate(const GlobalState &) {
+    return NULL;
+}

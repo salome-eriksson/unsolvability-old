@@ -26,6 +26,7 @@ protected:
 public:
     HSPMaxHeuristic(const Options &options);
     ~HSPMaxHeuristic();
+    virtual BDDWrapper* get_unsolvability_certificate(const GlobalState &state);
 };
 
 #endif
