@@ -5,6 +5,8 @@
 #include "scalar_evaluator.h"
 #include "task_proxy.h"
 
+#include "unsolvability/cudd_interface.h"
+
 #include <memory>
 #include <vector>
 
@@ -72,6 +74,8 @@ public:
         EvaluationContext &eval_context) override;
 
     std::string get_description() const;
+
+    virtual BDDWrapper* get_unsolvability_certificate(const GlobalState &state);
 };
 
 #endif
