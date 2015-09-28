@@ -634,6 +634,10 @@ void TransitionSystem::dump_labels_and_transitions() const {
     }
 }
 
+HeuristicRepresentation* TransitionSystem::get_heuristic_representation() {
+       return heuristic_representation.get();
+}
+
 int TransitionSystem::get_max_f() const {
     return distances->get_max_f();
 }

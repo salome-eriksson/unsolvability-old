@@ -42,16 +42,22 @@ private:
 public:
     CUDD_METHOD(BDDWrapper())
     CUDD_METHOD(BDDWrapper(int var, int val, bool neg = false))
-    CUDD_METHOD(void dumpBDD(std::string filename, std::string bddname))
+    CUDD_METHOD(void dumpBDD(std::string filename, std::string bddname) const)
+
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
     CUDD_METHOD(void negate())
-    CUDD_METHOD(void land(BDDWrapper &bdd2))
-    CUDD_METHOD(void lor(BDDWrapper &bdd2))
-    CUDD_METHOD(bool isOne())
-    CUDD_METHOD(bool isZero())
+    CUDD_METHOD(void land(const BDDWrapper &bdd2))
+    CUDD_METHOD(void lor(const BDDWrapper &bdd2))
 
-    CUDD_METHOD(bool isEqualTo(BDDWrapper &bdd2))
+    CUDD_METHOD(bool isOne() const)
+    CUDD_METHOD(bool isZero() const)
+
+    CUDD_METHOD(bool isEqualTo(const BDDWrapper &bdd2) const)
+
+    //this method should only be called if no BDD has been created yet
+    //(this is guarded by an assertion)
+    CUDD_METHOD(static void initializeManager(const std::vector<int>& variable_order))
 };
 
 #endif

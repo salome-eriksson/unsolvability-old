@@ -48,6 +48,15 @@ int HeuristicRepresentationLeaf::get_abstract_state(const State &state) const {
 }
 
 
+int HeuristicRepresentationLeaf::get_var_id() const {
+    return var_id;
+}
+
+const std::vector<int>& HeuristicRepresentationLeaf::get_lookup_table() const {
+    return lookup_table;
+}
+
+
 HeuristicRepresentationMerge::HeuristicRepresentationMerge(
     unique_ptr<HeuristicRepresentation> left_child_,
     unique_ptr<HeuristicRepresentation> right_child_)
@@ -88,4 +97,17 @@ int HeuristicRepresentationMerge::get_abstract_state(
         state2 == TransitionSystem::PRUNED_STATE)
         return TransitionSystem::PRUNED_STATE;
     return lookup_table[state1][state2];
+}
+
+
+const HeuristicRepresentation* HeuristicRepresentationMerge::get_left_child() const {
+    return left_child.get();
+}
+
+const HeuristicRepresentation* HeuristicRepresentationMerge::get_right_child() const {
+    return right_child.get();
+}
+
+const std::vector<std::vector<int> >& HeuristicRepresentationMerge::get_lookup_table() const {
+    return lookup_table;
 }
