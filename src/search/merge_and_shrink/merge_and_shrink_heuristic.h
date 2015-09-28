@@ -2,6 +2,7 @@
 #define MERGE_AND_SHRINK_MERGE_AND_SHRINK_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
 
 #include <memory>
 
@@ -27,12 +28,16 @@ class MergeAndShrinkHeuristic : public Heuristic {
     void report_peak_memory_delta(bool final = false) const;
     void dump_options() const;
     void warn_on_unusual_options() const;
+    BDDWrapper buildBDD(int leaf_var, const std::vector<BDDWrapper>& bdds_next_level, const std::vector<int>& lookup_table_row);
+    void modifyLookupTable(const std::vector<int>& lookup_table, std::vector<int>& lookup_table_modified);
 protected:
     virtual void initialize() override;
     virtual int compute_heuristic(const GlobalState &global_state) override;
 public:
     explicit MergeAndShrinkHeuristic(const Options &opts);
     ~MergeAndShrinkHeuristic() = default;
+
+    virtual BDDWrapper* get_unsolvability_certificate(const GlobalState &state);
 };
 
 #endif

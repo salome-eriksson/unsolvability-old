@@ -101,10 +101,10 @@ int HSPMaxHeuristic::compute_heuristic(const GlobalState &state) {
     for (size_t i = 0; i < goal_propositions.size(); ++i) {
         int prop_cost = goal_propositions[i]->cost;
         if (prop_cost == -1) {
-            std::cout << "encountered dead end at the following state:" << std::endl;
+            /*std::cout << "encountered dead end at the following state:" << std::endl;
             state.dump_pddl();
             get_unsolvability_certificate(state);
-            exit(0);
+            exit(0);*/
             return DEAD_END;
         }
         total_cost = max(total_cost, prop_cost);

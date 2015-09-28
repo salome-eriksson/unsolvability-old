@@ -34,6 +34,9 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
+
+    int get_var_id() const;
+    const std::vector<int>& get_lookup_table() const;
 };
 
 
@@ -50,6 +53,10 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
+
+    const HeuristicRepresentation* get_left_child() const;
+    const HeuristicRepresentation* get_right_child() const;
+    const std::vector<std::vector<int> >& get_lookup_table() const;
 };
 
 
