@@ -102,6 +102,8 @@ void MergeAndShrinkHeuristic::build_transition_system(const Timer &timer) {
     }
     cout << endl;
 
+    bool first = true;
+
     if (!final_transition_system) { // All atomic transition system are solvable.
         while (!merge_strategy->done()) {
             // Choose next transition systems to merge
@@ -109,6 +111,12 @@ void MergeAndShrinkHeuristic::build_transition_system(const Timer &timer) {
                 fts.get_vector());
             int merge_index1 = merge_indices.first;
             int merge_index2 = merge_indices.second;
+            //TODO hack for getting the variable order in case of linear merge strategy
+            if(first) {
+                variable_order.push_back(merge_index1);
+            }
+            variable_order.push_back(merge_index2);
+            first = false;
             assert(merge_index1 != merge_index2);
             TransitionSystem *transition_system1 = fts[merge_index1];
             TransitionSystem *transition_system2 = fts[merge_index2];
@@ -221,132 +229,25 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
 }
 
 BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalState &) {
-    //TODO: assert the merge strategy is linear
-    std::vector<int> variable_order;
-    const HeuristicRepresentation* current = final_transition_system->get_heuristic_representation();
-    const HeuristicRepresentationMerge* merge;
-    const HeuristicRepresentationLeaf* leaf;
-
-    //collect the variable order
-    bool done = false;
-    while(!done) {
-        //if current representation is a leaf, we reached the end of the tree
-        if(dynamic_cast<const HeuristicRepresentationMerge*>(current) == 0) {
-            leaf = dynamic_cast<const HeuristicRepresentationLeaf*>(current);
-            variable_order.push_back(leaf->get_var_id());
-            done = true;
-        } else {
-            //we assume that the atomic abstraction is the right child
-            merge = dynamic_cast<const HeuristicRepresentationMerge*>(current);
-            leaf = dynamic_cast<const HeuristicRepresentationLeaf*>(merge->get_right_child());
-            variable_order.push_back(leaf->get_var_id());
-            current  = merge->get_left_child();
-        }
-    }
+    for(size_t i = 0; i < variable_order.size(); ++i) {
+        std::cout << g_variable_name[variable_order[i]] << " ";
+    }std::cout << std::endl;
 
     //set up the CUDD manager with the right variable order
+    //TODO this is very fragile and needs to be revised
     BDDWrapper::initializeManager(variable_order);
 
-    current = final_transition_system->get_heuristic_representation();
+    BDDWrapper* h_inf = new BDDWrapper();
+    h_inf->negate();
 
-    std::vector<BDDWrapper> old_bdds;
-    std::vector<BDDWrapper> current_bdds;
+    std::vector<BDDWrapper> dummy_vector;
 
+    final_transition_system->get_heuristic_representation()->get_unsolvability_certificate(
+                h_inf, dummy_vector, false);
 
-    current_bdds.push_back(BDDWrapper());
-    current_bdds[0].negate();
+    h_inf->dumpBDD("test", "test");
 
-    BDDWrapper final_bdd;
-
-    done = false;
-    //in the first step we use a modified lookup table that maps all positive
-    //integers to 0 since we are not interested in the actual heuristic values but
-    //only if the heuristic value is finite (entry in lookup table > 0) or infinite
-    //(entry in lookup table = -1)
-    bool firstStep = true;
-    std::vector<int> lookup_table_modified;
-    while(!done) {
-        //final step
-        if(dynamic_cast<const HeuristicRepresentationMerge*>(current) == 0) {
-            std::cout << "final step!" << std::endl;
-            leaf = dynamic_cast<const HeuristicRepresentationLeaf*>(current);
-            const std::vector<int>& lookup_table = leaf->get_lookup_table();
-            if(firstStep) {
-                modifyLookupTable(lookup_table, lookup_table_modified);
-            }
-            int leaf_var = leaf->get_var_id();
-            std::cout << "var: " << leaf_var << ", #vals: " << g_variable_domain[leaf_var] << std::endl;
-            final_bdd = buildBDD(leaf_var, current_bdds, lookup_table);
-            done = true;
-        } else {
-            //TODO: we assume linear merge strategy and that the leaf is on the right side
-            merge = dynamic_cast<const HeuristicRepresentationMerge*>(current);
-            leaf = dynamic_cast<const HeuristicRepresentationLeaf*>(merge->get_right_child());
-            const std::vector<std::vector<int> >& lookup_table = merge->get_lookup_table();
-            int leaf_var = leaf->get_var_id();
-            std::cout << "var: " << leaf_var << ", #vals: " << g_variable_domain[leaf_var] << std::endl;
-
-            old_bdds = std::move(current_bdds);
-            current_bdds.resize(lookup_table.size());
-
-            for(size_t i = 0; i < lookup_table.size(); ++i) {
-                if(firstStep) {
-                    modifyLookupTable(lookup_table[i], lookup_table_modified);
-                    current_bdds[i] = buildBDD(leaf_var, old_bdds, lookup_table_modified);
-                } else {
-                    current_bdds[i] = buildBDD(leaf_var, old_bdds, lookup_table[i]);
-                }
-            }
-            current = merge->get_left_child();
-            std::cout << std::endl;
-        }
-        firstStep = false;
-    }
-    std::cout << "done building certificate" << std::endl;
-    final_bdd.dumpBDD("test", "test");
-    //TODO copy constructor
-    return new BDDWrapper(final_bdd);
-}
-
-void MergeAndShrinkHeuristic::modifyLookupTable(const std::vector<int>& lookup_table, std::vector<int>& lookup_table_modified) {
-    lookup_table_modified.resize(lookup_table.size());
-    for(size_t i = 0; i < lookup_table.size(); ++i) {
-        if(lookup_table[i] >= 0) {
-            lookup_table_modified[i] = 0;
-        } else {
-            lookup_table_modified[i] = -1;
-        }
-    }
-}
-
-BDDWrapper MergeAndShrinkHeuristic::buildBDD(int leaf_var, const std::vector<BDDWrapper>& bdds_next_level, const std::vector<int>& lookup_table_row) {
-    BDDWrapper negbdd = BDDWrapper();
-    BDDWrapper bdd_builder = BDDWrapper();
-    BDDWrapper tmp;
-    bdd_builder.negate();
-    int last_val_index = g_variable_domain[leaf_var]-1;
-    for(int i = 0; i < last_val_index; ++i) {
-        std::cout << "i: " << i << ", " << lookup_table_row[i] << "   ";
-        tmp = negbdd;
-        tmp.land(leaf_var,i,false);
-
-        if(lookup_table_row[i] >= 0) {
-            assert(lookup_table_row[i] < bdds_next_level.size());
-            tmp.land(bdds_next_level[lookup_table_row[i]]);
-        }//current var/val leads to a dead-end -> bdd should lead to 1 here
-        bdd_builder.lor(tmp);
-        negbdd.land(leaf_var,i,true);
-    }
-    //the last val in var does not get a separate desicion level since if all other vars
-    //were false, this one must be true -> we hang the bdd belonging to this var
-    //on the branch of the bdd where all vars before were negative
-    tmp = negbdd;
-    std::cout << "i: " << last_val_index << ", " << lookup_table_row[last_val_index] << std::endl;
-    if(lookup_table_row[last_val_index] >= 0) {
-        tmp.land(bdds_next_level[lookup_table_row[last_val_index]]);
-    }
-    bdd_builder.lor(tmp);
-    return bdd_builder;
+    return h_inf;
 }
 
 static Heuristic *_parse(OptionParser &parser) {
