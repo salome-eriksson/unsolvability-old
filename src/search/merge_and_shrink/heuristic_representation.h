@@ -4,6 +4,8 @@
 #include <memory>
 #include <vector>
 
+#include "../unsolvability/cudd_interface.h"
+
 class State;
 
 
@@ -11,6 +13,7 @@ class HeuristicRepresentation {
 protected:
     int domain_size;
 
+    void buildBDD(int var, std::vector<BDDWrapper> &child_bdds, std::vector<int> &lookup, BDDWrapper& bdd);
 public:
     explicit HeuristicRepresentation(int domain_size);
     virtual ~HeuristicRepresentation() = 0;
@@ -20,6 +23,8 @@ public:
     virtual int get_abstract_state(const State &state) const = 0;
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) = 0;
+    virtual void get_unsolvability_certificate(BDDWrapper* h_inf,
+                std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val) = 0;
 };
 
 
@@ -34,9 +39,8 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
-
-    int get_var_id() const;
-    const std::vector<int>& get_lookup_table() const;
+    virtual void get_unsolvability_certificate(BDDWrapper* h_inf,
+                std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val);
 };
 
 
@@ -53,10 +57,8 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
-
-    const HeuristicRepresentation* get_left_child() const;
-    const HeuristicRepresentation* get_right_child() const;
-    const std::vector<std::vector<int> >& get_lookup_table() const;
+    virtual void get_unsolvability_certificate(BDDWrapper* h_inf,
+                std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val);
 };
 
 

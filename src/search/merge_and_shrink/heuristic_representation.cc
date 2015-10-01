@@ -21,7 +21,6 @@ int HeuristicRepresentation::get_domain_size() const {
     return domain_size;
 }
 
-
 HeuristicRepresentationLeaf::HeuristicRepresentationLeaf(
     int var_id, int domain_size)
     : HeuristicRepresentation(domain_size),
@@ -47,13 +46,17 @@ int HeuristicRepresentationLeaf::get_abstract_state(const State &state) const {
     return lookup_table[value];
 }
 
-
-int HeuristicRepresentationLeaf::get_var_id() const {
-    return var_id;
-}
-
-const std::vector<int>& HeuristicRepresentationLeaf::get_lookup_table() const {
-    return lookup_table;
+void HeuristicRepresentationLeaf::get_unsolvability_certificate(BDDWrapper* h_inf,
+            std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val) {
+    int val;
+    for(size_t i = 0; i < lookup_table.size(); ++i) {
+        val = lookup_table[i];
+        if(val == -1) {
+            h_inf->lor(var_id, i, false);
+        } else if(fill_bdd_for_val) {
+            bdd_for_val[val].lor(var_id,i,false);
+        }
+    }
 }
 
 
@@ -99,15 +102,39 @@ int HeuristicRepresentationMerge::get_abstract_state(
     return lookup_table[state1][state2];
 }
 
+/*
+ * h_inf: states with infinite estimate
+ * bdd_for_val: is filled with bdds for each value (each bdd represents the
+ * variable assignment so far that maps to the value in the lookup_table for the current
+ * HeuristicRepresentation)
+ * fill_bdd_for_val: if bdd_for_val should be filled (this will not be necessary for the "root"
+ * table, since we are only interested in the states with infinite estimate
+ */
+void HeuristicRepresentationMerge::get_unsolvability_certificate(BDDWrapper* h_inf,
+         std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val) {
+    size_t rows = lookup_table.size();
+    size_t columns = lookup_table[0].size();
+    //get the bdds for the child nodes
+    std::vector<BDDWrapper> left_child_bdds(rows, BDDWrapper(false));
+    std::vector<BDDWrapper> right_child_bdds(columns, BDDWrapper(false));
+    left_child->get_unsolvability_certificate(h_inf, left_child_bdds, true);
+    right_child->get_unsolvability_certificate(h_inf, right_child_bdds, true);
 
-const HeuristicRepresentation* HeuristicRepresentationMerge::get_left_child() const {
-    return left_child.get();
-}
 
-const HeuristicRepresentation* HeuristicRepresentationMerge::get_right_child() const {
-    return right_child.get();
-}
-
-const std::vector<std::vector<int> >& HeuristicRepresentationMerge::get_lookup_table() const {
-    return lookup_table;
+    int val;
+    BDDWrapper tmp;
+    for(size_t i = 0; i < rows; ++i) {
+        for(size_t j = 0; j < columns; ++j) {
+            val = lookup_table[i][j];
+            if(val == -1) {
+                tmp = left_child_bdds[i];
+                tmp.land(right_child_bdds[j]);
+                h_inf->lor(tmp);
+            } else if(fill_bdd_for_val) {
+                tmp = left_child_bdds[i];
+                tmp.land(right_child_bdds[j]);
+                bdd_for_val[val].lor(tmp);
+            }
+        }
+    }
 }

@@ -17,6 +17,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
     std::shared_ptr<ShrinkStrategy> shrink_strategy;
     std::shared_ptr<Labels> labels;
     long starting_peak_memory;
+    std::vector<int> variable_order;
 
     /*
       TODO: after splitting transition system into several parts, we may
@@ -28,8 +29,6 @@ class MergeAndShrinkHeuristic : public Heuristic {
     void report_peak_memory_delta(bool final = false) const;
     void dump_options() const;
     void warn_on_unusual_options() const;
-    BDDWrapper buildBDD(int leaf_var, const std::vector<BDDWrapper>& bdds_next_level, const std::vector<int>& lookup_table_row);
-    void modifyLookupTable(const std::vector<int>& lookup_table, std::vector<int>& lookup_table_modified);
 protected:
     virtual void initialize() override;
     virtual int compute_heuristic(const GlobalState &global_state) override;

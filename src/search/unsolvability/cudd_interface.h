@@ -35,12 +35,12 @@ private:
 #ifdef USE_CUDD
     BDD bdd;
     static Cudd* manager;
-    static std::vector<std::vector<int> > fact_ids;
+    static std::vector<std::vector<BDD> > fact_bdds;
     static char** fact_names;
 #endif
-    CUDD_METHOD(static void initializeManager())
 public:
     CUDD_METHOD(BDDWrapper())
+    CUDD_METHOD(BDDWrapper(bool one))
     CUDD_METHOD(BDDWrapper(int var, int val, bool neg = false))
     CUDD_METHOD(void dumpBDD(std::string filename, std::string bddname) const)
 
@@ -57,7 +57,7 @@ public:
 
     //this method should only be called if no BDD has been created yet
     //(this is guarded by an assertion)
-    CUDD_METHOD(static void initializeManager(const std::vector<int>& variable_order))
+    CUDD_METHOD(static void initializeManager(std::vector<int> var_order))
 };
 
 #endif
