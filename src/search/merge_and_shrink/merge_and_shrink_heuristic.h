@@ -19,6 +19,10 @@ class MergeAndShrinkHeuristic : public Heuristic {
     long starting_peak_memory;
     std::vector<int> variable_order;
 
+    BDDWrapper* certificate;
+
+    bool in_certificate(const GlobalState &global_state);
+
     /*
       TODO: after splitting transition system into several parts, we may
       want to change all transition system pointers into unique_ptr.

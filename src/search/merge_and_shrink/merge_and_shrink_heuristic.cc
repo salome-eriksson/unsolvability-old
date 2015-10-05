@@ -213,26 +213,47 @@ void MergeAndShrinkHeuristic::initialize() {
     cout << "Done initializing merge-and-shrink heuristic [" << timer << "]"
          << endl;
     cout << endl;
+    certificate = get_unsolvability_certificate(g_initial_state());
 }
 
 int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) {
     State state = convert_global_state(global_state);
     int cost = final_transition_system->get_cost(state);
     if (cost == -1) {
-        std::cout << "encountered dead end at the following state:" << std::endl;
-        global_state.dump_pddl();
-        get_unsolvability_certificate(global_state);
-        exit(0);
+        if(!in_certificate(global_state)) {
+            std::cout << "ERROR in state " << global_state.get_id()
+                      << " (should be in certificate)" << std::endl;
+            global_state.dump_pddl();
+        }
         return DEAD_END;
+    }
+    if(in_certificate(global_state)) {
+        std::cout << "ERROR in state " << global_state.get_id()
+                  << " (should NOT be in certificate)" << std::endl;
+        global_state.dump_pddl();
     }
     return cost;
 }
 
-BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalState &) {
-    for(size_t i = 0; i < variable_order.size(); ++i) {
-        std::cout << g_variable_name[variable_order[i]] << " ";
-    }std::cout << std::endl;
+bool MergeAndShrinkHeuristic::in_certificate(const GlobalState &global_state) {
+    BDDWrapper tmp = BDDWrapper();
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        for(int j = 0; j< g_variable_domain[i]; ++j) {
+            if(global_state[i] == j) {
+                tmp.land(i, j, false);
+            } else {
+                tmp.land(i, j, true);
+            }
+        }
+    }
+    tmp.land(*certificate);
+    if(tmp.isZero()) {
+        return false;
+    }
+    return true;
+}
 
+BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalState &) {
     //set up the CUDD manager with the right variable order
     //TODO this is very fragile and needs to be revised
     BDDWrapper::initializeManager(variable_order);

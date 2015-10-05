@@ -76,21 +76,18 @@ void BDDWrapper::initializeManager(std::vector<int> var_order) {
     for(size_t i = 0; i < var_order.size(); ++i) {
         int index = var_order[i];
         fact_bdds[index] = std::vector<BDD>(g_variable_domain[index], manager->bddOne());
-        for(int j = 0; j < g_variable_domain[index]; ++j) {
-            //if the fact name starts with "<none of those>" or "Negated Atom"
-            //then it is not a PDDL fact but a shortcut for saying all other
-            //PDDL facts belonging to this variable are false
-            //TODO super ugly...
-            if((j == g_variable_domain[index]-1) && hasNoneOfThose[index]) {
-                fact_bdds[index][j] = manager->bddOne();
-                int fact_count = count - j;
-                for(int x = 0; x < g_variable_domain[index]-1; ++x) {
-                    fact_bdds[index][j] = fact_bdds[index][j] * !manager->bddVar(fact_count++);
+        int domain_size = g_variable_domain[index];
+        if(hasNoneOfThose[index]) {
+            domain_size--;
+        }
+        for(int j = 0; j < domain_size; ++j) {
+            BDD varbdd = manager->bddVar(count++);
+            for(int x = 0; x < g_variable_domain[index]; ++x) {
+                if(x == j) {
+                    fact_bdds[index][x] = fact_bdds[index][x] * varbdd;
+                } else {
+                    fact_bdds[index][x] = fact_bdds[index][x] - varbdd;
                 }
-                assert(fact_count == count);
-            } else {
-                fact_bdds[index][j]= manager->bddVar(count);
-                count++;
             }
         }
     }
