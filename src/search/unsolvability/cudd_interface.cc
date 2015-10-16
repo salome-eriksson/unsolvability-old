@@ -7,6 +7,7 @@
 std::vector<std::vector<BDD> > BDDWrapper::fact_bdds = std::vector<std::vector<BDD> >();
 Cudd* BDDWrapper::manager = NULL;
 char** BDDWrapper::fact_names = NULL;
+std::vector<std::string> BDDWrapper::fact_names_str = std::vector<std::string>();
 
 
 BDDWrapper::BDDWrapper() {
@@ -95,12 +96,14 @@ void BDDWrapper::initializeManager(std::vector<int> var_order) {
 
     //initializing the char** holding the names of the variables
     fact_names = new char*[amount_vars];
+    fact_names_str = std::vector<std::string>(amount_vars);
     count = 0;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         int index = var_order[i];
         for(int j = 0; j < g_variable_domain[index]; ++j) {
             if(j != g_variable_domain[index]-1 || !hasNoneOfThose[index]) {
                 fact_names[count] = new char[g_fact_names[index][j].size()+1];
+                fact_names_str[count] = g_fact_names[index][j];
                 strcpy(fact_names[count++], g_fact_names[index][j].c_str());
             }
         }
@@ -114,6 +117,13 @@ void BDDWrapper::dumpBDD(std::string filename, std::string bddname) const {
     Dddmp_cuddBddStore(manager->getManager(),&bddname[0], bdd.getNode(), fact_names, NULL,
             DDDMP_MODE_TEXT, DDDMP_VARNAMES, &filename[0], f);
     fclose(f);
+}
+
+void BDDWrapper::writeVarOrder(std::ofstream &file) const {
+    for(size_t i = 0; i < fact_names_str.size(); ++i) {
+        file << fact_names_str[i]; << "|"
+    }
+    file << "\n";
 }
 
 void BDDWrapper::land(int var, int val, bool neg) {

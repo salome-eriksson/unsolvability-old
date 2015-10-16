@@ -8,6 +8,9 @@
 
 #include "../utilities.h"
 
+#include <iostream>
+#include <fstream>
+
 
 /*
   All methods that use CUDD specific classes only do something useful
@@ -37,12 +40,14 @@ private:
     static Cudd* manager;
     static std::vector<std::vector<BDD> > fact_bdds;
     static char** fact_names;
+    static std::vector<std::string> fact_names_str;
 #endif
 public:
     CUDD_METHOD(BDDWrapper())
     CUDD_METHOD(BDDWrapper(bool one))
     CUDD_METHOD(BDDWrapper(int var, int val, bool neg = false))
     CUDD_METHOD(void dumpBDD(std::string filename, std::string bddname) const)
+    CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
 
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
