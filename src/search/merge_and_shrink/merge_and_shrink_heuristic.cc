@@ -20,6 +20,8 @@
 #include <utility>
 #include <vector>
 
+#include <fstream>
+
 using namespace std;
 
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
@@ -266,7 +268,13 @@ BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalS
     final_transition_system->get_heuristic_representation()->get_unsolvability_certificate(
                 h_inf, dummy_vector, false);
 
-    h_inf->dumpBDD("test", "test");
+    ofstream cert_file;
+    cert_file.open("certificate.txt");
+    cert_file << "Simple certificate\n";
+    h_inf->writeVarOrder(cert_file);
+    cert_file << "File:cert1.txt";
+
+    h_inf->dumpBDD("cert1.txt", "cert1");
 
     return h_inf;
 }
