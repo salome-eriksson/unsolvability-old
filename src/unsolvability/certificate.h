@@ -19,7 +19,7 @@ protected:
 public:
   Certificate(Task *task);
   virtual ~Certificate();
-  virtual bool is_unsolvability_certificate() = 0;
+  virtual bool is_unsolvability_certificate();
   virtual bool is_inductive() = 0;
   virtual bool contains_state(const State &state) = 0;
   virtual bool contains_goal() = 0;
