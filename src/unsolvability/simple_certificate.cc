@@ -26,33 +26,6 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     parse_bdd_file(certificate_file, bddvec);
     assert(bddvec.size() == 1);
     certificate = bddvec[0];
-
-
-    //TEST
-    /*int n = task->get_number_of_facts();
-    std::vector<std::string> names(n*2);
-    for(size_t i = 0; i < n; ++i) {
-        names[fact_to_bddvar[i]] = task->get_fact(i);
-        names[fact_to_bddvar[i]+1] = task->get_fact(i) + "'";
-    }
-
-    char **nameschar = new char*[names.size()];
-    for(size_t i = 0; i < names.size(); i++){
-        nameschar[i] = new char[names[i].size() + 1];
-        strcpy(nameschar[i], names[i].c_str());
-    }
-    std::string filename = "testbdd.txt";
-    std::string bddname = "parsed_bdd";
-    FILE* f = fopen(filename.c_str(), "w");
-    Dddmp_cuddBddStore(manager.getManager(),&bddname[0], certificate.getNode(), nameschar, NULL,
-            DDDMP_MODE_TEXT, DDDMP_VARNAMES, &filename[0], f);
-    fclose(f);
-
-    std::cout << "var order:" << std::endl;
-    for(size_t i = 0; i < fact_to_bddvar.size(); ++i) {
-        assert(fact_to_bddvar[i] % 2 == 0);
-        std::cout << i << " " << fact_to_bddvar[i] << std::endl;
-    }*/
 }
 
 bool SimpleCertificate::is_unsolvability_certificate() {
@@ -62,19 +35,28 @@ bool SimpleCertificate::is_unsolvability_certificate() {
 bool SimpleCertificate::is_inductive() {
     //loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
-      const Action &a = task->get_action(i);
-      BDD action_bdd = build_bdd_for_action(a);
+        const Action &a = task->get_action(i);
+        BDD action_bdd = build_bdd_for_action(a);
 
-      //permutation for renaming the certificate to the primed variables
-      int permutation[task->get_number_of_facts()*2];
-      for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
-        permutation[i] = i+1;
-        permutation[i+1] = i;
-      }
-      BDD not_c_primed = (!certificate).Permute(permutation);
+        int factamount = task->get_number_of_facts();
 
-      return (action_bdd * certificate * not_c_primed).IsZero();
+        //permutation for renaming the certificate to the primed variables
+        int permutation[factamount*2];
+        for(int i = 0 ; i < factamount; ++i) {
+          permutation[2*i] = (2*i)+1;
+          permutation[(2*i)+1] = 2*i;
+        }
+        BDD c_primed = certificate.Permute(permutation);
+        // succ represents pairs of states and successors with action a
+        BDD succ = action_bdd * certificate;
+        // res contains pairs of states from above where the successor is not in c (primed)
+        BDD res = succ - c_primed;
+
+        if(!res.IsZero()) {
+            return false;
+        }
     }
+    return true;
 }
 
 bool SimpleCertificate::contains_state(const State &state) {

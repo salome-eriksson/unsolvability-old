@@ -2,7 +2,7 @@
 CUDD_DIR=$(HOME)/progs/cudd
 
 CXX = g++
-CXXFLAGS = -g -O3 -m32
+CXXFLAGS = -g -O3 -m32 -std=c++11
 CUDD_LIBS = obj cudd mtr st util epd dddmp
 CUDD_CXXFLAGS = -I$(CUDD_DIR)/include
 CUDD_LDFLAGS = -static $(foreach lib,$(CUDD_LIBS),-L$(CUDD_DIR)/$(lib) -l$(lib))

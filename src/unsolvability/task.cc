@@ -1,10 +1,88 @@
 #include "task.h"
+#include "global_funcs.h"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <fstream>
+#include <unordered_map>
 
-Task::Task(std::string ) {
-    fact_names.push_back("Atom_airborne(airplane_daewh_seg_rwe_0_50)");
+Task::Task(std::string taskfile) {
+
+    std::ifstream in;
+    in.open(taskfile.c_str());
+    std::string line;
+    std::vector<std::string> linevec;
+    std::unordered_map<std::string, int> fact_map;
+
+    //parse number of atoms
+    std::getline(in, line);
+    split(line, linevec, ':');
+    assert(linevec.size() == 2);
+    if(linevec[0].compare("begin_atoms") != 0) {
+        print_parsing_error_and_exit(line, "begin_atoms:<numatoms>");
+    }
+    int factamount = stoi(linevec[1]);
+    fact_names.resize(factamount);
+    //parse atoms
+    for(size_t i = 0; i < factamount; ++i) {
+        std::getline(in, fact_names[i]);
+        fact_map.insert({fact_names[i], i});
+    }
+    std::getline(in, line);
+    if(line.compare("end_atoms") != 0) {
+        print_parsing_error_and_exit(line, "end_atoms");
+    }
+
+    //parsing actions
+    std::getline(in, line);
+    split(line, linevec, ':');
+    assert(linevec.size() == 2);
+    if(linevec[0].compare("begin_actions") != 0) {
+        print_parsing_error_and_exit(line, "begin_actions:<numactions>");
+    }
+    int actionamount = stoi(linevec[1]);
+    actions.resize(actionamount);
+    for(int i = 0; i < actionamount; ++i) {
+        getline(in, line);
+        if(line.compare("begin_action") != 0) {
+            print_parsing_error_and_exit(line, "begin_action");
+        }
+        //parse name
+        getline(in, line);
+        actions[i].name = line;
+        //parse cost
+        getline(in, line);
+        split(line, linevec, ':');
+        if(linevec[0].compare("cost") != 0) {
+            print_parsing_error_and_exit(line, "cost:<actioncost>");
+        }
+        actions[i].cost = stoi(linevec[1]);
+
+        actions[i].change.resize(factamount, 0);
+        getline(in, line);
+        while(line.compare("end_action")!= 0) {
+            split(line, linevec, ':');
+            assert(linevec.size() == 2);
+            int fact = fact_map.at(linevec[1]);
+            if(linevec[0].compare("PRE") == 0) {
+                actions[i].pre.push_back(fact);
+            } else if(linevec[0].compare("ADD") == 0) {
+                actions[i].change[fact] = 1;
+            } else if(linevec[0].compare("DEL") == 0) {
+                actions[i].change[fact] = -1;
+            } else {
+                print_parsing_error_and_exit(line, "PRE/ADD/DEL");
+            }
+            getline(in, line);
+        }
+    }
+    getline(in, line);
+    if(line.compare("end_actions") != 0) {
+        print_parsing_error_and_exit(line, "end_actions");
+    }
+    assert(!getline(in, line));
+
+    /*fact_names.push_back("Atom_airborne(airplane_daewh_seg_rwe_0_50)");
     fact_names.push_back("Atom_not_blocked(seg_twe4_0_50_airplane_daewh)");
     fact_names.push_back("Atom_not_occupied(seg_pp_0_60)");
     fact_names.push_back("Atom_test2");
@@ -54,7 +132,7 @@ Task::Task(std::string ) {
     fact_names.push_back("Atom_at-segment(airplane_daewh_seg_twe3_0_50)");
     fact_names.push_back("Atom_test3");
     fact_names.push_back("Atom_not_occupied(seg_twe2_0_50)");
-    fact_names.push_back("Atom_test5");
+    fact_names.push_back("Atom_test5");*/
 }
 
 const std::string& Task::get_fact(int n) {

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+PDDL_FILE=driverlog/pfile1
+./translate/instantiate.py ../../benchmarks/$PDDL_FILE
+./../fast-downward.py ../../benchmarks/$PDDL_FILE --search "astar(merge_and_shrink(merge_strategy=merge_linear(), shrink_strategy=shrink_bisimulation(), label_reduction=label_reduction(false,false)))"
+
+./verify task.txt certificate.txt
