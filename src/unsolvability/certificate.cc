@@ -61,7 +61,7 @@ void Certificate::parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds) {
 
     for (int i=0; i<nRoots; i++) {
         bdds[i] = BDD(manager, tmpArray[i]);
-        Cudd_RecursiveDeref (manager.getManager(), tmpArray[i]);
+        Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
     }
     FREE(tmpArray);
 }
@@ -71,12 +71,42 @@ BDD Certificate::build_bdd_for_action(const Action &a) {
     for(size_t i = 0; i < a.pre.size(); ++i) {
         ret = ret * manager.bddVar(fact_to_bddvar[a.pre[i]]);
     }
-    //the +1 below is for getting the primed version of the variable
-    for(size_t i = 0; i < a.add.size(); ++i) {
-        ret = ret * manager.bddVar(fact_to_bddvar[a.add[i]]+1);
-    }
-    for(size_t i = 0; i < a.del.size(); ++i) {
-        ret = ret - manager.bddVar(fact_to_bddvar[a.del[i]]+1);
+
+    //+1 represents primed variable
+    for(size_t i = 0; i < a.change.size(); ++i) {
+        int local_var = fact_to_bddvar[i];
+        //add effect
+        if(a.change[i] == 1) {
+            ret = ret * manager.bddVar(local_var+1);
+        //delete effect
+        } else if(a.change[i] == -1) {
+            ret = ret - manager.bddVar(local_var+1);
+        //no change -> frame axiom
+        } else {
+            assert(a.change[i] == 0);
+            ret = ret * (manager.bddVar(local_var) + !manager.bddVar(local_var+1));
+            ret = ret * (!manager.bddVar(local_var) + manager.bddVar(local_var+1));
+        }
     }
     return ret;
+}
+
+void Certificate::dump_bdd(BDD &bdd, std::string filename) {
+    int n = task->get_number_of_facts();
+    std::vector<std::string> names(n*2);
+    for(size_t i = 0; i < n; ++i) {
+        names[fact_to_bddvar[i]] = task->get_fact(i);
+        names[fact_to_bddvar[i]+1] = task->get_fact(i) + "'";
+    }
+
+    char **nameschar = new char*[names.size()];
+    for(size_t i = 0; i < names.size(); i++){
+        nameschar[i] = new char[names[i].size() + 1];
+        strcpy(nameschar[i], names[i].c_str());
+    }
+    std::string bddname = "bla";
+    FILE* f = fopen(filename.c_str(), "w");
+    Dddmp_cuddBddStore(manager.getManager(),&bddname[0], bdd.getNode(), nameschar, NULL,
+            DDDMP_MODE_TEXT, DDDMP_VARNAMES, &filename[0], f);
+    fclose(f);
 }

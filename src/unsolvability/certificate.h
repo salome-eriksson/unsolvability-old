@@ -23,6 +23,8 @@ public:
   virtual bool is_inductive() = 0;
   virtual bool contains_state(const State &state) = 0;
   virtual bool contains_goal() = 0;
+
+  virtual void dump_bdd(BDD& bdd, std::string filename);
 };
   
 #endif /* CERTIFICATE_H */

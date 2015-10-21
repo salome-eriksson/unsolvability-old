@@ -1,6 +1,8 @@
 #include "cudd_interface.h"
 #include "../globals.h"
 
+#include <algorithm>
+
 #ifdef USE_CUDD
 #include "dddmp.h"
 
@@ -102,9 +104,11 @@ void BDDWrapper::initializeManager(std::vector<int> var_order) {
         int index = var_order[i];
         for(int j = 0; j < g_variable_domain[index]; ++j) {
             if(j != g_variable_domain[index]-1 || !hasNoneOfThose[index]) {
-                fact_names[count] = new char[g_fact_names[index][j].size()+1];
-                fact_names_str[count] = g_fact_names[index][j];
-                strcpy(fact_names[count++], g_fact_names[index][j].c_str());
+                std::string tmp = g_fact_names[index][j].substr(5, g_fact_names[index][j].size()-5);
+                fact_names_str[count] = tmp;
+                tmp.erase(std::remove(tmp.begin(), tmp.end(), ' '),tmp.end());
+                fact_names[count] = new char[fact_names_str[count].size()+1];
+                strcpy(fact_names[count++], tmp.c_str());
             }
         }
     }
@@ -121,9 +125,8 @@ void BDDWrapper::dumpBDD(std::string filename, std::string bddname) const {
 
 void BDDWrapper::writeVarOrder(std::ofstream &file) const {
     for(size_t i = 0; i < fact_names_str.size(); ++i) {
-        file << fact_names_str[i]; << "|"
+        file << fact_names_str[i] << "\n";
     }
-    file << "\n";
 }
 
 void BDDWrapper::land(int var, int val, bool neg) {

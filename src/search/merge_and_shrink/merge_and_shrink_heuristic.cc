@@ -270,9 +270,12 @@ BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalS
 
     ofstream cert_file;
     cert_file.open("certificate.txt");
-    cert_file << "Simple certificate\n";
+    cert_file << "simple_certificate\n";
+    cert_file << "File:cert1.txt\n";
+    cert_file << "begin_variables\n";
     h_inf->writeVarOrder(cert_file);
-    cert_file << "File:cert1.txt";
+    cert_file << "end_variables\n";
+    cert_file << "end_certificate\n";
 
     h_inf->dumpBDD("cert1.txt", "cert1");
 

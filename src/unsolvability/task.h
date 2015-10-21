@@ -7,9 +7,11 @@
 typedef std::vector<bool> State;
 
 struct Action {
-  std::vector<int> pre;
-  std::vector<int> add;
-  std::vector<int> del;
+    std::string name;
+    std::vector<int> pre;
+    //change shows for each variable if it gets added (+1), deleted (-1), or does not change (0)
+    std::vector<int> change;
+    int cost;
 };
 
 class Task {
