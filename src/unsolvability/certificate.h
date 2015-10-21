@@ -9,11 +9,12 @@
 
 class Certificate {
 protected:
-  std::vector<int> atom_to_bddvar;
-  char** fact_names; //needed for reading in the BDD(s)
+  std::vector<int> fact_to_bddvar;
+  int original_bdd_vars; //amount of original bdd vars (without unused and primed vars)
   Task* task;
   Cudd manager;
-  void parse_fact_names_to_bdd_var(std::string facts);
+  void map_global_facts_to_bdd_var(std::ifstream &facts);
+  void parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds);
   BDD build_bdd_for_action(const Action &a);
 public:
   Certificate(Task *task);
