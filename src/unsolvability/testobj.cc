@@ -104,13 +104,14 @@ main(int argc, char **argv)
     }
     
     Cudd mgr(0,0);
-    BDD b = mgr.bddVar();
-    BDD c = mgr.bddVar();
-    BDD a = !c;
+    BDD b1 = mgr.bddVar();
+    BDD b2= mgr.bddVar();
+    BDD b3 = mgr.bddVar();
+    BDD a = (b1+!b2)*b3;
     std::vector<std::string> names;
-    names.push_back("blablib");
-    names.push_back("blablub");
-    names.push_back("invalid");
+    names.push_back("a");
+    names.push_back("b");
+    names.push_back("c");
     
     char ** nameschar = new char*[names.size()];
     for(size_t i = 0; i < names.size(); i++){
@@ -120,9 +121,42 @@ main(int argc, char **argv)
     
     std::string bddname = "testbdd";
     std::string outfile = "bdd.txt";
-    FILE* f = fopen(outfile.c_str(), "w");
     
-    Dddmp_cuddBddStore(mgr.getManager(),&bddname[0], a.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], f);
+    std::cout << "storing 1" << std::endl;
+    
+    Dddmp_cuddBddStore(mgr.getManager(),&bddname[0], a.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], NULL);
+    Cudd mgr2(6,0);
+    
+    int compose[3];
+    compose[0]=3;
+    compose[1]=5;
+    compose[2]=1;
+
+    names.clear();
+    names.push_back("b");
+    names.push_back("b'");
+    names.push_back("c");
+    names.push_back("c'");
+    names.push_back("a");
+    names.push_back("a'");
+
+    nameschar = new char*[names.size()];
+        for(size_t i = 0; i < names.size(); i++){
+            nameschar[i] = new char[names[i].size() + 1];
+            strcpy(nameschar[i], names[i].c_str());
+        }
+    
+    std::cout << "loading 1" << std::endl;
+    BDD x = BDD(mgr2, Dddmp_cuddBddLoad(mgr2.getManager(), 
+      DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, &outfile[0], NULL));
+      
+    outfile = "bdd2.txt";
+    
+    std::cout << "storing 2" << std::endl;
+    Dddmp_cuddBddStore(mgr2.getManager(),&bddname[0], x.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], NULL);
+    
+    std::cout << "end" << std::endl;
+    
     
     //Cudd mgr(0,2);
     // mgr.makeVerbose();		// trace constructors and destructors
