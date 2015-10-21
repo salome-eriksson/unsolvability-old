@@ -8,7 +8,6 @@ private:
   BDD certificate;
 public:
   SimpleCertificate(Task *task, std::ifstream &in);
-  virtual bool is_unsolvability_certificate();
   virtual bool is_inductive();
   virtual bool contains_state(const State &state);
   virtual bool contains_goal();

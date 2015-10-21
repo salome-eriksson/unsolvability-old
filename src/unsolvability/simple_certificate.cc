@@ -28,10 +28,6 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     certificate = bddvec[0];
 }
 
-bool SimpleCertificate::is_unsolvability_certificate() {
-    return contains_state(task->get_initial_state()) && !contains_goal() && is_inductive();
-}
-
 bool SimpleCertificate::is_inductive() {
     //loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {

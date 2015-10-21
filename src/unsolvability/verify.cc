@@ -54,8 +54,6 @@ int main(int argc, char** argv) {
   bool valid = certificate->is_unsolvability_certificate();
   if(valid) {
       std::cout << "The certificate is valid" << std::endl;
-  } else {
-      std::cout << "The certificate is NOT valid" << std::endl;
   }
   exit(0);
 }
