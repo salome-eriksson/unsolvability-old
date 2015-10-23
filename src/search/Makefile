@@ -28,7 +28,7 @@ DOWNWARD_GUROBI_LIBDIR ?=
 ## Set DOWNWARD_USE_CUDD to 1 to enable bdd related code (like unsolvability certificates)
 DOWNWARD_USE_CUDD ?= 1
 ## Set the root directory of your CUDD installation
-DOWNWARD_CUDD_ROOT ?= /home/salone/progs/cudd
+DOWNWARD_CUDD_ROOT ?= /home/simsal00/progs/cudd
 
 
 ## Set DOWNWARD_LINK_RELEASE_STATICALLY to 0 or 1 (default) to
@@ -397,7 +397,7 @@ ifeq ($(DOWNWARD_USE_CUDD),1)
 CUDD_ROOT_FOUND := $(shell test -d $(DOWNWARD_CUDD_ROOT) && echo 1)
 
 ifneq ($(CUDD_ROOT_FOUND),1)
-    $(error CUDD not found. Please install CUDD and set up the environment variable DOWNWARD_COIN_CUDD to its path.)
+    $(error CUDD not found. Please install CUDD and set up the environment variable DOWNWARD_CUDD_ROOT to its path.)
 endif
 
 CUDD_LIBS = obj cudd mtr st util epd dddmp

@@ -33,6 +33,37 @@ Task::Task(std::string taskfile) {
         print_parsing_error_and_exit(line, "end_atoms");
     }
 
+    //parse initial state
+    std::getline(in, line);
+    if(line.compare("begin_init") != 0) {
+        print_parsing_error_and_exit(line, "begin_init");
+    }
+    initial_state.resize(factamount, false);
+    std::getline(in, line);
+    while(line.compare("end_init") != 0) {
+        auto index = fact_map.find(line);
+        if(index == fact_map.end()) {
+            print_parsing_error_and_exit(line, "<initial state atom>");
+        }
+        initial_state[index->second] = true;
+        std::getline(in, line);
+    }
+
+    //parse goal
+    std::getline(in, line);
+    if(line.compare("begin_goal") != 0) {
+        print_parsing_error_and_exit(line, "begin_goal");
+    }
+    std::getline(in, line);
+    while(line.compare("end_goal") != 0) {
+        auto index = fact_map.find(line);
+        if(index == fact_map.end()) {
+            print_parsing_error_and_exit(line, "<goal atom>");
+        }
+        goal.push_back(index->second);
+        std::getline(in, line);
+    }
+
     //parsing actions
     std::getline(in, line);
     split(line, linevec, ':');
