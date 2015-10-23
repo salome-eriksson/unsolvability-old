@@ -82,11 +82,24 @@ if __name__ == "__main__":
     task = pddl_parser.open()
     relaxed_reachable, atoms, actions, axioms, _ = explore(task)
     f = open('task.txt', 'w')
+    
     f.write("begin_atoms:%d\n" % len(atoms))
     for atom in atoms:
         f.write("%s\n" % str(atom))
     f.write("end_atoms\n")
+    
+    f.write("begin_init\n")
+    for atom in task.init:
+        if(atom in atoms):
+            f.write("%s\n" % str(atom))
+    f.write("end_init\n")
+    
+    f.write("begin_goal\n")
+    for atom in task.goal.parts:
+        f.write("%s\n" % str(atom))
+    f.write("end_goal\n")
+    
     f.write("begin_actions:%d\n" % len(actions))
     for action in actions:
         action.writeToFile(f)
-    f.write("end_actions")
+    f.write("end_actions\n")
