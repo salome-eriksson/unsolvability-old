@@ -16,10 +16,11 @@ protected:
   void map_global_facts_to_bdd_var(std::ifstream &facts);
   void parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds);
   BDD build_bdd_for_action(const Action &a);
+  BDD build_primed_bdd();
 public:
   Certificate(Task *task);
   virtual ~Certificate();
-  virtual bool is_unsolvability_certificate();
+  virtual bool is_certificate_for(const State &state);
   virtual bool is_inductive() = 0;
   virtual bool contains_state(const State &state) = 0;
   virtual bool contains_goal() = 0;
