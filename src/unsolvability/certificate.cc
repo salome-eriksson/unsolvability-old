@@ -92,15 +92,15 @@ BDD Certificate::build_bdd_for_action(const Action &a) {
 }
 
 
-bool Certificate::is_unsolvability_certificate() {
-    bool has_initial = contains_state(task->get_initial_state());
+bool Certificate::is_certificate_for(const State &s) {
+    bool has_s = contains_state(s);
     bool has_goal = contains_goal();
     bool inductivity = is_inductive();
-    bool valid = has_initial && !has_goal && inductivity;
+    bool valid = has_s && !has_goal && inductivity;
 
     if(!valid) {
         std::cout << "The certificate is NOT valid because: " << std::endl;
-        if(!has_initial) {
+        if(!has_s) {
             std::cout << " - it does NOT contain the initial state" << std::endl;
         }
         if(has_goal) {

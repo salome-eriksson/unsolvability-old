@@ -26,23 +26,29 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     parse_bdd_file(certificate_file, bddvec);
     assert(bddvec.size() == 1);
     certificate = bddvec[0];
+    std::getline(in, line);
+    if(line.compare("end_certificate") != 0) {
+        print_parsing_error_and_exit(line, "end_certificate");
+    }
 }
 
 bool SimpleCertificate::is_inductive() {
+
+    int factamount = task->get_number_of_facts();
+
+    //permutation for renaming the certificate to the primed variables
+    int permutation[factamount*2];
+    for(int i = 0 ; i < factamount; ++i) {
+      permutation[2*i] = (2*i)+1;
+      permutation[(2*i)+1] = 2*i;
+    }
+
+    BDD c_primed = certificate.Permute(permutation);
+
     //loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
         const Action &a = task->get_action(i);
         BDD action_bdd = build_bdd_for_action(a);
-
-        int factamount = task->get_number_of_facts();
-
-        //permutation for renaming the certificate to the primed variables
-        int permutation[factamount*2];
-        for(int i = 0 ; i < factamount; ++i) {
-          permutation[2*i] = (2*i)+1;
-          permutation[(2*i)+1] = 2*i;
-        }
-        BDD c_primed = certificate.Permute(permutation);
         // succ represents pairs of states and successors with action a
         BDD succ = action_bdd * certificate;
         // res contains pairs of states from above where the successor is not in c (primed)

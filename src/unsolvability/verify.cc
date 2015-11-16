@@ -30,9 +30,7 @@ Certificate* build_certificate(std::string file, Task* task) {
         std::cout << "not yet implemented (strong conjunctive certificate)" << std::endl;
         exit(0);
     } else if(line.compare("search_certificate") == 0) {
-        //TODO
-        std::cout << "not yet implemented (search certificate)" << std::endl;
-        exit(0);
+        return new SearchCertificate(task, stream);
     } else {
         std::cout << "unknown certificate type: " << line << std::endl;
         exit(0);
@@ -51,7 +49,7 @@ int main(int argc, char** argv) {
   std::string certificate_file = argv[2];
   Task* task = new Task(pddl_file);
   Certificate* certificate = build_certificate(certificate_file, task);
-  bool valid = certificate->is_unsolvability_certificate();
+  bool valid = certificate->is_certificate_for(task->get_initial_state());
   if(valid) {
       std::cout << "The certificate is valid" << std::endl;
   }
