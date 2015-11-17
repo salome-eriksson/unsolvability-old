@@ -22,7 +22,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
     CuddManager* cudd_manager;
     CuddBDD* certificate;
 
-    bool in_certificate(const GlobalState &global_state);
+    //bool in_certificate(const GlobalState &global_state);
 
     /*
       TODO: after splitting transition system into several parts, we may
@@ -40,8 +40,9 @@ protected:
 public:
     explicit MergeAndShrinkHeuristic(const Options &opts);
     ~MergeAndShrinkHeuristic() = default;
-
-    virtual CuddBDD* get_unsolvability_certificate(const GlobalState &state);
+    virtual void build_unsolvability_certificate(const GlobalState &);
+    virtual int get_number_of_unsolvability_certificates();
+    virtual void write_subcertificates(std::ofstream &);
 };
 
 #endif

@@ -20,8 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include <fstream>
-
 using namespace std;
 
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
@@ -215,69 +213,51 @@ void MergeAndShrinkHeuristic::initialize() {
     cout << "Done initializing merge-and-shrink heuristic [" << timer << "]"
          << endl;
     cout << endl;
-    certificate = get_unsolvability_certificate(g_initial_state());
 }
 
 int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) {
     State state = convert_global_state(global_state);
     int cost = final_transition_system->get_cost(state);
     if (cost == -1) {
-        if(!in_certificate(global_state)) {
-            std::cout << "ERROR in state " << global_state.get_id()
-                      << " (should be in certificate)" << std::endl;
-            global_state.dump_pddl();
-        }
         return DEAD_END;
-    }
-    if(in_certificate(global_state)) {
-        std::cout << "ERROR in state " << global_state.get_id()
-                  << " (should NOT be in certificate)" << std::endl;
-        global_state.dump_pddl();
     }
     return cost;
 }
 
-bool MergeAndShrinkHeuristic::in_certificate(const GlobalState &global_state) {
-    CuddBDD tmp = CuddBDD(cudd_manager);
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        for(int j = 0; j< g_variable_domain[i]; ++j) {
-            if(global_state[i] == j) {
-                tmp.land(i, j, false);
-            } else {
-                tmp.land(i, j, true);
-            }
-        }
+void MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &) {
+    if(!certificate) {
+        return;
     }
-    tmp.land(*certificate);
-    if(tmp.isZero()) {
-        return false;
-    }
-    return true;
-}
-
-CuddBDD* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalState &) {
     //set up the CUDD manager with the right variable order
     cudd_manager = new CuddManager(variable_order);
-
-    CuddBDD* h_inf = new CuddBDD(cudd_manager, false);
+    certificate = new CuddBDD(cudd_manager, false);
 
     std::vector<CuddBDD> dummy_vector;
 
     final_transition_system->get_heuristic_representation()->get_unsolvability_certificate(
-                h_inf, dummy_vector, false);
+                certificate, dummy_vector, false);
+}
 
-    ofstream cert_file;
-    cert_file.open("certificate.txt");
+int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
+    if(certificate != NULL) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void MergeAndShrinkHeuristic::write_subcertificates(std::ofstream &cert_file) {
+    std::vector<CuddBDD*> bdds;
+    bdds.push_back(certificate);
+    std::vector<std::string> names;
+    names.push_back("cert_ms");
+    cudd_manager->dumpBDDs(bdds, names, "cert_ms.txt");
     cert_file << "simple_certificate\n";
-    cert_file << "File:cert1.txt\n";
+    cert_file << "File:cert_ms.txt\n";
     cert_file << "begin_variables\n";
     cudd_manager->writeVarOrder(cert_file);
     cert_file << "end_variables\n";
     cert_file << "end_certificate\n";
-
-    h_inf->dumpBDD("cert1.txt", "cert1");
-
-    return h_inf;
 }
 
 static Heuristic *_parse(OptionParser &parser) {

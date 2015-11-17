@@ -38,6 +38,7 @@ class Cudd;
 class CuddManager;
 
 class CuddBDD {
+    friend class CuddManager;
 private:
     CuddManager *manager;
 #ifdef USE_CUDD
@@ -80,6 +81,7 @@ public:
     CUDD_METHOD(CuddManager(std::vector<int> &var_order))
 
     CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
+    CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const)
 };
 
 #endif

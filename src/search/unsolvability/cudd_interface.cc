@@ -153,4 +153,17 @@ void CuddManager::writeVarOrder(std::ofstream &file) const {
     }
 }
 
+void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const {
+    int size = bdds.size();
+    DdNode** bdd_arr = new DdNode*[size];
+    char** names_char = new char*[size];
+    for(int i = 0; i < size; ++i) {
+        bdd_arr[i] = bdds[i]->bdd.getNode();
+        names_char[i] = new char[names[i].size() + 1];
+        strcpy(names_char[i], names[i].c_str());
+    }
+    Dddmp_cuddBddArrayStore(cm->getManager(), NULL, size, bdd_arr, names_char,
+                            NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], NULL);
+}
+
 #endif
