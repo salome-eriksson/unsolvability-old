@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <set>
+#include <fstream>
 using namespace std;
 
 EagerSearch::EagerSearch(const Options &opts)
@@ -50,6 +51,10 @@ void EagerSearch::initialize() {
     heuristics.assign(hset.begin(), hset.end());
     assert(!heuristics.empty());
 
+    manager = new CuddManager();
+    bdd_exp = new CuddBDD(manager, false);
+    bdd_pr = new CuddBDD(manager, false);
+
     const GlobalState &initial_state = g_initial_state();
     // Note: we consider the initial state as reached by a preferred
     // operator.
@@ -58,8 +63,11 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
+        bdd_pr->lor(CuddBDD(manager, initial_state));
+        heuristics[0]->build_unsolvability_certificate(initial_state);
         cout << "Initial state is a dead end." << endl;
     } else {
+        bdd_exp->lor(CuddBDD(manager, initial_state));
         if (search_progress.check_progress(eval_context))
             print_checkpoint_line(0);
         start_f_value_statistics(eval_context);
@@ -86,6 +94,7 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
+        build_certificate();
         return FAILED;
     }
     SearchNode node = n.first;
@@ -123,8 +132,13 @@ SearchStatus EagerSearch::step() {
         SearchNode succ_node = search_space.get_node(succ_state);
 
         // Previously encountered dead end. Don't re-evaluate.
-        if (succ_node.is_dead_end())
+        if (succ_node.is_dead_end()) {
+            bdd_pr->lor(CuddBDD(manager, succ_state));
+            heuristics[0]->build_unsolvability_certificate(succ_state);
             continue;
+        } else {
+            bdd_exp->lor(CuddBDD(manager, succ_state));
+        }
 
         // update new path
         if (use_multi_path_dependence || succ_node.is_new()) {
@@ -312,6 +326,28 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
         int new_f_value = node.get_g() + node.get_h();
         statistics.report_f_value_progress(new_f_value);
     }
+}
+
+void EagerSearch::build_certificate() {
+    ofstream cert_file;
+    std::vector<CuddBDD*> bdds(2, NULL);
+    bdds[0] = bdd_exp;
+    bdds[1] = bdd_pr;
+    std::vector<string> names;
+    names.push_back("bdd_exp");
+    names.push_back("bdd_pr");
+    manager->dumpBDDs(bdds, names, "cert_search.txt");
+    cert_file.open("certificate.txt");
+    cert_file << "search_certificate\n";
+    cert_file << "File:cert_search.txt\n";
+    cert_file << "begin_variables\n";
+    manager->writeVarOrder(cert_file);
+    cert_file << "end_variables\n";
+    cert_file << "subcertificates:"
+              << heuristics[0]->get_number_of_unsolvability_certificates() << "\n";
+    heuristics[0]->write_subcertificates(cert_file);
+    cert_file << "end_subcertificates\n";
+    cert_file << "end_certificate\n";
 }
 
 static SearchEngine *_parse(OptionParser &parser) {

@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <fstream>
 
 class GlobalOperator;
 class GlobalState;
@@ -75,7 +76,9 @@ public:
 
     std::string get_description() const;
 
-    virtual CuddBDD* get_unsolvability_certificate(const GlobalState &state);
+    virtual void build_unsolvability_certificate(const GlobalState &) {std::cout << "WRONG!" <<std::endl;}
+    virtual int get_number_of_unsolvability_certificates() { return -1; }
+    virtual void write_subcertificates(std::ofstream &) {}
 };
 
 #endif
