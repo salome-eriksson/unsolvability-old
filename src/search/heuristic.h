@@ -75,7 +75,7 @@ public:
 
     std::string get_description() const;
 
-    virtual BDDWrapper* get_unsolvability_certificate(const GlobalState &state);
+    virtual CuddBDD* get_unsolvability_certificate(const GlobalState &state);
 };
 
 #endif

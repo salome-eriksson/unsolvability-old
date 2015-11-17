@@ -6,53 +6,97 @@
 #ifdef USE_CUDD
 #include "dddmp.h"
 
-std::vector<std::vector<BDD> > BDDWrapper::fact_bdds = std::vector<std::vector<BDD> >();
-Cudd* BDDWrapper::manager = NULL;
-char** BDDWrapper::fact_names = NULL;
-std::vector<std::string> BDDWrapper::fact_names_str = std::vector<std::string>();
 
-
-BDDWrapper::BDDWrapper() {
-    if(manager == NULL) {
-        std::cout << "Creating a BDD without initializing variable order - using default order"
-                     << std::endl;
-        BDDWrapper::initializeManager(std::vector<int>());
-    }
-    bdd = manager->bddOne();
-}
-
-BDDWrapper::BDDWrapper(bool one) {
-    if(manager == NULL) {
-        std::cout << "Creating a BDD without initializing variable order - using default order"
-                     << std::endl;
-        BDDWrapper::initializeManager(std::vector<int>());
-    }
-    if(one) {
-        bdd = manager->bddOne();
+CuddBDD::CuddBDD(CuddManager *manager, bool positive)
+    : manager(manager) {
+    if(!positive) {
+        bdd = manager->cm->bddZero();
     } else {
-        bdd = manager->bddZero();
+        bdd = manager->cm->bddOne();
     }
 }
 
-BDDWrapper::BDDWrapper(int var, int val, bool neg) {
-    if(manager == NULL) {
-        std::cout << "Creating a BDD without initializing variable order - using default order"
-                     << std::endl;
-        BDDWrapper::initializeManager(std::vector<int>());
-    }
-    bdd = fact_bdds[var][val];
+CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
+    : manager(manager) {
+    bdd = manager->fact_bdds[var][val];
     if(neg) {
         bdd = !bdd;
     }
 }
 
-void BDDWrapper::initializeManager(std::vector<int> var_order) {
-    assert(manager == NULL);
-    if(var_order.empty()) {
-        for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-            var_order.push_back(i);
-        }
+CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
+    : manager(manager) {
+    bdd = manager->fact_bdds[0][state[0]];
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        bdd = bdd * manager->fact_bdds[i][state[i]];
     }
+}
+
+void CuddBDD::land(int var, int val, bool neg) {
+    if(neg) {
+        bdd = bdd - manager->fact_bdds[var][val];
+    } else {
+        bdd = bdd * manager->fact_bdds[var][val];
+    }
+}
+
+void CuddBDD::lor(int var, int val, bool neg) {
+    if(neg) {
+        bdd = bdd + !(manager->fact_bdds[var][val]);
+    } else {
+        bdd = bdd + manager->fact_bdds[var][val];
+    }
+}
+
+void CuddBDD::negate() {
+    bdd = !bdd;
+}
+
+void CuddBDD::land(const CuddBDD &bdd2) {
+    bdd = bdd * bdd2.bdd;
+}
+
+void CuddBDD::lor(const CuddBDD &bdd2) {
+    bdd = bdd + bdd2.bdd;
+}
+
+bool CuddBDD::isOne() const {
+    return bdd.IsOne();
+}
+
+bool CuddBDD::isZero() const {
+    return bdd.IsZero();
+}
+
+bool CuddBDD::isEqualTo(const CuddBDD &bdd2) const {
+    return bdd == bdd2.bdd;
+}
+
+CuddManager* CuddBDD::get_manager() {
+    return manager;
+}
+
+void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
+    FILE* f = fopen(filename.c_str(), "w");
+    Dddmp_cuddBddStore(manager->cm->getManager(),&bddname[0], bdd.getNode(), NULL, NULL,
+            DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], f);
+    fclose(f);
+}
+
+
+CuddManager::CuddManager() {
+    std::vector<int> var_order;
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        var_order.push_back(i);
+    }
+    initialize_manager(var_order);
+}
+
+CuddManager::CuddManager(std::vector<int> &var_order) {
+    initialize_manager(var_order);
+}
+
+void CuddManager::initialize_manager(std::vector<int> &var_order) {
     assert(g_variable_domain.size() == var_order.size());
 
     std::vector<bool> hasNoneOfThose(g_variable_domain.size(), false);
@@ -72,19 +116,23 @@ void BDDWrapper::initializeManager(std::vector<int> var_order) {
 
     }
 
-    manager = new Cudd(amount_vars,0);
+    cm = new Cudd(amount_vars,0);
 
+    // fact_bdds represent for each var-val pair (from the search) the correct bdd
     fact_bdds.resize(var_order.size());
+    // var_to_fact_pair shows which var-val pair corresponds to which bdd var
+    var_to_fact_pair.resize(amount_vars);
     int count = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {
         int index = var_order[i];
-        fact_bdds[index] = std::vector<BDD>(g_variable_domain[index], manager->bddOne());
-        int domain_size = g_variable_domain[index];
+        fact_bdds[index] = std::vector<BDD>(g_variable_domain[index], cm->bddOne());
+        int pddl_vars = g_variable_domain[index];
         if(hasNoneOfThose[index]) {
-            domain_size--;
+            pddl_vars--;
         }
-        for(int j = 0; j < domain_size; ++j) {
-            BDD varbdd = manager->bddVar(count++);
+        for(int j = 0; j < pddl_vars; ++j) {
+            var_to_fact_pair[count] = std::make_pair(index,j);
+            BDD varbdd = cm->bddVar(count++);
             for(int x = 0; x < g_variable_domain[index]; ++x) {
                 if(x == j) {
                     fact_bdds[index][x] = fact_bdds[index][x] * varbdd;
@@ -95,77 +143,14 @@ void BDDWrapper::initializeManager(std::vector<int> var_order) {
         }
     }
     assert(count == amount_vars);
-
-    //initializing the char** holding the names of the variables
-    fact_names = new char*[amount_vars];
-    fact_names_str = std::vector<std::string>(amount_vars);
-    count = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        int index = var_order[i];
-        for(int j = 0; j < g_variable_domain[index]; ++j) {
-            if(j != g_variable_domain[index]-1 || !hasNoneOfThose[index]) {
-                std::string tmp = g_fact_names[index][j].substr(5, g_fact_names[index][j].size()-5);
-                fact_names_str[count] = tmp;
-                tmp.erase(std::remove(tmp.begin(), tmp.end(), ' '),tmp.end());
-                fact_names[count] = new char[fact_names_str[count].size()+1];
-                strcpy(fact_names[count++], tmp.c_str());
-            }
-        }
-    }
-    assert(count == amount_vars);
-
 }
 
-void BDDWrapper::dumpBDD(std::string filename, std::string bddname) const {
-    FILE* f = fopen(filename.c_str(), "w");
-    Dddmp_cuddBddStore(manager->getManager(),&bddname[0], bdd.getNode(), fact_names, NULL,
-            DDDMP_MODE_TEXT, DDDMP_VARNAMES, &filename[0], f);
-    fclose(f);
-}
-
-void BDDWrapper::writeVarOrder(std::ofstream &file) const {
-    for(size_t i = 0; i < fact_names_str.size(); ++i) {
-        file << fact_names_str[i] << "\n";
+void CuddManager::writeVarOrder(std::ofstream &file) const {
+    for(size_t i = 0; i < var_to_fact_pair.size(); ++i) {
+        std::pair<int,int> p = var_to_fact_pair[i];
+        //substring, because we remove "Atom "
+        file << g_fact_names[p.first][p.second].substr(5, g_fact_names[p.first][p.second].size()-5) << "\n";
     }
 }
 
-void BDDWrapper::land(int var, int val, bool neg) {
-    BDD tmp = fact_bdds[var][val];
-    if(neg) {
-        tmp = !tmp;
-    }
-    bdd = bdd * tmp;
-}
-
-void BDDWrapper::land(const BDDWrapper &bdd2) {
-    bdd = bdd * bdd2.bdd;
-}
-
-void BDDWrapper::lor(int var, int val, bool neg) {
-    BDD tmp = fact_bdds[var][val];
-    if(neg) {
-        tmp = !tmp;
-    }
-    bdd = bdd + tmp;
-}
-
-void BDDWrapper::lor(const BDDWrapper &bdd2) {
-    bdd = bdd + bdd2.bdd;
-}
-
-void BDDWrapper::negate() {
-    bdd = !bdd;
-}
-
-bool BDDWrapper::isOne() const{
-    return bdd.IsOne();
-}
-
-bool BDDWrapper::isZero() const{
-    return bdd.IsZero();
-}
-
-bool BDDWrapper::isEqualTo(const BDDWrapper &bdd2) const{
-    return bdd == bdd2.bdd;
-}
 #endif

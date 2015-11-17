@@ -19,7 +19,8 @@ class MergeAndShrinkHeuristic : public Heuristic {
     long starting_peak_memory;
     std::vector<int> variable_order;
 
-    BDDWrapper* certificate;
+    CuddManager* cudd_manager;
+    CuddBDD* certificate;
 
     bool in_certificate(const GlobalState &global_state);
 
@@ -40,7 +41,7 @@ public:
     explicit MergeAndShrinkHeuristic(const Options &opts);
     ~MergeAndShrinkHeuristic() = default;
 
-    virtual BDDWrapper* get_unsolvability_certificate(const GlobalState &state);
+    virtual CuddBDD* get_unsolvability_certificate(const GlobalState &state);
 };
 
 #endif

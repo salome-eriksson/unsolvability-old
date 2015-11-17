@@ -13,7 +13,7 @@ class HeuristicRepresentation {
 protected:
     int domain_size;
 
-    void buildBDD(int var, std::vector<BDDWrapper> &child_bdds, std::vector<int> &lookup, BDDWrapper& bdd);
+    void buildBDD(int var, std::vector<CuddBDD> &child_bdds, std::vector<int> &lookup, CuddBDD& bdd);
 public:
     explicit HeuristicRepresentation(int domain_size);
     virtual ~HeuristicRepresentation() = 0;
@@ -23,8 +23,8 @@ public:
     virtual int get_abstract_state(const State &state) const = 0;
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) = 0;
-    virtual void get_unsolvability_certificate(BDDWrapper* h_inf,
-                std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val) = 0;
+    virtual void get_unsolvability_certificate(CuddBDD* h_inf,
+                std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) = 0;
 };
 
 
@@ -39,8 +39,8 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
-    virtual void get_unsolvability_certificate(BDDWrapper* h_inf,
-                std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val);
+    virtual void get_unsolvability_certificate(CuddBDD* h_inf,
+                std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val);
 };
 
 
@@ -57,8 +57,8 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
-    virtual void get_unsolvability_certificate(BDDWrapper* h_inf,
-                std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val);
+    virtual void get_unsolvability_certificate(CuddBDD* h_inf,
+                std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val);
 };
 
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "../global_state.h"
 #include "../utilities.h"
 
 #include <iostream>
@@ -33,36 +34,52 @@ class Cudd;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
-class BDDWrapper {
+
+class CuddManager;
+
+class CuddBDD {
 private:
+    CuddManager *manager;
 #ifdef USE_CUDD
     BDD bdd;
-    static Cudd* manager;
-    static std::vector<std::vector<BDD> > fact_bdds;
-    static char** fact_names;
-    static std::vector<std::string> fact_names_str;
 #endif
+    //CUDD_METHOD(CuddBDD(BDD bdd))
 public:
-    CUDD_METHOD(BDDWrapper())
-    CUDD_METHOD(BDDWrapper(bool one))
-    CUDD_METHOD(BDDWrapper(int var, int val, bool neg = false))
-    CUDD_METHOD(void dumpBDD(std::string filename, std::string bddname) const)
-    CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
-
+    CUDD_METHOD(CuddBDD(CuddManager *manager, bool positive=true))
+    CUDD_METHOD(CuddBDD(CuddManager *manager, int var, int val, bool neg=false))
+    CUDD_METHOD(CuddBDD(CuddManager *manager, const GlobalState &state))
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
     CUDD_METHOD(void negate())
-    CUDD_METHOD(void land(const BDDWrapper &bdd2))
-    CUDD_METHOD(void lor(const BDDWrapper &bdd2))
+    CUDD_METHOD(void land(const CuddBDD &bdd2))
+    CUDD_METHOD(void lor(const CuddBDD &bdd2))
 
     CUDD_METHOD(bool isOne() const)
     CUDD_METHOD(bool isZero() const)
 
-    CUDD_METHOD(bool isEqualTo(const BDDWrapper &bdd2) const)
+    CUDD_METHOD(bool isEqualTo(const CuddBDD &bdd2) const)
 
-    //this method should only be called if no BDD has been created yet
-    //(this is guarded by an assertion)
-    CUDD_METHOD(static void initializeManager(std::vector<int> var_order))
+    //TODO: not sure if this is a good idea, it is used in heuristic representation in M&S
+    //to get the M&S manager without needing to pass it through all the time
+    CUDD_METHOD(CuddManager *get_manager())
+
+    CUDD_METHOD(void dumpBDD(std::string filename, std::string bddname) const)
+};
+
+class CuddManager {
+    friend class CuddBDD;
+private:
+#ifdef USE_CUDD
+    Cudd* cm;
+    std::vector<std::pair<int,int> > var_to_fact_pair;
+    std::vector<std::vector<BDD> > fact_bdds;
+#endif
+    CUDD_METHOD(void initialize_manager(std::vector<int> &var_order))
+public:
+    CUDD_METHOD(CuddManager())
+    CUDD_METHOD(CuddManager(std::vector<int> &var_order))
+
+    CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
 };
 
 #endif

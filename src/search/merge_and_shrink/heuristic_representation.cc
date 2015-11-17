@@ -46,8 +46,8 @@ int HeuristicRepresentationLeaf::get_abstract_state(const State &state) const {
     return lookup_table[value];
 }
 
-void HeuristicRepresentationLeaf::get_unsolvability_certificate(BDDWrapper* h_inf,
-            std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val) {
+void HeuristicRepresentationLeaf::get_unsolvability_certificate(CuddBDD* h_inf,
+            std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
     int val;
     for(size_t i = 0; i < lookup_table.size(); ++i) {
         val = lookup_table[i];
@@ -110,19 +110,20 @@ int HeuristicRepresentationMerge::get_abstract_state(
  * fill_bdd_for_val: if bdd_for_val should be filled (this will not be necessary for the "root"
  * table, since we are only interested in the states with infinite estimate
  */
-void HeuristicRepresentationMerge::get_unsolvability_certificate(BDDWrapper* h_inf,
-         std::vector<BDDWrapper> &bdd_for_val, bool fill_bdd_for_val) {
+void HeuristicRepresentationMerge::get_unsolvability_certificate(CuddBDD* h_inf,
+         std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
+    CuddManager* manager = h_inf->get_manager();
     size_t rows = lookup_table.size();
     size_t columns = lookup_table[0].size();
     //get the bdds for the child nodes
-    std::vector<BDDWrapper> left_child_bdds(rows, BDDWrapper(false));
-    std::vector<BDDWrapper> right_child_bdds(columns, BDDWrapper(false));
+    std::vector<CuddBDD> left_child_bdds(rows, CuddBDD(manager, false));
+    std::vector<CuddBDD> right_child_bdds(columns, CuddBDD(manager, false));
     left_child->get_unsolvability_certificate(h_inf, left_child_bdds, true);
     right_child->get_unsolvability_certificate(h_inf, right_child_bdds, true);
 
 
     int val;
-    BDDWrapper tmp;
+    CuddBDD tmp(manager);
     for(size_t i = 0; i < rows; ++i) {
         for(size_t j = 0; j < columns; ++j) {
             val = lookup_table[i][j];
