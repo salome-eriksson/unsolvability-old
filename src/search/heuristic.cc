@@ -114,6 +114,6 @@ string Heuristic::get_description() const {
     return description;
 }
 
-BDDWrapper* Heuristic::get_unsolvability_certificate(const GlobalState &) {
+CuddBDD* Heuristic::get_unsolvability_certificate(const GlobalState &) {
     return NULL;
 }

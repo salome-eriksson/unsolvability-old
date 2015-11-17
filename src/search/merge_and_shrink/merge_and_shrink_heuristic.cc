@@ -238,7 +238,7 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
 }
 
 bool MergeAndShrinkHeuristic::in_certificate(const GlobalState &global_state) {
-    BDDWrapper tmp = BDDWrapper();
+    CuddBDD tmp = CuddBDD(cudd_manager);
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         for(int j = 0; j< g_variable_domain[i]; ++j) {
             if(global_state[i] == j) {
@@ -255,15 +255,13 @@ bool MergeAndShrinkHeuristic::in_certificate(const GlobalState &global_state) {
     return true;
 }
 
-BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalState &) {
+CuddBDD* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalState &) {
     //set up the CUDD manager with the right variable order
-    //TODO this is very fragile and needs to be revised
-    BDDWrapper::initializeManager(variable_order);
+    cudd_manager = new CuddManager(variable_order);
 
-    BDDWrapper* h_inf = new BDDWrapper();
-    h_inf->negate();
+    CuddBDD* h_inf = new CuddBDD(cudd_manager, false);
 
-    std::vector<BDDWrapper> dummy_vector;
+    std::vector<CuddBDD> dummy_vector;
 
     final_transition_system->get_heuristic_representation()->get_unsolvability_certificate(
                 h_inf, dummy_vector, false);
@@ -273,7 +271,7 @@ BDDWrapper* MergeAndShrinkHeuristic::get_unsolvability_certificate(const GlobalS
     cert_file << "simple_certificate\n";
     cert_file << "File:cert1.txt\n";
     cert_file << "begin_variables\n";
-    h_inf->writeVarOrder(cert_file);
+    cudd_manager->writeVarOrder(cert_file);
     cert_file << "end_variables\n";
     cert_file << "end_certificate\n";
 

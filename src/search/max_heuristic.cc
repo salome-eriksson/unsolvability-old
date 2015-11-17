@@ -113,7 +113,8 @@ int HSPMaxHeuristic::compute_heuristic(const GlobalState &state) {
     return total_cost;
 }
 
-BDDWrapper* HSPMaxHeuristic::get_unsolvability_certificate(const GlobalState &state) {
+// TODO: make this compatible with the new interface
+/*BDDWrapper* HSPMaxHeuristic::get_unsolvability_certificate(const GlobalState &state) {
     BDDWrapper* bdd = new BDDWrapper();
     for(size_t i = 0; i < propositions.size(); ++i) {
         for(size_t j = 0; j < propositions[i].size(); ++j) {
@@ -126,7 +127,7 @@ BDDWrapper* HSPMaxHeuristic::get_unsolvability_certificate(const GlobalState &st
     }
     bdd->dumpBDD("test", "test");
     return bdd;
-}
+}*/
 
 
 static Heuristic *_parse(OptionParser &parser) {
