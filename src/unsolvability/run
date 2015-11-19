@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PDDL_FILE=clickgame/prob05.pddl
+PDDL_FILE=mystery/prob05.pddl
 echo "-------------------------------------------------"
 echo "RUNNING TASK"
 echo "-------------------------------------------------"

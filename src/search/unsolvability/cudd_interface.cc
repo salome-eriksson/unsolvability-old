@@ -18,6 +18,7 @@ CuddBDD::CuddBDD(CuddManager *manager, bool positive)
 
 CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
     : manager(manager) {
+    assert(!manager->fact_bdds[var].empty());
     bdd = manager->fact_bdds[var][val];
     if(neg) {
         bdd = !bdd;
@@ -28,11 +29,14 @@ CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     : manager(manager) {
     bdd = manager->fact_bdds[0][state[0]];
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        bdd = bdd * manager->fact_bdds[i][state[i]];
+        if(!manager->fact_bdds[i].empty()) {
+            bdd = bdd * manager->fact_bdds[i][state[i]];
+        }
     }
 }
 
 void CuddBDD::land(int var, int val, bool neg) {
+    assert(!manager->fact_bdds[var].empty());
     if(neg) {
         bdd = bdd - manager->fact_bdds[var][val];
     } else {
@@ -41,6 +45,7 @@ void CuddBDD::land(int var, int val, bool neg) {
 }
 
 void CuddBDD::lor(int var, int val, bool neg) {
+    assert(!manager->fact_bdds[var].empty());
     if(neg) {
         bdd = bdd + !(manager->fact_bdds[var][val]);
     } else {
@@ -97,21 +102,21 @@ CuddManager::CuddManager(std::vector<int> &var_order) {
 }
 
 void CuddManager::initialize_manager(std::vector<int> &var_order) {
-    assert(g_variable_domain.size() == var_order.size());
 
     std::vector<bool> hasNoneOfThose(g_variable_domain.size(), false);
     int amount_vars = 0;
 
     //collect which variables have a "none of those" value and count total number
     //of PDDL variables
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        std::string last_fact = g_fact_names[i][g_variable_domain[i]-1];
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        int index = var_order[i];
+        std::string last_fact = g_fact_names[index][g_variable_domain[index]-1];
         if(last_fact.substr(0,15).compare("<none of those>") == 0 ||
                 last_fact.substr(0,11).compare("NegatedAtom") == 0) {
-            hasNoneOfThose[i] = true;
-            amount_vars += g_variable_domain[i]-1;
+            hasNoneOfThose[index] = true;
+            amount_vars += g_variable_domain[index]-1;
         } else {
-            amount_vars += g_variable_domain[i];
+            amount_vars += g_variable_domain[index];
         }
 
     }
@@ -119,7 +124,7 @@ void CuddManager::initialize_manager(std::vector<int> &var_order) {
     cm = new Cudd(amount_vars,0);
 
     // fact_bdds represent for each var-val pair (from the search) the correct bdd
-    fact_bdds.resize(var_order.size());
+    fact_bdds.resize(g_variable_domain.size());
     // var_to_fact_pair shows which var-val pair corresponds to which bdd var
     var_to_fact_pair.resize(amount_vars);
     int count = 0;
