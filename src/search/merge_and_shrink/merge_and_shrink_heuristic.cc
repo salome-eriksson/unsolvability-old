@@ -27,7 +27,7 @@ MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
       merge_strategy(opts.get<shared_ptr<MergeStrategy> >("merge_strategy")),
       shrink_strategy(opts.get<shared_ptr<ShrinkStrategy> >("shrink_strategy")),
       labels(opts.get<shared_ptr<Labels> >("label_reduction")),
-      starting_peak_memory(-1),
+      starting_peak_memory(-1), certificate(NULL),
       final_transition_system(nullptr) {
     /*
       TODO: Can we later get rid of the initialize calls, after rethinking
@@ -225,7 +225,7 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
 }
 
 void MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &) {
-    if(!certificate) {
+    if(certificate != NULL) {
         return;
     }
     //set up the CUDD manager with the right variable order
@@ -247,6 +247,9 @@ int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
 }
 
 void MergeAndShrinkHeuristic::write_subcertificates(std::ofstream &cert_file) {
+    if(certificate == NULL) {
+        return;
+    }
     std::vector<CuddBDD*> bdds;
     bdds.push_back(certificate);
     std::vector<std::string> names;
