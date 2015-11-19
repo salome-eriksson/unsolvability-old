@@ -19,12 +19,15 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     }
     assert(line_arr.size() == 2);
     std::string certificate_file = line_arr[1];
+    std::cout << "search certificate file: " << certificate_file << std::endl;
     std::getline(in, line);
     if(line.compare("begin_variables") != 0) {
         print_parsing_error_and_exit(line, "begin_variables");
     }
+    std::cout << "reading in variable order for search certificate" << std::endl;
     map_global_facts_to_bdd_var(in);
     std::vector<BDD> bddvec;
+    std::cout << "parsing bdds in search certificate file" << std::endl;
     parse_bdd_file(certificate_file, bddvec);
     assert(bddvec.size() == 2);
     bdd_exp = bddvec[0];
@@ -43,18 +46,21 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
         print_parsing_error_and_exit(line, "subcertificates:<#subcertificates");
     }
     int subcertificates_amount = stoi(line_arr[1]);
+    std::cout << "parsing " << subcertificates_amount << " subcertificates" << std::endl;
     h_certificates.resize(subcertificates_amount);
     for(int i = 0; i < subcertificates_amount; ++i) {
         std::getline(in, line);
 
         if(line.compare("simple_certificate") == 0) {
+            std::cout << "subcertificate " << i << ": Simple certificate" << std::endl;
             h_certificates[i]= new SimpleCertificate(task, in);
         } else if(line.compare("strong_conjunctive_certificate") == 0) {
             //TODO
             std::cout << "not yet implemented (strong conjunctive certificate)" << std::endl;
             exit(0);
         } else {
-            std::cout << "unknown certificate type: " << line << std::endl;
+            std::cout << "subcertificate " << i
+                      << " type unknown: " << line << std::endl;
             exit(0);
         }
     }
@@ -66,6 +72,7 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     if(line.compare("end_certificate") != 0) {
         print_parsing_error_and_exit(line, "end_certificate");
     }
+    std::cout << "done building search certificate" << std::endl;
 }
 
 /* The certificate contains a state if it is either in the BDD representing
@@ -153,9 +160,9 @@ bool SearchCertificate::is_inductive() {
     //and all h_certificates are inductive
 
     //the bdd contains all facts from the task, plus their primed version
-    int* cube = new int[factamount*2];
-    CUDD_VALUE_TYPE * value_type;
-    DdGen * cubegen = bdd_pr.FirstCube(&cube, value_type);
+    int* cube;
+    CUDD_VALUE_TYPE value_type;
+    DdGen * cubegen = bdd_pr.FirstCube(&cube, &value_type);
     bool done = false;
 
     //loop over all states in bdd_pr and see if they are in any h_certificate
@@ -181,12 +188,13 @@ bool SearchCertificate::is_inductive() {
         }
 
         //also try out all combinations of true/false for the undefined variables
+        //TODO: test this!
         for(int i = 1; i < pow(2,undef_vars.size()); ++i) {
             for(size_t j = 0; j < undef_vars.size(); ++j) {
                 if(i% (int)(pow(2,j)) == 0 ) {
-                    s[undef_vars[i]] = false;
+                    s[undef_vars[j]] = false;
                 } else {
-                    s[undef_vars[i]] = true;
+                    s[undef_vars[j]] = true;
                 }
             }
             if(!is_in_h_certificates(s)) {
@@ -194,7 +202,7 @@ bool SearchCertificate::is_inductive() {
             }
         }
 
-        if(Cudd_NextCube(cubegen, &cube, value_type) == 0) {
+        if(Cudd_NextCube(cubegen, &cube, &value_type) == 0) {
             done = true;
         }
     }

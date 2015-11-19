@@ -93,8 +93,11 @@ BDD Certificate::build_bdd_for_action(const Action &a) {
 
 
 bool Certificate::is_certificate_for(const State &s) {
+    std::cout << "checking if certificate contains state" << std::endl;
     bool has_s = contains_state(s);
+    std::cout << "checking if certificate contains goal" << std::endl;
     bool has_goal = contains_goal();
+    std::cout << "checking if certificate is inductive" << std::endl;
     bool inductivity = is_inductive();
     bool valid = has_s && !has_goal && inductivity;
 
