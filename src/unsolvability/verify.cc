@@ -10,6 +10,7 @@
 #include "strong_conjunctive_certificate.h"
 #include "search_certificate.h"
 #include "global_funcs.h"
+#include "timer.h"
 
 /* TODO: clean up includes! */
 
@@ -43,18 +44,19 @@ Certificate* build_certificate(std::string file, Task* task) {
 
 
 int main(int argc, char** argv) {
-  if(argc < 3) {
-      std::cout << "Usage: verify <pddl-file> <certificate-file>" << std::endl;
-      exit(0);
-  }
-  std::string pddl_file = argv[1];
-  std::string certificate_file = argv[2];
-  std::cout << "reading in task" << std::endl;
-  Task* task = new Task(pddl_file);
-  Certificate* certificate = build_certificate(certificate_file, task);
-  bool valid = certificate->is_certificate_for(task->get_initial_state());
-  if(valid) {
-      std::cout << "The certificate is valid" << std::endl;
-  }
-  exit(0);
+    if(argc < 3) {
+        std::cout << "Usage: verify <pddl-file> <certificate-file>" << std::endl;
+        exit(0);
+    }
+    initialize_timer();
+    std::string pddl_file = argv[1];
+    std::string certificate_file = argv[2];
+    std::cout << "reading in task" << std::endl;
+    Task* task = new Task(pddl_file);
+    Certificate* certificate = build_certificate(certificate_file, task);
+    bool valid = certificate->is_certificate_for(task->get_initial_state());
+    if(valid) {
+        std::cout << "The certificate is valid" << std::endl;
+    }
+    exit(0);
 }

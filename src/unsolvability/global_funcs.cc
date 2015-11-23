@@ -18,3 +18,11 @@ void print_parsing_error_and_exit(std::string &line, std::string expected) {
               << " (expected \"" << expected << "\")" << std::endl;
     exit(0);
 }
+
+void print_info(std::string info) {
+    std::cout << "INFO: " << info << " [" << *timer << "]" << std::endl;
+}
+
+void initialize_timer() {
+    timer = new Timer();
+}

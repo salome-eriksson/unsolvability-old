@@ -9,8 +9,7 @@ private:
 public:
   SimpleCertificate(Task *task, std::ifstream &in);
   virtual bool is_inductive();
-  virtual bool contains_state(const State &state);
-  virtual bool contains_goal();
+  virtual bool contains_cube(const Cube &cube);
 };
 
 #endif /* SIMPLE_CERTIFICATE_H */

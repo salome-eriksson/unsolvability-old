@@ -4,9 +4,12 @@
 #include "math.h"
 #include <cassert>
 #include <fstream>
+#include <sstream>
 
 SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
      : Certificate(task) {
+
+    print_info("reading in search certificate");
 
     manager = Cudd(task->get_number_of_facts()*2,0);
 
@@ -24,10 +27,8 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     if(line.compare("begin_variables") != 0) {
         print_parsing_error_and_exit(line, "begin_variables");
     }
-    std::cout << "reading in variable order for search certificate" << std::endl;
     map_global_facts_to_bdd_var(in);
     std::vector<BDD> bddvec;
-    std::cout << "parsing bdds in search certificate file" << std::endl;
     parse_bdd_file(certificate_file, bddvec);
     assert(bddvec.size() == 2);
     bdd_exp = bddvec[0];
@@ -72,19 +73,22 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     if(line.compare("end_certificate") != 0) {
         print_parsing_error_and_exit(line, "end_certificate");
     }
-    std::cout << "done building search certificate" << std::endl;
+    print_info("finished reading in search certificate");
 }
 
-/* The certificate contains a state if it is either in the BDD representing
+/* The certificate contains a cube if it is either in the BDD representing
    the expanded states or in one of the h_certificates */
 
-bool SearchCertificate::contains_state(const State &state) {
+bool SearchCertificate::contains_cube(const Cube &cube) {
     BDD statebdd = manager.bddOne();
-    for(size_t i = 0; i < state.size(); ++i) {
-      if(state[i]) {
+    for(size_t i = 0; i < cube.size(); ++i) {
+      if(cube[i] == 1) {
         statebdd = statebdd * manager.bddVar(fact_to_bddvar[i]);
-      } else {
+      } else if(cube[i] == 0){
         statebdd = statebdd - manager.bddVar(fact_to_bddvar[i]);
+      } else {
+          //if cube[i] == 2 this means we don't care about the truth assignment
+          assert(cube[i] == 2);
       }
     }
     BDD result = bdd_exp * statebdd;
@@ -92,26 +96,7 @@ bool SearchCertificate::contains_state(const State &state) {
       return true;
     }
     for(size_t i = 0; i < h_certificates.size(); ++i) {
-        if(h_certificates[i]->contains_state(state)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
-bool SearchCertificate::contains_goal() {
-    BDD goalbdd = manager.bddOne();
-    const std::vector<int> &goal = task->get_goal();
-    for(size_t i = 0; i < goal.size(); ++i) {
-      goalbdd = goalbdd * manager.bddVar(fact_to_bddvar[goal[i]]);
-    }
-    BDD result = bdd_exp * goalbdd;
-    if (!result.IsZero()) {
-      return true;
-    }
-    for(size_t i = 0; i < h_certificates.size(); ++i) {
-        if(h_certificates[i]->contains_goal()) {
+        if(h_certificates[i]->contains_cube(cube)) {
             return true;
         }
     }
@@ -132,7 +117,14 @@ bool SearchCertificate::is_inductive() {
 
     BDD union_primed = exp_pr_union.Permute(permutation);
 
+    print_info("checking if actions are inductive");
+
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
+        if(i%100 == 0) {
+            std::stringstream tmp;
+            tmp << "action " << i;
+            print_info(tmp.str());
+        }
         const Action &a = task->get_action(i);
         BDD action_bdd = build_bdd_for_action(a);
 
@@ -158,47 +150,49 @@ bool SearchCertificate::is_inductive() {
     //second part: see if all states in bdd_pr are covered by h_certificates
     //and all h_certificates are inductive
 
+    print_info("checking if pruned states are contained in h certificate");
     //the bdd contains all facts from the task, plus their primed version
     int* cube;
     CUDD_VALUE_TYPE value_type;
     DdGen * cubegen = bdd_pr.FirstCube(&cube, &value_type);
     bool done = false;
+    int count = 0;
 
     //loop over all states in bdd_pr and see if they are in any h_certificate
     while(!done) {
-        State s = State(factamount, false);
+        if(count%10000 == 0) {
+            std::stringstream tmp;
+            tmp << "state " << count;
+            print_info(tmp.str());
+        }
+        Cube s = std::vector<int>(factamount, 0);
         std::vector<int> undef_vars;
         //the 2*i is because we are only interested in unprimed (=even) variables
         //(the uneven variables are all primed)
         for(int i = 0; i < factamount; ++i) {
             if(cube[2*i] == 1) {
-                assert(bdd_to_global_var_mapping[2*i] != -1);
-                s[bdd_to_global_var_mapping[2*i]] = true;
-            // if a variable is undefined, we need to try it with both true and false
-            // in a first pass, set all undefined variables to false, then try out
-            // all other combinations later
+                s[bdd_to_global_var_mapping[2*i]] = 1;
+            //All variables which have a higher or equal bdd index than #original bdd vars (*2)
+            //did not occur in the search and thus it cannot happen that two states depending
+            //on only this variable would end up in two different h certificates
             } else if(cube[2*i] == 2) {
-                undef_vars.push_back(bdd_to_global_var_mapping[2*i]);
-            } //cube[2*i] = 0 -> false (which was predefined already)
-        }
-
-        if(!is_in_h_certificates(s)) {
-            std::cout << "state ";
-            for(size_t i = 0; i < s.size(); ++i) {
-                std::cout << (int)s[i];
+                if(i < original_bdd_vars) {
+                    undef_vars.push_back(bdd_to_global_var_mapping[2*i]);
+                }
+                s[bdd_to_global_var_mapping[2*i]] = 2;
+            } else {
+                assert(cube[2*i] == 0);
             }
-            std::cout << "is not in h certificate" << std::endl;
-            return false;
         }
 
-        //also try out all combinations of true/false for the undefined variables
+        //try out all combinations of true/false for the undefined variables
         //TODO: test this!
-        for(int i = 1; i < pow(2,undef_vars.size()); ++i) {
+        for(int i = 0; i < pow(2,undef_vars.size()); ++i) {
             for(size_t j = 0; j < undef_vars.size(); ++j) {
                 if(i% (int)(pow(2,j)) == 0 ) {
-                    s[undef_vars[j]] = false;
+                    s[undef_vars[j]] = 0;
                 } else {
-                    s[undef_vars[j]] = true;
+                    s[undef_vars[j]] = 1;
                 }
             }
             if(!is_in_h_certificates(s)) {
@@ -206,10 +200,11 @@ bool SearchCertificate::is_inductive() {
                 for(size_t i = 0; i < s.size(); ++i) {
                     std::cout << (int)s[i];
                 }
-                std::cout << "is not in h certificate" << std::endl;
+                std::cout << " is not in h certificate" << std::endl;
                 return false;
                 return false;
             }
+            count++;
         }
 
         if(Cudd_NextCube(cubegen, &cube, &value_type) == 0) {
@@ -221,6 +216,9 @@ bool SearchCertificate::is_inductive() {
 
     //see if all h_certificates are inductive
     for(size_t i = 0; i < h_certificates.size(); ++i) {
+        std::stringstream tmp;
+        tmp << "checking if h certificate " << i << " is inductive";
+        print_info(tmp.str());
         if(!h_certificates[i]->is_inductive()) {
             std::cout << "h certificate not inductive!" << std::endl;
             return false;
@@ -230,9 +228,9 @@ bool SearchCertificate::is_inductive() {
     return true;
 }
 
-bool SearchCertificate::is_in_h_certificates(State& s) {
+bool SearchCertificate::is_in_h_certificates(Cube& s) {
     for(size_t i = 0; i < h_certificates.size(); ++i) {
-        if(h_certificates[i]->contains_state(s)) {
+        if(h_certificates[i]->contains_cube(s)) {
             return true;
         }
     }

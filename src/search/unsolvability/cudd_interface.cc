@@ -27,7 +27,7 @@ CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
 
 CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     : manager(manager) {
-    bdd = manager->fact_bdds[0][state[0]];
+    bdd = manager->cm->bddOne();
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         if(!manager->fact_bdds[i].empty()) {
             bdd = bdd * manager->fact_bdds[i][state[i]];

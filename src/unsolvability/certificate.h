@@ -20,10 +20,11 @@ protected:
 public:
   Certificate(Task *task);
   virtual ~Certificate();
-  virtual bool is_certificate_for(const State &state);
+  virtual bool is_certificate_for(const Cube &state);
   virtual bool is_inductive() = 0;
-  virtual bool contains_state(const State &state) = 0;
-  virtual bool contains_goal() = 0;
+  //The variable ordering of the cube corresponds to the global variable ordering
+  //(as defined in Task)
+  virtual bool contains_cube(const Cube &cube) = 0;
 
   virtual void dump_bdd(BDD& bdd, std::string filename);
 };
