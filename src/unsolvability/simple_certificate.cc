@@ -1,7 +1,7 @@
 #include "simple_certificate.h"
 #include <fstream>
+#include <cassert>
 
-#include "dddmp.h"
 
 SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     : Certificate(task){
@@ -65,30 +65,19 @@ bool SimpleCertificate::is_inductive() {
     return true;
 }
 
-bool SimpleCertificate::contains_state(const State &state) {
+bool SimpleCertificate::contains_cube(const Cube &cube) {
     BDD statebdd = manager.bddOne();
-    for(size_t i = 0; i < state.size(); ++i) {
-      if(state[i]) {
+    for(size_t i = 0; i < cube.size(); ++i) {
+      if(cube[i] == 1) {
         statebdd = statebdd * manager.bddVar(fact_to_bddvar[i]);
-      } else {
+      } else if(cube[i] == 0){
         statebdd = statebdd - manager.bddVar(fact_to_bddvar[i]);
+      } else {
+          assert(cube[i] == 2);
       }
     }
     BDD result = certificate * statebdd;
     if(result.IsZero()) {
-      return false;
-    }
-    return true;
-}
-
-bool SimpleCertificate::contains_goal() {
-    BDD goalbdd = manager.bddOne();
-    const std::vector<int> &goal = task->get_goal();
-    for(size_t i = 0; i < goal.size(); ++i) {
-      goalbdd = goalbdd * manager.bddVar(fact_to_bddvar[goal[i]]);
-    }
-    BDD result = certificate * goalbdd;
-    if (result.IsZero()) {
       return false;
     }
     return true;

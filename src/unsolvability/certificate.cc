@@ -92,12 +92,12 @@ BDD Certificate::build_bdd_for_action(const Action &a) {
 }
 
 
-bool Certificate::is_certificate_for(const State &s) {
-    std::cout << "checking if certificate contains state" << std::endl;
-    bool has_s = contains_state(s);
-    std::cout << "checking if certificate contains goal" << std::endl;
-    bool has_goal = contains_goal();
-    std::cout << "checking if certificate is inductive" << std::endl;
+bool Certificate::is_certificate_for(const Cube &s) {
+    print_info("checking if certificate contains state");
+    bool has_s = contains_cube(s);
+    print_info("checking if certificate contains goal");
+    bool has_goal = contains_cube(task->get_goal());
+    print_info("checking if certificate is inductive");
     bool inductivity = is_inductive();
     bool valid = has_s && !has_goal && inductivity;
 

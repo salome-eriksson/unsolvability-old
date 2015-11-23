@@ -38,14 +38,15 @@ Task::Task(std::string taskfile) {
     if(line.compare("begin_init") != 0) {
         print_parsing_error_and_exit(line, "begin_init");
     }
-    initial_state.resize(factamount, false);
+    //initial state definition: all named variables are true, all others are false
+    initial_state.resize(factamount, 0);
     std::getline(in, line);
     while(line.compare("end_init") != 0) {
         auto index = fact_map.find(line);
         if(index == fact_map.end()) {
             print_parsing_error_and_exit(line, "<initial state atom>");
         }
-        initial_state[index->second] = true;
+        initial_state[index->second] = 1;
         std::getline(in, line);
     }
 
@@ -54,13 +55,15 @@ Task::Task(std::string taskfile) {
     if(line.compare("begin_goal") != 0) {
         print_parsing_error_and_exit(line, "begin_goal");
     }
+    //goal definition: all names variables are true, all others are "don't care"
     std::getline(in, line);
+    goal.resize(factamount, 2);
     while(line.compare("end_goal") != 0) {
         auto index = fact_map.find(line);
         if(index == fact_map.end()) {
             print_parsing_error_and_exit(line, "<goal atom>");
         }
-        goal.push_back(index->second);
+        goal[index->second] = 1;
         std::getline(in, line);
     }
 
@@ -136,7 +139,7 @@ int Task::get_number_of_facts() {
   return fact_names.size();
 }
 
-const State& Task::get_initial_state() {
+const Cube& Task::get_initial_state() {
   return initial_state;
 }
 
