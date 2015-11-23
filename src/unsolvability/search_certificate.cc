@@ -128,8 +128,9 @@ bool SearchCertificate::is_inductive() {
       permutation[2*i] = (2*i)+1;
       permutation[(2*i)+1] = 2*i;
     }
-    BDD exp_primed = bdd_exp.Permute(permutation);
-    BDD pr_primed = bdd_pr.Permute(permutation);
+    BDD exp_pr_union = bdd_exp + bdd_pr;
+
+    BDD union_primed = exp_pr_union.Permute(permutation);
 
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
         const Action &a = task->get_action(i);
@@ -137,14 +138,12 @@ bool SearchCertificate::is_inductive() {
 
         // succ represents pairs of states and successors with action a
         BDD succ = action_bdd * bdd_exp;
-        // new_states contains pairs of states from above where
-        // the successor is not in c (primed)
-        BDD new_states = succ - exp_primed;
-        BDD res = new_states - pr_primed;
+        BDD res = succ - union_primed;
         // res contains all pairs of states where the successor is in neither c nor bdd_pr
         // if it is not empty, then a successor from a state of c
         // is not covered anywhere and thus the certificate is not inductive
         if(!res.IsZero()) {
+            std::cout << "action " << i << " is not inductive" << std::endl;
             return false;
         }
     } //end loop over actions
@@ -184,6 +183,11 @@ bool SearchCertificate::is_inductive() {
         }
 
         if(!is_in_h_certificates(s)) {
+            std::cout << "state ";
+            for(size_t i = 0; i < s.size(); ++i) {
+                std::cout << (int)s[i];
+            }
+            std::cout << "is not in h certificate" << std::endl;
             return false;
         }
 
@@ -198,6 +202,12 @@ bool SearchCertificate::is_inductive() {
                 }
             }
             if(!is_in_h_certificates(s)) {
+                std::cout << "state ";
+                for(size_t i = 0; i < s.size(); ++i) {
+                    std::cout << (int)s[i];
+                }
+                std::cout << "is not in h certificate" << std::endl;
+                return false;
                 return false;
             }
         }
@@ -212,6 +222,7 @@ bool SearchCertificate::is_inductive() {
     //see if all h_certificates are inductive
     for(size_t i = 0; i < h_certificates.size(); ++i) {
         if(!h_certificates[i]->is_inductive()) {
+            std::cout << "h certificate not inductive!" << std::endl;
             return false;
         }
     }

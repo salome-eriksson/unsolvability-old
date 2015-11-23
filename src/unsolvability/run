@@ -1,7 +1,11 @@
 #!/bin/bash
 
-PDDL_FILE=clickgame/prob20.pddl
-#PDDL_FILE=mystery/prob04.pddl
+rm cert*.txt
+rm task.txt
+
+#PDDL_FILE=clickgame/prob11.pddl
+PDDL_FILE=no-mystery/prob04.pddl
+
 echo "-------------------------------------------------"
 echo "RUNNING TASK"
 echo "-------------------------------------------------"
