@@ -132,13 +132,8 @@ SearchStatus EagerSearch::step() {
         SearchNode succ_node = search_space.get_node(succ_state);
 
         // Previously encountered dead end. Don't re-evaluate.
-        if (succ_node.is_dead_end()) {
-            bdd_pr->lor(CuddBDD(manager, succ_state));
-            heuristics[0]->build_unsolvability_certificate(succ_state);
+        if (succ_node.is_dead_end())
             continue;
-        } else {
-            bdd_exp->lor(CuddBDD(manager, succ_state));
-        }
 
         // update new path
         if (use_multi_path_dependence || succ_node.is_new()) {
@@ -170,6 +165,8 @@ SearchStatus EagerSearch::step() {
             succ_node.clear_h_dirty();
 
             if (open_list->is_dead_end(eval_context)) {
+                bdd_pr->lor(CuddBDD(manager, succ_state));
+                heuristics[0]->build_unsolvability_certificate(succ_state);
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
@@ -178,6 +175,7 @@ SearchStatus EagerSearch::step() {
             int succ_h = eval_context.get_heuristic_value(heuristics[0]);
             succ_node.open(succ_h, node, op);
 
+            bdd_exp->lor(CuddBDD(manager, succ_state));
             open_list->insert(eval_context, succ_state.get_id());
             if (search_progress.check_progress(eval_context)) {
                 print_checkpoint_line(succ_node.get_g());
