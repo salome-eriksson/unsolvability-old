@@ -19,10 +19,10 @@
   an error message and abort.
 */
 #ifdef USE_CUDD
-#include "cuddObj.hh"
+#include "cudd.h"
 #define CUDD_METHOD(X) X;
 #else
-class BDD {};
+class DdNode {};
 #define CUDD_METHOD(X) NO_RETURN X { \
         ABORT("CUDD method called but the planner was compiled without CUDD support.\n"); \
 }
@@ -41,14 +41,15 @@ class CuddBDD {
     friend class CuddManager;
 private:
     CuddManager *manager;
-#ifdef USE_CUDD
-    BDD bdd;
-#endif
-    //CUDD_METHOD(CuddBDD(BDD bdd))
+    DdNode* bdd;
 public:
+    CUDD_METHOD(CuddBDD())
     CUDD_METHOD(CuddBDD(CuddManager *manager, bool positive=true))
     CUDD_METHOD(CuddBDD(CuddManager *manager, int var, int val, bool neg=false))
     CUDD_METHOD(CuddBDD(CuddManager *manager, const GlobalState &state))
+    CUDD_METHOD(CuddBDD(const CuddBDD& from))
+    CUDD_METHOD(~CuddBDD())
+    CUDD_METHOD(CuddBDD operator=(const CuddBDD& right))
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
     CUDD_METHOD(void negate())
@@ -71,9 +72,9 @@ class CuddManager {
     friend class CuddBDD;
 private:
 #ifdef USE_CUDD
-    Cudd* cm;
+    DdManager* ddmgr;
     std::vector<std::pair<int,int> > var_to_fact_pair;
-    std::vector<std::vector<BDD> > fact_bdds;
+    std::vector<std::vector<DdNode*> > fact_bdds;
     //saves to which bdd var a fact corresponds. If the fact is a "negated atom"
     //or "none of those", -1 is saved as value
     std::vector<std::vector<int> > fact_to_bdd_var;
