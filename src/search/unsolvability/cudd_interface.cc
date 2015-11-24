@@ -27,12 +27,14 @@ CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
 
 CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     : manager(manager) {
-    bdd = manager->cm->bddOne();
+    std::vector<int> cube(manager->amount_vars, 0);
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        if(!manager->fact_bdds[i].empty()) {
-            bdd = bdd * manager->fact_bdds[i][state[i]];
+        int bdd_var = manager->fact_to_bdd_var[i][state[i]];
+        if(bdd_var != -1) {
+            cube[bdd_var] = 1;
         }
     }
+    bdd = manager->cm->CubeArrayToBdd(&cube[0]);
 }
 
 void CuddBDD::land(int var, int val, bool neg) {
@@ -104,7 +106,7 @@ CuddManager::CuddManager(std::vector<int> &var_order) {
 void CuddManager::initialize_manager(std::vector<int> &var_order) {
 
     std::vector<bool> hasNoneOfThose(g_variable_domain.size(), false);
-    int amount_vars = 0;
+    amount_vars = 0;
 
     //collect which variables have a "none of those" value and count total number
     //of PDDL variables
@@ -127,6 +129,10 @@ void CuddManager::initialize_manager(std::vector<int> &var_order) {
     fact_bdds.resize(g_variable_domain.size());
     // var_to_fact_pair shows which var-val pair corresponds to which bdd var
     var_to_fact_pair.resize(amount_vars);
+    fact_to_bdd_var.resize(g_variable_domain.size());
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        fact_to_bdd_var[i] = std::vector<int>(g_variable_domain[i], -1);
+    }
     int count = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {
         int index = var_order[i];
@@ -137,6 +143,7 @@ void CuddManager::initialize_manager(std::vector<int> &var_order) {
         }
         for(int j = 0; j < pddl_vars; ++j) {
             var_to_fact_pair[count] = std::make_pair(index,j);
+            fact_to_bdd_var[index][j] = count;
             BDD varbdd = cm->bddVar(count++);
             for(int x = 0; x < g_variable_domain[index]; ++x) {
                 if(x == j) {
