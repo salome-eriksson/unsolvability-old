@@ -6,14 +6,16 @@
 #ifdef USE_CUDD
 #include "dddmp.h"
 
+CuddBDD::CuddBDD() : manager(NULL), bdd(NULL) {}
 
 CuddBDD::CuddBDD(CuddManager *manager, bool positive)
     : manager(manager) {
-    if(!positive) {
-        bdd = manager->cm->bddZero();
+    if(positive) {
+        bdd = Cudd_ReadOne(manager->ddmgr);
     } else {
-        bdd = manager->cm->bddOne();
+        bdd = Cudd_ReadLogicZero(manager->ddmgr);
     }
+    Cudd_Ref(bdd);
 }
 
 CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
@@ -21,8 +23,9 @@ CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
     assert(!manager->fact_bdds[var].empty());
     bdd = manager->fact_bdds[var][val];
     if(neg) {
-        bdd = !bdd;
+        bdd = Cudd_Not(bdd);
     }
+    Cudd_Ref(bdd);
 }
 
 CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
@@ -34,45 +37,87 @@ CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
             cube[bdd_var] = 1;
         }
     }
-    bdd = manager->cm->CubeArrayToBdd(&cube[0]);
+    bdd = Cudd_CubeArrayToBdd(manager->ddmgr, &cube[0]);
+    Cudd_Ref(bdd);
+}
+
+CuddBDD::~CuddBDD() {
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
+}
+//TODO: here and in operator= check why the manager pointer is not null sometimes
+//(example: vector initialization with (amount, CuddBdd(manager, true)), concrete in heuristic_representation line 119)
+CuddBDD::CuddBDD(const CuddBDD &from) {
+    manager = from.manager;
+    bdd = from.bdd;
+    Cudd_Ref(bdd);
+}
+
+CuddBDD CuddBDD::operator=(const CuddBDD& right) {
+    if (this == &right) {
+        return *this;
+    }
+    manager = right.manager;
+    Cudd_Ref(right.bdd);
+    Cudd_RecursiveDeref(manager->ddmgr,bdd);
+    bdd = right.bdd;
+    return *this;
+
 }
 
 void CuddBDD::land(int var, int val, bool neg) {
     assert(!manager->fact_bdds[var].empty());
+    DdNode* tmp;
     if(neg) {
-        bdd = bdd - manager->fact_bdds[var][val];
+        tmp = Cudd_bddAnd(manager->ddmgr, bdd, Cudd_Not(manager->fact_bdds[var][val]));
     } else {
-        bdd = bdd * manager->fact_bdds[var][val];
+        tmp = Cudd_bddAnd(manager->ddmgr, bdd, manager->fact_bdds[var][val]);
     }
+    Cudd_Ref(tmp);
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
+    bdd = tmp;
 }
 
 void CuddBDD::lor(int var, int val, bool neg) {
     assert(!manager->fact_bdds[var].empty());
+    DdNode* tmp;
     if(neg) {
-        bdd = bdd + !(manager->fact_bdds[var][val]);
+        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_Not(manager->fact_bdds[var][val]));
     } else {
-        bdd = bdd + manager->fact_bdds[var][val];
+        tmp = Cudd_bddOr(manager->ddmgr, bdd, manager->fact_bdds[var][val]);
     }
+    Cudd_Ref(tmp);
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
+    bdd = tmp;
 }
 
 void CuddBDD::negate() {
-    bdd = !bdd;
+    DdNode* tmp = Cudd_Not(bdd);
+    //TODO: is this necessary here?
+    Cudd_Ref(tmp);
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
+    bdd = tmp;
 }
 
 void CuddBDD::land(const CuddBDD &bdd2) {
-    bdd = bdd * bdd2.bdd;
+    DdNode* tmp = Cudd_bddAnd(manager->ddmgr, bdd ,bdd2.bdd);
+    Cudd_Ref(tmp);
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
+    bdd = tmp;
 }
 
 void CuddBDD::lor(const CuddBDD &bdd2) {
-    bdd = bdd + bdd2.bdd;
+    DdNode* tmp = Cudd_bddOr(manager->ddmgr, bdd, bdd2.bdd);
+    Cudd_Ref(tmp);
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
+    bdd = tmp;
 }
 
 bool CuddBDD::isOne() const {
-    return bdd.IsOne();
+    return (bdd == Cudd_ReadOne(manager->ddmgr));
 }
 
 bool CuddBDD::isZero() const {
-    return bdd.IsZero();
+    return (bdd == Cudd_ReadLogicZero(manager->ddmgr));
 }
 
 bool CuddBDD::isEqualTo(const CuddBDD &bdd2) const {
@@ -85,7 +130,7 @@ CuddManager* CuddBDD::get_manager() {
 
 void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
     FILE* f = fopen(filename.c_str(), "w");
-    Dddmp_cuddBddStore(manager->cm->getManager(),&bddname[0], bdd.getNode(), NULL, NULL,
+    Dddmp_cuddBddStore(manager->ddmgr,&bddname[0], bdd, NULL, NULL,
             DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], f);
     fclose(f);
 }
@@ -123,7 +168,7 @@ void CuddManager::initialize_manager(std::vector<int> &var_order) {
 
     }
 
-    cm = new Cudd(amount_vars,0);
+    ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
 
     // fact_bdds represent for each var-val pair (from the search) the correct bdd
     fact_bdds.resize(g_variable_domain.size());
@@ -136,7 +181,7 @@ void CuddManager::initialize_manager(std::vector<int> &var_order) {
     int count = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {
         int index = var_order[i];
-        fact_bdds[index] = std::vector<BDD>(g_variable_domain[index], cm->bddOne());
+        fact_bdds[index] = std::vector<DdNode*>(g_variable_domain[index], Cudd_ReadOne(ddmgr));
         int pddl_vars = g_variable_domain[index];
         if(hasNoneOfThose[index]) {
             pddl_vars--;
@@ -144,14 +189,18 @@ void CuddManager::initialize_manager(std::vector<int> &var_order) {
         for(int j = 0; j < pddl_vars; ++j) {
             var_to_fact_pair[count] = std::make_pair(index,j);
             fact_to_bdd_var[index][j] = count;
-            BDD varbdd = cm->bddVar(count++);
             for(int x = 0; x < g_variable_domain[index]; ++x) {
+                DdNode* tmp;
                 if(x == j) {
-                    fact_bdds[index][x] = fact_bdds[index][x] * varbdd;
+                    tmp = Cudd_bddAnd(ddmgr, fact_bdds[index][x], Cudd_bddIthVar(ddmgr, count));
                 } else {
-                    fact_bdds[index][x] = fact_bdds[index][x] - varbdd;
+                    tmp = Cudd_bddAnd(ddmgr, fact_bdds[index][x], Cudd_Not(Cudd_bddIthVar(ddmgr, count)));
                 }
+                Cudd_Ref(tmp);
+                Cudd_RecursiveDeref(ddmgr, fact_bdds[index][x]);
+                fact_bdds[index][x] = tmp;
             }
+            count++;
         }
     }
     assert(count == amount_vars);
@@ -170,11 +219,14 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string>
     DdNode** bdd_arr = new DdNode*[size];
     char** names_char = new char*[size];
     for(int i = 0; i < size; ++i) {
-        bdd_arr[i] = bdds[i]->bdd.getNode();
+        bdd_arr[i] = bdds[i]->bdd;
+        if(bdds[i]->isOne()) {
+            std::cout << "is one" << std::endl;
+        }
         names_char[i] = new char[names[i].size() + 1];
         strcpy(names_char[i], names[i].c_str());
     }
-    Dddmp_cuddBddArrayStore(cm->getManager(), NULL, size, bdd_arr, names_char,
+    Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], names_char,
                             NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], NULL);
 }
 
