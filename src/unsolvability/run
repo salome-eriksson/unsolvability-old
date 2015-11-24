@@ -5,6 +5,7 @@ rm task.txt
 
 #PDDL_FILE=clickgame/prob11.pddl
 PDDL_FILE=no-mystery/prob04.pddl
+#PDDL_FILE=../../sokoban_benchmarks/mode02-50set-easy/sokoban-mode02-6x6-3s-1.pddl
 
 echo "-------------------------------------------------"
 echo "RUNNING TASK"

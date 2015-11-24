@@ -74,6 +74,10 @@ private:
     Cudd* cm;
     std::vector<std::pair<int,int> > var_to_fact_pair;
     std::vector<std::vector<BDD> > fact_bdds;
+    //saves to which bdd var a fact corresponds. If the fact is a "negated atom"
+    //or "none of those", -1 is saved as value
+    std::vector<std::vector<int> > fact_to_bdd_var;
+    int amount_vars;
 #endif
     CUDD_METHOD(void initialize_manager(std::vector<int> &var_order))
 public:
