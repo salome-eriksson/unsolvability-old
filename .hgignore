@@ -19,3 +19,13 @@
 ^src/VAL/lex\.yy\.cc$
 ^src/VAL/validate$
 ^src/validate$
+^src/unsolvability/.*\.o$
+^src/unsolvability/Makefile\.depend$
+^src/unsolvability/verify$
+
+# use glob syntax.
+syntax: glob
+
+cert*.txt
+task.txt
+callgrind*
