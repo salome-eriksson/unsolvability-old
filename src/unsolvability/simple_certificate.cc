@@ -6,8 +6,6 @@
 SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     : Certificate(task){
 
-    manager = Cudd(task->get_number_of_facts()*2,0);
-
     std::string line;
     std::getline(in, line);
     std::vector<std::string> line_arr;
@@ -17,13 +15,13 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     }
     assert(line_arr.size() == 2);
     std::string certificate_file = line_arr[1];
-    std::cout << "simple certificate file: " << certificate_file;
+    std::cout << "simple certificate file: " << certificate_file << std::endl;
     std::getline(in, line);
     if(line.compare("begin_variables") != 0) {
         print_parsing_error_and_exit(line, "begin_variables");
     }
     std::cout << "reading in variable order for simple certificate" << std::endl;
-    map_global_facts_to_bdd_var(in);
+    read_in_variable_order(in);
     std::vector<BDD> bddvec;
     std::cout << "parsing bdds in simple certificate file" << std::endl;
     parse_bdd_file(certificate_file, bddvec);
@@ -36,35 +34,8 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     std::cout << "done building simple certificate" << std::endl;
 }
 
-bool SimpleCertificate::is_inductive() {
 
-    int factamount = task->get_number_of_facts();
-
-    //permutation for renaming the certificate to the primed variables
-    int permutation[factamount*2];
-    for(int i = 0 ; i < factamount; ++i) {
-      permutation[2*i] = (2*i)+1;
-      permutation[(2*i)+1] = 2*i;
-    }
-
-    BDD c_primed = certificate.Permute(permutation);
-
-    //loop over all actions
-    for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
-        const Action &a = task->get_action(i);
-        BDD action_bdd = build_bdd_for_action(a);
-        // succ represents pairs of states and successors with action a
-        BDD succ = action_bdd * certificate;
-        // res contains pairs of states from above where the successor is not in c (primed)
-        BDD res = succ - c_primed;
-
-        if(!res.IsZero()) {
-            return false;
-        }
-    }
-    return true;
-}
-
+//TODO: maybe change to IndicesToCube?
 bool SimpleCertificate::contains_cube(const Cube &cube) {
     BDD statebdd = manager.bddOne();
     for(size_t i = 0; i < cube.size(); ++i) {
@@ -79,6 +50,37 @@ bool SimpleCertificate::contains_cube(const Cube &cube) {
     BDD result = certificate * statebdd;
     if(result.IsZero()) {
       return false;
+    }
+    return true;
+}
+
+bool SimpleCertificate::is_inductive() {
+
+    int factamount = task->get_number_of_facts();
+
+    // permutation for renaming the certificate to the primed variables
+    int permutation[factamount*2];
+    for(int i = 0 ; i < factamount; ++i) {
+      permutation[2*i] = (2*i)+1;
+      permutation[(2*i)+1] = 2*i;
+    }
+
+    BDD c_primed = certificate.Permute(permutation);
+
+    // loop over all actions
+    for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
+        const Action &a = task->get_action(i);
+        BDD action_bdd = build_bdd_for_action(a);
+        // succ represents pairs of states (from the certificate)
+        // and successors achieved with action a
+        BDD succ = action_bdd * certificate;
+        // res contains pairs of states from above where the successor is not in c (primed)
+        BDD res = succ - c_primed;
+
+        //TODO: replace with leq?
+        if(!res.IsZero()) {
+            return false;
+        }
     }
     return true;
 }

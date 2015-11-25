@@ -103,11 +103,55 @@ main(int argc, char **argv)
         return 1;
     }
     
-    Cudd mgr(0,0);
-    BDD b1 = mgr.bddVar();
-    BDD b2= mgr.bddVar();
-    BDD b3 = mgr.bddVar();
-    BDD a = (b1+!b2)*b3;
+    Cudd mgr(3,0);
+    BDD v1 = mgr.bddVar(0);
+    BDD v2= mgr.bddVar(1);
+    BDD v3 = mgr.bddVar(2);
+    
+    BDD x = (v1 + v2) - v3;
+    BDD y = x + (!v2 * v3);
+    
+    if(x.Leq(y)) {
+      std::cout << "x leq y" << std::endl;
+    } else {
+      std::cout << "?????" << std::endl;
+    }
+    
+    if(y.Leq(x)) {
+      std::cout << "y leq x???" << std::endl;
+    }
+    
+    BDD z = !x;
+    z = z * !v1;
+    
+    if(x.Leq(!z)) {
+      std::cout << "they are disjunct!" << std::endl;
+    } else {
+      std::cout << "not disjunct??" << std::endl;
+    }
+    
+    BDD x1 = x * z;
+    if(x1.IsZero()) {
+      std::cout << "intersect is empty" << std::endl;
+    }
+    
+    BDD x2 = x - z;
+    if(x2 == x) {
+      std::cout << "they are equal" << std::endl;
+    } else {
+      std::cout << "why not equal??" << std::endl;
+    }
+    
+    BDD t1 = v1*v2*v3;
+    BDD t2 = t1 + (v1-v2-v3);
+    BDD t3 = t1 + (v1*v2-v3);
+    
+    if(t2.Leq(t3) || t3.Leq(t2)) {
+      std::cout << "hmmmmmm...." << std::endl;
+    }
+    
+    
+    /*BDD a = (v1+!v2)*v3;
     std::vector<std::string> names;
     names.push_back("a");
     names.push_back("b");
@@ -155,7 +199,7 @@ main(int argc, char **argv)
     std::cout << "storing 2" << std::endl;
     Dddmp_cuddBddStore(mgr2.getManager(),&bddname[0], x.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], NULL);
     
-    std::cout << "end" << std::endl;
+    std::cout << "end" << std::endl;*/
     
     
     //Cudd mgr(0,2);
