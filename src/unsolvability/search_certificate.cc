@@ -77,22 +77,11 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
    the expanded states or in one of the h_certificates */
 
 bool SearchCertificate::contains_cube(const Cube &cube) {
-    //TODO: IndicesToCube?
-    BDD statebdd = manager.bddOne();
-    for(size_t i = 0; i < cube.size(); ++i) {
-      if(cube[i] == 1) {
-        statebdd = statebdd * manager.bddVar(fact_to_bddvar[i]);
-      } else if(cube[i] == 0){
-        statebdd = statebdd - manager.bddVar(fact_to_bddvar[i]);
-      } else {
-          // cube[i] == 2 means we don't care about the truth assignment
-          assert(cube[i] == 2);
-      }
-    }
-    //TODO: leq?
-    BDD result = bdd_exp * statebdd;
-    if(!result.IsZero()) {
-      return true;
+    BDD statebdd = build_bdd_from_cube(cube);
+
+    // if statebdd is a subset of bdd_exp, bdd_exp contains the state
+    if(statebdd.Leq(bdd_exp)) {
+        return true;
     }
     for(size_t i = 0; i < h_certificates.size(); ++i) {
         if(h_certificates[i]->contains_cube(cube)) {
@@ -130,12 +119,10 @@ bool SearchCertificate::is_inductive() {
 
         // succ represents pairs of states and successors with action a
         BDD succ = action_bdd * bdd_exp;
-        //TODO: leq?
-        BDD res = succ - union_primed;
-        // res contains all pairs of states where the successor is in neither c nor bdd_pr
-        // if it is not empty, then a successor from a state of c
-        // is not covered anywhere and thus the certificate is not inductive
-        if(!res.IsZero()) {
+
+        // if succ is not a subset of union_primed, it contains successors which
+        // are neither in bdd_exp nor bdd_pr --> not inductive
+        if(!succ.Leq(union_primed)) {
             std::cout << "action " << i << " is not inductive" << std::endl;
             return false;
         }

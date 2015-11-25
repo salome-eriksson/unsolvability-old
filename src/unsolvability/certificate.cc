@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "dddmp.h"
+#include "cudd.h"
 
 Certificate::Certificate(Task *task)
     : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
@@ -73,7 +74,7 @@ void Certificate::parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds) {
     FREE(tmpArray);
 }
 
-//TODO: maybe change to IndicesToCube?
+//TODO: maybe change to IndicesToCube? But how to deal with frame axioms?
 //TODO: move?
 BDD Certificate::build_bdd_for_action(const Action &a) {
     BDD ret = manager.bddOne();
@@ -100,6 +101,16 @@ BDD Certificate::build_bdd_for_action(const Action &a) {
     return ret;
 }
 
+//TODO: move?
+BDD Certificate::build_bdd_from_cube(const Cube &cube) {
+    assert(cube.size() == task->get_number_of_facts());
+    std::vector<int> local_cube(cube.size()*2,2);
+    for(size_t i = 0; i < cube.size(); ++i) {
+        local_cube[fact_to_bddvar[i]] = cube[i];
+    }
+    return BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), &local_cube[0]));
+}
+
 
 bool Certificate::is_certificate_for(const Cube &s) {
     print_info("checking if certificate contains state");
@@ -111,7 +122,7 @@ bool Certificate::is_certificate_for(const Cube &s) {
     bool valid = has_s && !has_goal && inductivity;
 
     if(!valid) {
-        std::cout << "The certificate is NOT valid because: " << std::endl;
+        print_info("The certificate is NOT valid because:");
         if(!has_s) {
             std::cout << " - it does NOT contain the initial state" << std::endl;
         }

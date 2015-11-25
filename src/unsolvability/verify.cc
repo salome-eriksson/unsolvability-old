@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     Certificate* certificate = build_certificate(certificate_file, task);
     bool valid = certificate->is_certificate_for(task->get_initial_state());
     if(valid) {
-        std::cout << "The certificate is valid" << std::endl;
+        print_info("The certificate is valid");
     }
     exit(0);
 }
