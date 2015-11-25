@@ -3,10 +3,12 @@
 #include <cassert>
 #include <fstream>
 #include <stdlib.h>
+#include <algorithm>
 
 #include "dddmp.h"
 
-Certificate::Certificate(Task *task) : task(task) {
+Certificate::Certificate(Task *task)
+    : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
 
 }
 
@@ -19,7 +21,7 @@ Certificate::~Certificate() {
  * Facts that do not occur in the bdd will be mapped to variables with highest index
  * fact_to_bddvar[i] = j means that the variable with global index i has index j in the bdd
  */
-void Certificate::map_global_facts_to_bdd_var(std::ifstream &in) {
+void Certificate::read_in_variable_order(std::ifstream &in) {
     int fact_amount = task->get_number_of_facts();
     fact_to_bddvar = std::vector<int>(fact_amount, -1);
     int count = 0;
@@ -27,6 +29,7 @@ void Certificate::map_global_facts_to_bdd_var(std::ifstream &in) {
     std::getline(in, fact);
     while(fact.compare("end_variables") != 0) {
         int global_index = task->find_fact(fact);
+        // *2 in order to account for primed variables
         fact_to_bddvar[global_index] = 2*count;
         count++;
         if(!std::getline(in, fact)) {
@@ -36,7 +39,7 @@ void Certificate::map_global_facts_to_bdd_var(std::ifstream &in) {
     }
     original_bdd_vars = count;
 
-    //fill in mapping for facts that don't occur in the bdd
+    // fill in mapping for facts that don't occur in the bdd
     for(size_t i = 0; i < fact_amount; ++i) {
         if(fact_to_bddvar[i] == -1) {
             fact_to_bddvar[i] = 2*count;
@@ -44,10 +47,14 @@ void Certificate::map_global_facts_to_bdd_var(std::ifstream &in) {
         }
     }
     assert(count == fact_amount);
+    // make sure that all global facts map to a valid bbd index
+    assert(std::find(fact_to_bddvar.begin(), fact_to_bddvar.end(), -1) == fact_to_bddvar.end());
 }
 
 void Certificate::parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds) {
-    //move variables so the primed versions are in between
+    assert(bdds.empty());
+
+    // move variables so the primed versions are in between
     int compose[original_bdd_vars];
     for(int i = 0; i < original_bdd_vars; ++i) {
         compose[i] = 2*i;
@@ -66,6 +73,8 @@ void Certificate::parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds) {
     FREE(tmpArray);
 }
 
+//TODO: maybe change to IndicesToCube?
+//TODO: move?
 BDD Certificate::build_bdd_for_action(const Action &a) {
     BDD ret = manager.bddOne();
     for(size_t i = 0; i < a.pre.size(); ++i) {

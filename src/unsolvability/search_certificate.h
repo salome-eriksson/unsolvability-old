@@ -3,9 +3,9 @@
 class SearchCertificate : public Certificate {
 private:
     BDD bdd_exp; //contains all expanded states
-    BDD bdd_pr; //contains all pruned states
+    BDD bdd_pr; // contains all pruned states
     std::vector<Certificate *> h_certificates;
-    std::vector<int> bdd_to_global_var_mapping;
+    std::vector<int> bddvar_to_global_fact; // map (even) bdd vars to global fact index
     bool is_in_h_certificates(Cube& s);
 public:
   SearchCertificate(Task *task, std::ifstream &in);
