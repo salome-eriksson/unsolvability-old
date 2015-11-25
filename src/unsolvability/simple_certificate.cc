@@ -35,21 +35,14 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
 }
 
 
-//TODO: maybe change to IndicesToCube?
+// TODO: is there an easier way to check if a cube is contained in a bdd
+// (similar to problem in search - easy way to add cube to bdd)
 bool SimpleCertificate::contains_cube(const Cube &cube) {
-    BDD statebdd = manager.bddOne();
-    for(size_t i = 0; i < cube.size(); ++i) {
-      if(cube[i] == 1) {
-        statebdd = statebdd * manager.bddVar(fact_to_bddvar[i]);
-      } else if(cube[i] == 0){
-        statebdd = statebdd - manager.bddVar(fact_to_bddvar[i]);
-      } else {
-          assert(cube[i] == 2);
-      }
-    }
-    BDD result = certificate * statebdd;
-    if(result.IsZero()) {
-      return false;
+    BDD statebdd = build_bdd_from_cube(cube);
+
+    // if statebdd is not a subset of the certificate, the state is not included
+    if(!statebdd.Leq(certificate)) {
+        return false;
     }
     return true;
 }
@@ -74,11 +67,10 @@ bool SimpleCertificate::is_inductive() {
         // succ represents pairs of states (from the certificate)
         // and successors achieved with action a
         BDD succ = action_bdd * certificate;
-        // res contains pairs of states from above where the successor is not in c (primed)
-        BDD res = succ - c_primed;
 
-        //TODO: replace with leq?
-        if(!res.IsZero()) {
+        // if succ is not a subset of c_primed, it contains successors which are not in
+        // c primed --> not inductive
+        if(!succ.Leq(c_primed)) {
             return false;
         }
     }

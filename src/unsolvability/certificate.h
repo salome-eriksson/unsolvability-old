@@ -34,12 +34,12 @@ protected:
   void read_in_variable_order(std::ifstream &facts);
   void parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds);
   BDD build_bdd_for_action(const Action &a);
-  BDD build_primed_bdd();
+  BDD build_bdd_from_cube(const Cube &cube);
 public:
   Certificate(Task *task);
   virtual ~Certificate();
-  //The variable ordering of the cube corresponds to the global variable ordering
-  //(as defined in Task)
+  // The variable ordering of the cube corresponds to the global variable ordering
+  // (as defined in Task)
   virtual bool contains_cube(const Cube &cube) = 0;
   virtual bool is_inductive() = 0;
   virtual bool is_certificate_for(const Cube &state);
