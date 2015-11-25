@@ -127,6 +127,10 @@ bool SearchCertificate::is_inductive() {
             return false;
         }
     } // end loop over actions
+    // info output
+    std::stringstream tmp;
+    tmp << "checked " << task->get_number_of_actions() << " actions";
+    print_info(tmp.str());
 
 
     // if there are no pruned states, bbd_exp is inductive already --> we are done
@@ -210,6 +214,11 @@ bool SearchCertificate::is_inductive() {
             done = true;
         }
     }
+    // info output
+    tmp.clear();
+    tmp.str(std::string());
+    tmp << "checked " << count << " states";
+    print_info(tmp.str());
     // TODO: only check inductivity for those h_certificates which were actually used
     // (and inform if some were not used)
 
