@@ -60,6 +60,7 @@ void RelaxationHeuristic::initialize() {
         for (size_t j = 0; j < op->precondition.size(); ++j)
             op->precondition[j]->precondition_of.push_back(op);
     }
+    cudd_manager = new CuddManager();
 }
 
 Proposition *RelaxationHeuristic::get_proposition(const FactProxy &fact) {
@@ -166,4 +167,52 @@ void RelaxationHeuristic::simplify() {
     }
 
     cout << " done! [" << unary_operators.size() << " unary operators]" << endl;
+}
+
+/*
+ * This assumes that the heuristic value from s has recently been calculated and
+ * that the related information contained in the propositions is still there
+ */
+void RelaxationHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+    //see if the state is already covered by an existing certificate;
+    for(size_t i = 0; i < certificates.size(); ++i) {
+        CuddBDD copy = *certificates[i];
+        copy.land(CuddBDD(cudd_manager, s));
+        if(!copy.isZero()) {
+            return;
+        }
+    }
+    std::vector<std::pair<int,int> > unreachable_facts;
+    for(size_t i = 0; i < propositions.size(); ++i) {
+        for(size_t j = 0; j < propositions[i].size(); ++j) {
+            if(propositions[i][j].cost == -1) {
+                unreachable_facts.push_back(std::make_pair(i,j));
+            }
+        }
+    }
+    CuddBDD* bdd = new CuddBDD(cudd_manager, std::vector<std::pair<int, int> >(), unreachable_facts);
+    certificates.push_back(bdd);
+}
+
+int RelaxationHeuristic::get_number_of_unsolvability_certificates() {
+    return certificates.size();
+}
+
+void RelaxationHeuristic::write_subcertificates(std::ofstream &cert_file) {
+    if(certificates.empty()) {
+        return;
+    }
+    for(size_t i = 0; i < certificates.size(); ++i) {
+        std::vector<CuddBDD*> bdds(1, certificates[i]);
+        std::string name = "cert_relax"+std::to_string(i);
+        std::string txtname = name+".txt";
+        std::vector<std::string> names(1, name);
+        cudd_manager->dumpBDDs(bdds, names, txtname);
+        cert_file << "simple_certificate\n";
+        cert_file << "File:" << txtname << "\n";
+        cert_file << "begin_variables\n";
+        cudd_manager->writeVarOrder(cert_file);
+        cert_file << "end_variables\n";
+        cert_file << "end_certificate\n";
+    }
 }

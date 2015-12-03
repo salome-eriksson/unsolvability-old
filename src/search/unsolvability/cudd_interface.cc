@@ -41,6 +41,28 @@ CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     Cudd_Ref(bdd);
 }
 
+CuddBDD::CuddBDD(CuddManager *manager,const std::vector<std::pair<int,int> >& pos_vars,
+                 const std::vector<std::pair<int,int> > &neg_vars)
+    : manager(manager) {
+    std::vector<int> cube(manager->amount_vars, 2);
+    for(size_t i = 0; i < pos_vars.size(); ++i) {
+        int var = manager->fact_to_bdd_var[pos_vars[i].first][pos_vars[i].second];
+        //TODO: can this even happen?
+        if(var != -1) {
+            cube[var] = 1;
+        }
+    }
+    for(size_t i = 0; i < neg_vars.size(); ++i) {
+        int var = manager->fact_to_bdd_var[neg_vars[i].first][neg_vars[i].second];
+        //TODO: can this even happen?
+        if(var != -1) {
+            cube[var] = 0;
+        }
+    }
+    bdd = Cudd_CubeArrayToBdd(manager->ddmgr, &cube[0]);
+    Cudd_Ref(bdd);
+}
+
 CuddBDD::~CuddBDD() {
     Cudd_RecursiveDeref(manager->ddmgr, bdd);
 }
