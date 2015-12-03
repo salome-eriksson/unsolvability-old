@@ -47,6 +47,10 @@ public:
     CUDD_METHOD(CuddBDD(CuddManager *manager, bool positive=true))
     CUDD_METHOD(CuddBDD(CuddManager *manager, int var, int val, bool neg=false))
     CUDD_METHOD(CuddBDD(CuddManager *manager, const GlobalState &state))
+    //create a cube where the facts denoted by pos_vars are true
+    //and the facts denoted by neg_vars are false
+    CUDD_METHOD(CuddBDD(CuddManager *manager, const std::vector<std::pair<int,int> >& pos_vars,
+                        const std::vector<std::pair<int,int> > &neg_vars))
     CUDD_METHOD(CuddBDD(const CuddBDD& from))
     CUDD_METHOD(~CuddBDD())
     CUDD_METHOD(CuddBDD operator=(const CuddBDD& right))

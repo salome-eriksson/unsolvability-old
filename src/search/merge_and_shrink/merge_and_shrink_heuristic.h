@@ -42,7 +42,7 @@ public:
     ~MergeAndShrinkHeuristic() = default;
     virtual void build_unsolvability_certificate(const GlobalState &);
     virtual int get_number_of_unsolvability_certificates();
-    virtual void write_subcertificates(std::ofstream &);
+    virtual void write_subcertificates(std::ofstream &cert_file);
 };
 
 #endif
