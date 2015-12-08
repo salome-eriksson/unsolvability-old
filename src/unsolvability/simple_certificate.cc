@@ -20,10 +20,8 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     if(line.compare("begin_variables") != 0) {
         print_parsing_error_and_exit(line, "begin_variables");
     }
-    std::cout << "reading in variable order for simple certificate" << std::endl;
     read_in_variable_order(in);
     std::vector<BDD> bddvec;
-    std::cout << "parsing bdds in simple certificate file" << std::endl;
     parse_bdd_file(certificate_file, bddvec);
     assert(bddvec.size() == 1);
     certificate = bddvec[0];
@@ -31,7 +29,6 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
     if(line.compare("end_certificate") != 0) {
         print_parsing_error_and_exit(line, "end_certificate");
     }
-    std::cout << "done building simple certificate" << std::endl;
 }
 
 
