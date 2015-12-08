@@ -1,5 +1,6 @@
 #include "search_certificate.h"
 #include "simple_certificate.h"
+#include <iomanip>
 
 #include <cassert>
 #include <fstream>
@@ -44,13 +45,12 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
         print_parsing_error_and_exit(line, "subcertificates:<#subcertificates");
     }
     int subcertificates_amount = stoi(line_arr[1]);
-    std::cout << "parsing " << subcertificates_amount << " subcertificates" << std::endl;
+    std::cout << "Amount of subcertificates: " << subcertificates_amount << std::endl;
     h_certificates.resize(subcertificates_amount);
     for(int i = 0; i < subcertificates_amount; ++i) {
         std::getline(in, line);
 
         if(line.compare("simple_certificate") == 0) {
-            std::cout << "subcertificate " << i << ": Simple certificate" << std::endl;
             h_certificates[i]= new SimpleCertificate(task, in);
         } else if(line.compare("strong_conjunctive_certificate") == 0) {
             //TODO
@@ -70,7 +70,6 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     if(line.compare("end_certificate") != 0) {
         print_parsing_error_and_exit(line, "end_certificate");
     }
-    print_info("finished reading in search certificate");
 }
 
 /* The certificate contains a cube if it is either in the BDD representing
@@ -107,6 +106,8 @@ bool SearchCertificate::is_inductive() {
 
     print_info("checking if actions are inductive");
 
+    double action_check = timer();
+
     // loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
         // info output
@@ -127,21 +128,22 @@ bool SearchCertificate::is_inductive() {
             return false;
         }
     } // end loop over actions
+    action_check = timer() - action_check;
     // info output
-    std::stringstream tmp;
-    tmp << "checked " << task->get_number_of_actions() << " actions";
-    print_info(tmp.str());
+    print_info("Finished checking actions");
 
 
     // if there are no pruned states, bbd_exp is inductive already --> we are done
     if(bdd_pr.IsZero()) {
         print_info("bdd_pr is empty - no further checking needed");
+        print_statistics(action_check, 0.0, 0.0);
         return true;
     }
 
 
     // SECOND PART: see if all states in bdd_pr are covered by h_certificates
     print_info("checking if pruned states are contained in h certificate");
+    double pr_check = timer();
     int* cube;
     CUDD_VALUE_TYPE value_type;
     DdGen * cubegen = bdd_pr.FirstCube(&cube, &value_type);
@@ -205,6 +207,7 @@ bool SearchCertificate::is_inductive() {
                     std::cout << (int)s[i];
                 }
                 std::cout << " is not in h certificate" << std::endl;
+                print_statistics(action_check, (timer()-pr_check), 0.0);
                 return false;
             }
             count++;
@@ -214,14 +217,14 @@ bool SearchCertificate::is_inductive() {
             done = true;
         }
     }
+    pr_check = timer() - pr_check;
     // info output
-    tmp.clear();
-    tmp.str(std::string());
-    tmp << "checked " << count << " states";
-    print_info(tmp.str());
+    print_info("finished checking states");
+    std::cout << "Amount of states in bdd_pr: " << count << std::endl;
     // TODO: only check inductivity for those h_certificates which were actually used
     // (and inform if some were not used)
 
+    double hcert_check = timer();
     // THIRD PART: see if all h_certificates are inductive
     for(size_t i = 0; i < h_certificates.size(); ++i) {
         // info output
@@ -231,10 +234,12 @@ bool SearchCertificate::is_inductive() {
 
         if(!h_certificates[i]->is_inductive()) {
             std::cout << "h certificate not inductive!" << std::endl;
+            print_statistics(action_check, pr_check, (timer()-hcert_check));
             return false;
         }
     }
-
+    hcert_check = timer() - hcert_check;
+    print_statistics(action_check, pr_check, hcert_check);
     // all test passed, the certificate is valid
     return true;
 }
@@ -246,4 +251,10 @@ bool SearchCertificate::is_in_h_certificates(Cube& s) {
         }
     }
     return false;
+}
+
+void SearchCertificate::print_statistics(double action_check, double pr_check, double hcert_check) {
+    std::cout << "Time for part 1: " << std::fixed << std::setprecision(2) << action_check << std::endl;
+    std::cout << "Time for part 2: " << std::fixed << std::setprecision(2) << pr_check << std::endl;
+    std::cout << "Time for part 3: " << std::fixed << std::setprecision(2) << hcert_check << std::endl;
 }
