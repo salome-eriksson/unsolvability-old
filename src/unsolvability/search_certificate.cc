@@ -72,7 +72,7 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     }
 }
 
-/* The certificate contains a cube if it is either in bdd_exp or bdd_pr */
+/* The certificate contains a state if it is either in bdd_exp or bdd_pr */
 // TODO: technically the certificate also contains a state if it is contained in
 // one of the h_certificates... but since we currently only need the function for
 // the initial state, this is not implemented yet.
@@ -91,9 +91,9 @@ bool SearchCertificate::contains_state(const Cube &state) {
    the goal --> we also do one part of verifying whether the h_certificates are
    actual certificates */
 bool SearchCertificate::contains_goal() {
-    BDD statebdd = build_bdd_from_cube(task->get_goal());
-    statebdd = statebdd * bdd_exp;
-    if(!statebdd.IsZero()) {
+    BDD goalbdd = build_bdd_from_cube(task->get_goal());
+    goalbdd = goalbdd * bdd_exp;
+    if(!goalbdd.IsZero()) {
         return true;
     }
     for(size_t i = 0; i < h_certificates.size(); ++i) {

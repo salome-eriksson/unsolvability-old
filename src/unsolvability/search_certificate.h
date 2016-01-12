@@ -1,3 +1,6 @@
+#ifndef SEARCH_CERTIFICATE_H
+#define SEARCH_CERTIFICATE_H
+
 #include "certificate.h"
 
 class SearchCertificate : public Certificate {
@@ -11,6 +14,8 @@ private:
 public:
   SearchCertificate(Task *task, std::ifstream &in);
   virtual bool is_inductive();
-  virtual bool contains_state(const Cube &cube);
+  virtual bool contains_state(const Cube &state);
   virtual bool contains_goal();
 };
+
+#endif /* SEARCH_CERTIFICATE_H */
