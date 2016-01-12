@@ -150,6 +150,25 @@ main(int argc, char **argv)
       std::cout << "hmmmmmm...." << std::endl;
     }
     
+    x = v1 + (!v1 * v2);
+    y = (!v1 * v3) + !v2;
+    
+    if(y.Leq(x)) {
+       std::cout << "yay" << std::endl;
+    } else {
+       std::cout << "nejjj!" << std::endl;
+    }
+    BDD intersect = x.Intersect(y);
+    if(!intersect.IsZero()) {
+       std::cout << "they intersect" << std::endl;
+       std::cout << intersect.FactoredFormString() << std::endl;
+    }
+    BDD res = x*y;
+    if(!res.IsZero()) {
+       std::cout << "yup, they intersect alright" << std::endl;
+       std::cout << res.FactoredFormString() << std::endl;
+    }
+    
     
     /*BDD a = (v1+!v2)*v3;
     std::vector<std::string> names;

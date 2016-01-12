@@ -40,7 +40,8 @@ public:
   virtual ~Certificate();
   // The variable ordering of the cube corresponds to the global variable ordering
   // (as defined in Task)
-  virtual bool contains_cube(const Cube &cube) = 0;
+  virtual bool contains_state(const Cube &state) = 0;
+  virtual bool contains_goal() = 0;
   virtual bool is_inductive() = 0;
   virtual bool is_certificate_for(const Cube &state);
 
