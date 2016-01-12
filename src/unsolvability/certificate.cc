@@ -114,9 +114,9 @@ BDD Certificate::build_bdd_from_cube(const Cube &cube) {
 
 bool Certificate::is_certificate_for(const Cube &s) {
     print_info("checking if certificate contains state");
-    bool has_s = contains_cube(s);
+    bool has_s = contains_state(s);
     print_info("checking if certificate contains goal");
-    bool has_goal = contains_cube(task->get_goal());
+    bool has_goal = contains_goal();
     print_info("checking if certificate is inductive");
     bool inductivity = is_inductive();
     bool valid = has_s && !has_goal && inductivity;

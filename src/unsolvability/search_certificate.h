@@ -11,5 +11,6 @@ private:
 public:
   SearchCertificate(Task *task, std::ifstream &in);
   virtual bool is_inductive();
-  virtual bool contains_cube(const Cube &cube);
+  virtual bool contains_state(const Cube &cube);
+  virtual bool contains_goal();
 };

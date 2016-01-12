@@ -34,11 +34,23 @@ SimpleCertificate::SimpleCertificate(Task *task, std::ifstream &in)
 
 // TODO: is there an easier way to check if a cube is contained in a bdd
 // (similar to problem in search - easy way to add cube to bdd)
-bool SimpleCertificate::contains_cube(const Cube &cube) {
-    BDD statebdd = build_bdd_from_cube(cube);
+bool SimpleCertificate::contains_state(const Cube &state) {
+    BDD statebdd = build_bdd_from_cube(state);
 
-    // if statebdd is not a subset of the certificate, the state is not included
+    // if the state is included in the certificate, its bdd must represent a subset
+    // of the certificate bdd (since both bdds use only unprimed variables)
     if(!statebdd.Leq(certificate)) {
+        return false;
+    }
+    return true;
+}
+
+bool SimpleCertificate::contains_goal() {
+    BDD goalbdd = build_bdd_from_cube(task->get_goal());
+    // here we cannot use subset, since we also need to return true if the certificate
+    // contains only some but not all goal states
+    goalbdd = goalbdd.Intersect(certificate);
+    if(goalbdd.IsZero()) {
         return false;
     }
     return true;

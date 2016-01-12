@@ -72,18 +72,32 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     }
 }
 
-/* The certificate contains a cube if it is either in the BDD representing
-   the expanded states or in one of the h_certificates */
+/* The certificate contains a cube if it is either in bdd_exp or bdd_pr */
+// TODO: technically the certificate also contains a state if it is contained in
+// one of the h_certificates... but since we currently only need the function for
+// the initial state, this is not implemented yet.
+bool SearchCertificate::contains_state(const Cube &state) {
+    BDD statebdd = build_bdd_from_cube(state);
 
-bool SearchCertificate::contains_cube(const Cube &cube) {
-    BDD statebdd = build_bdd_from_cube(cube);
-
-    // if statebdd is a subset of bdd_exp, bdd_exp contains the state
     if(statebdd.Leq(bdd_exp)) {
+        return true;
+    } else if(statebdd.Leq(bdd_pr)) {
+        return true;
+    }
+    return false;
+}
+
+/* We test simultaneously whether bdd_exp or any of the h_certificates contain
+   the goal --> we also do one part of verifying whether the h_certificates are
+   actual certificates */
+bool SearchCertificate::contains_goal() {
+    BDD statebdd = build_bdd_from_cube(task->get_goal());
+    statebdd = statebdd * bdd_exp;
+    if(!statebdd.IsZero()) {
         return true;
     }
     for(size_t i = 0; i < h_certificates.size(); ++i) {
-        if(h_certificates[i]->contains_cube(cube)) {
+        if(h_certificates[i]->contains_goal()) {
             return true;
         }
     }
@@ -226,6 +240,10 @@ bool SearchCertificate::is_inductive() {
 
     double hcert_check = timer();
     // THIRD PART: see if all h_certificates are inductive
+    /* remark: inductiveness is the only part not verified yet to show that the
+       h_certificates are actual certificates; we checked already if all states
+       in bdd_pr are included in some h_certificate (see SECOND PART) and that
+       no certificate contains a goal state (see function contains_goal()) */
     for(size_t i = 0; i < h_certificates.size(); ++i) {
         // info output
         std::stringstream tmp;
@@ -246,7 +264,7 @@ bool SearchCertificate::is_inductive() {
 
 bool SearchCertificate::is_in_h_certificates(Cube& s) {
     for(size_t i = 0; i < h_certificates.size(); ++i) {
-        if(h_certificates[i]->contains_cube(s)) {
+        if(h_certificates[i]->contains_state(s)) {
             return true;
         }
     }
