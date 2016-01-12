@@ -17,6 +17,7 @@ HEADERS = \
           certificate.h \
           simple_certificate.h \
 	  search_certificate.h \
+	  strong_conjunctive_certificate.h \
 	  timer.h \
 
 SOURCES = verify.cc $(HEADERS:%.h=%.cc)
