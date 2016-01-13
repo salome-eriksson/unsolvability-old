@@ -64,6 +64,7 @@ public:
     CUDD_METHOD(bool isZero() const)
 
     CUDD_METHOD(bool isEqualTo(const CuddBDD &bdd2) const)
+    CUDD_METHOD(bool isSubsetOf(const CuddBDD &bdd2) const)
 
     //TODO: not sure if this is a good idea, it is used in heuristic representation in M&S
     //to get the M&S manager without needing to pass it through all the time

@@ -31,6 +31,8 @@ void HMHeuristic::initialize() {
          << "It is SLOOOOOOOOOOOW." << endl
          << "Please do not use this for comparison!" << endl;
     generate_all_tuples();
+
+    cudd_manager = new CuddManager();
 }
 
 
@@ -318,6 +320,85 @@ void HMHeuristic::dump_tuple(Tuple &tup) const {
     cout << tup[0].first << "=" << tup[0].second;
     for (size_t i = 1; i < tup.size(); ++i)
         cout << "," << tup[i].first << "=" << tup[i].second;
+}
+
+void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+    //see if the state is covered by an already existing certificate
+    CuddBDD statebdd(cudd_manager, s);
+    for(auto vec : certificates) {
+        assert(vec.size()>0);
+        bool covered = true;
+        for(CuddBDD* bdd : vec) {
+            if(!statebdd.isSubsetOf(*bdd)) {
+                covered = false;
+                break;
+            }
+        }
+        if(covered) {
+            return;
+        }
+    } // end looping over certificates
+
+    std::vector<CuddBDD*> new_cert;
+
+    //empty vector (needed for reference)
+    std::vector<std::pair<int,int>> emptyvec;
+
+    for(auto e : hm_table) {
+        if(e.second < numeric_limits<int>::max()) {
+            continue;
+        }
+
+        // check if this tuple is already subsumed by another tuple with infinite heuristic value
+        // TODO: const reference would be better but general_all_partial_tuples()   does not take const references
+        Tuple tuple(e.first);
+        vector<Tuple> partial_tuples;
+        generate_all_partial_tuples(tuple, partial_tuples);
+        bool subsumed = false;
+        for(Tuple t : partial_tuples) {
+            if(t == tuple) {
+                continue;
+            }
+            if(hm_table[t] == numeric_limits<int>::max()) {
+                subsumed = true;
+            }
+        }
+        if(subsumed) {
+            continue;
+        }
+
+        //build bdd for negated tuple
+        CuddBDD* bdd = new CuddBDD(cudd_manager, tuple, emptyvec);
+        bdd->negate();
+        new_cert.push_back(bdd);
+    }
+
+    certificates.push_back(new_cert);
+}
+
+int HMHeuristic::get_number_of_unsolvability_certificates() {
+    return certificates.size();
+}
+
+void HMHeuristic::write_subcertificates(ofstream &cert_file) {
+    if(certificates.empty()) {
+        return;
+    }
+    for(size_t i = 0; i < certificates.size(); ++i) {
+        std::string name = "cert_hm"+std::to_string(i);
+        std::string txtname = name+".txt";
+        std::vector<std::string> names(certificates[i].size(), "");
+        for(size_t j = 0; j < names.size(); ++j) {
+            names[j] = name+"_"+std::to_string(j);
+        }
+        cudd_manager->dumpBDDs(certificates[i], names, txtname);
+        cert_file << "strong_conjunctive_certificate\n";
+        cert_file << "File:" << txtname << "\n";
+        cert_file << "begin_variables\n";
+        cudd_manager->writeVarOrder(cert_file);
+        cert_file << "end_variables\n";
+        cert_file << "end_certificate\n";
+    }
 }
 
 
