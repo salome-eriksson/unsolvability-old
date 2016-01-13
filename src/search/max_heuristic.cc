@@ -101,10 +101,6 @@ int HSPMaxHeuristic::compute_heuristic(const GlobalState &state) {
     for (size_t i = 0; i < goal_propositions.size(); ++i) {
         int prop_cost = goal_propositions[i]->cost;
         if (prop_cost == -1) {
-            /*std::cout << "encountered dead end at the following state:" << std::endl;
-            state.dump_pddl();
-            get_unsolvability_certificate(state);
-            exit(0);*/
             return DEAD_END;
         }
         total_cost = max(total_cost, prop_cost);
@@ -112,23 +108,6 @@ int HSPMaxHeuristic::compute_heuristic(const GlobalState &state) {
 
     return total_cost;
 }
-
-// TODO: make this compatible with the new interface
-/*BDDWrapper* HSPMaxHeuristic::get_unsolvability_certificate(const GlobalState &state) {
-    BDDWrapper* bdd = new BDDWrapper();
-    for(size_t i = 0; i < propositions.size(); ++i) {
-        for(size_t j = 0; j < propositions[i].size(); ++j) {
-            if(propositions[i][j].cost == -1) {
-                std::cout << "unreachable proposition: " << g_fact_names[i][j] << std::endl;
-                //if the proposition is unreachable, add its negative to the bdd
-                bdd->land(i,j,true);
-            }
-        }
-    }
-    bdd->dumpBDD("test", "test");
-    return bdd;
-}*/
-
 
 static Heuristic *_parse(OptionParser &parser) {
     parser.document_synopsis("Max heuristic", "");

@@ -146,6 +146,11 @@ bool CuddBDD::isEqualTo(const CuddBDD &bdd2) const {
     return bdd == bdd2.bdd;
 }
 
+bool CuddBDD::isSubsetOf(const CuddBDD &bdd2) const {
+    assert(manager->ddmgr == bdd2.manager->ddmgr);
+    return (Cudd_bddLeq(manager->ddmgr, bdd, bdd2.bdd) == 1);
+}
+
 CuddManager* CuddBDD::get_manager() {
     return manager;
 }
@@ -242,9 +247,6 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string>
     char** names_char = new char*[size];
     for(int i = 0; i < size; ++i) {
         bdd_arr[i] = bdds[i]->bdd;
-        if(bdds[i]->isOne()) {
-            std::cout << "is one" << std::endl;
-        }
         names_char[i] = new char[names[i].size() + 1];
         strcpy(names_char[i], names[i].c_str());
     }
