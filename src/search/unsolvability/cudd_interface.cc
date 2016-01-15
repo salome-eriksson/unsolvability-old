@@ -112,6 +112,18 @@ void CuddBDD::lor(int var, int val, bool neg) {
     bdd = tmp;
 }
 
+void CuddBDD::lor_bddvar(int var, int val, bool neg) {
+    int bdd_var = manager->fact_to_bdd_var[var][val];
+    assert(bdd_var != -1);
+    DdNode *tmp;
+    if(neg) {
+        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_Not(Cudd_bddIthVar(manager->ddmgr, bdd_var)));
+    } else {
+        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_bddIthVar(manager->ddmgr, bdd_var));
+    }
+    bdd = tmp;
+}
+
 void CuddBDD::negate() {
     DdNode* tmp = Cudd_Not(bdd);
     //TODO: is this necessary here?
@@ -252,6 +264,10 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string>
     }
     Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], names_char,
                             NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], NULL);
+}
+
+bool CuddManager::isVariable(int var, int val) const {
+    return (fact_to_bdd_var[var][val] != -1);
 }
 
 #endif

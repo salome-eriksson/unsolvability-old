@@ -29,9 +29,8 @@ Certificate* build_certificate(std::string file, Task* task) {
         std::cout << "reading in simple certificate" << std::endl;
         return new SimpleCertificate(task, stream);
     } else if(line.compare("strong_conjunctive_certificate") == 0) {
-        //TODO
-        std::cout << "not yet implemented (strong conjunctive certificate)" << std::endl;
-        exit(0);
+        std::cout << "reading in strong conjunctive certificate" << std::endl;
+        return new StrongConjunctiveCertificate(task, stream);
     } else if(line.compare("search_certificate") == 0) {
         std::cout << "reading in search certificate" << std::endl;
         return new SearchCertificate(task, stream);

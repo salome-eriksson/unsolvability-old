@@ -28,8 +28,8 @@ DOWNWARD_GUROBI_LIBDIR ?=
 ## Set DOWNWARD_USE_CUDD to 1 to enable bdd related code (like unsolvability certificates)
 DOWNWARD_USE_CUDD ?= 1
 ## Set the root directory of your CUDD installation
-#DOWNWARD_CUDD_ROOT ?= /home/simsal00/progs/cudd
-DOWNWARD_CUDD_ROOT ?= /home/salone/progs/cudd
+DOWNWARD_CUDD_ROOT ?= /home/simsal00/progs/cudd
+#DOWNWARD_CUDD_ROOT ?= /home/salone/progs/cudd
 
 ## Set DOWNWARD_LINK_RELEASE_STATICALLY to 0 or 1 (default) to
 ## disable/enable static linking of the executable in release mode.

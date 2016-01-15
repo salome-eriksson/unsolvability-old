@@ -56,6 +56,7 @@ public:
     CUDD_METHOD(CuddBDD operator=(const CuddBDD& right))
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
+    CUDD_METHOD(void lor_bddvar(int var, int val, bool neg = false))
     CUDD_METHOD(void negate())
     CUDD_METHOD(void land(const CuddBDD &bdd2))
     CUDD_METHOD(void lor(const CuddBDD &bdd2))
@@ -80,8 +81,8 @@ private:
     DdManager* ddmgr;
     std::vector<std::pair<int,int> > var_to_fact_pair;
     std::vector<std::vector<DdNode*> > fact_bdds;
-    //saves to which bdd var a fact corresponds. If the fact is a "negated atom"
-    //or "none of those", -1 is saved as value
+    // saves to which bdd var a fact corresponds.
+    // If the fact is a "negated atom" or "none of those", -1 is saved as value
     std::vector<std::vector<int> > fact_to_bdd_var;
     int amount_vars;
 #endif
@@ -92,6 +93,7 @@ public:
 
     CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const)
+    CUDD_METHOD(bool isVariable(int var, int val) const)
 };
 
 #endif
