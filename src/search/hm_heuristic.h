@@ -34,6 +34,7 @@ class HMHeuristic : public Heuristic {
 
     CuddManager* cudd_manager;
     std::vector<std::vector<CuddBDD*>> certificates;
+    std::vector<CuddBDD*> mutex_bdds;
 
     // auxiliary methods
     void init_hm_table(Tuple &t);
@@ -62,6 +63,8 @@ class HMHeuristic : public Heuristic {
 
     void dump_table() const;
     void dump_tuple(Tuple &tup) const;
+
+    void build_mutex_bdds();
 
 protected:
     virtual int compute_heuristic(const GlobalState &state);

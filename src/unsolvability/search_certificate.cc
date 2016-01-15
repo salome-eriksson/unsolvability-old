@@ -1,5 +1,6 @@
 #include "search_certificate.h"
 #include "simple_certificate.h"
+#include "strong_conjunctive_certificate.h"
 #include <iomanip>
 
 #include <cassert>
@@ -53,9 +54,7 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
         if(line.compare("simple_certificate") == 0) {
             h_certificates[i]= new SimpleCertificate(task, in);
         } else if(line.compare("strong_conjunctive_certificate") == 0) {
-            //TODO
-            std::cout << "not yet implemented (strong conjunctive certificate)" << std::endl;
-            exit(0);
+            h_certificates[i]= new StrongConjunctiveCertificate(task, in);
         } else {
             std::cout << "subcertificate " << i
                       << " type unknown: " << line << std::endl;

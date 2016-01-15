@@ -31,22 +31,22 @@ StrongConjunctiveCertificate::StrongConjunctiveCertificate(Task *task, std::ifst
 bool StrongConjunctiveCertificate::contains_state(const Cube &state) {
     BDD statebdd = build_bdd_from_cube(state);
     for(size_t i = 0; i < certificates.size(); ++i) {
-        if(statebdd.Leq(certificates[i])) {
-            return true;
+        if(!statebdd.Leq(certificates[i])) {
+            return false;
         }
     }
-    return false;
+    return true;
 }
 
 bool StrongConjunctiveCertificate::contains_goal() {
     BDD goalbdd = build_bdd_from_cube(task->get_goal());
     for(size_t i = 0; i < certificates.size(); ++i) {
         BDD tmp = goalbdd * certificates[i];
-        if(!tmp.IsZero()) {
-            return true;
+        if(tmp.IsZero()) {
+            return false;
         }
     }
-    return false;
+    return true;
 }
 
 bool StrongConjunctiveCertificate::is_inductive() {
@@ -69,7 +69,7 @@ bool StrongConjunctiveCertificate::is_inductive() {
         BDD action_bdd = build_bdd_for_action(a);
 
         // for each certificate c1 we need to find a certificate c2 such that
-        // (c1 \cup c2)[a] \subseteq c1
+        // (c1 \cup c2)[a] \subseteq c1'
         for(size_t ci = 0; ci < certificates.size(); ++ci) {
             bool found_cj = false;
             for(size_t cj = 0; cj < certificates.size(); ++cj) {
@@ -80,9 +80,10 @@ bool StrongConjunctiveCertificate::is_inductive() {
                 }
             }// end loop over certificate c2
             if(!found_cj) {
+                std::cout << "did not find cj at index " << ci << std::endl;
                 return false;
             }
         }// end looping over certificates c1
-    }
+    }// end loop over actions
     return true;
 }

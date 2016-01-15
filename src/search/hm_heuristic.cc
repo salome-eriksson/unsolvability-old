@@ -322,7 +322,30 @@ void HMHeuristic::dump_tuple(Tuple &tup) const {
         cout << "," << tup[i].first << "=" << tup[i].second;
 }
 
+void HMHeuristic::build_mutex_bdds() {
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        int amount_vals = g_variable_domain[i];
+        // if the last value of the variable is not a bdd_variable, it is
+        // either "none of those" or "NegatedAtom" --> ignore that value
+        if(!cudd_manager->isVariable(i, g_variable_domain[i]-1)) {
+            amount_vals-=1;
+        }
+        for(int j = 0; j < amount_vals; ++j) {
+            CuddBDD bdd_j(cudd_manager, false);
+            bdd_j.lor_bddvar(i,j,true);
+            for(int k = j+1; k < amount_vals; ++k) {
+                CuddBDD* res = new CuddBDD(bdd_j);
+                res->lor_bddvar(i, k, true);
+                mutex_bdds.push_back(res);
+            }
+        }
+    }
+}
+
 void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+    if(mutex_bdds.empty()) {
+        build_mutex_bdds();
+    }
     //see if the state is covered by an already existing certificate
     CuddBDD statebdd(cudd_manager, s);
     for(auto vec : certificates) {
@@ -339,7 +362,7 @@ void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
         }
     } // end looping over certificates
 
-    std::vector<CuddBDD*> new_cert;
+    std::vector<CuddBDD*> new_cert(mutex_bdds);
 
     //empty vector (needed for reference)
     std::vector<std::pair<int,int>> emptyvec;
@@ -361,6 +384,7 @@ void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
             }
             if(hm_table[t] == numeric_limits<int>::max()) {
                 subsumed = true;
+                break;
             }
         }
         if(subsumed) {
