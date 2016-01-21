@@ -8,6 +8,9 @@
 #include <iostream>
 #include <new>
 
+
+#include "unsolvability/cudd_interface.h"
+
 using namespace std;
 
 int main(int argc, const char **argv) {

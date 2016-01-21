@@ -228,6 +228,8 @@ public:
         return goal_states[state];
     }
 
+    HeuristicRepresentation* get_heuristic_representation();
+
     /*
       TODO: We probably want to get rid of the methods below that just
       forward to distances, by giving the users of these methods

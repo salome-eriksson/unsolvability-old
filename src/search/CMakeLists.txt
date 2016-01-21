@@ -14,6 +14,7 @@ endif()
 # this option can remain true. Setting this to false will compile without
 # LP solvers even if some of them are installed.
 option(USE_LP "Use all available LP solvers." TRUE)
+option(USE_CUDD "Use Cudd BDD library." TRUE)
 
 
 ## == Project ==
@@ -68,4 +69,11 @@ if(USE_LP)
             $<TARGET_FILE_DIR:downward>
         )
     endif()
+endif()
+
+if(USE_CUDD)
+    find_package(CUDD)
+    add_definitions("-D USE_CUDD")
+    include_directories(${CUDD_INCLUDE_DIRS})
+    target_link_libraries(downward ${CUDD_LIBRARIES})
 endif()

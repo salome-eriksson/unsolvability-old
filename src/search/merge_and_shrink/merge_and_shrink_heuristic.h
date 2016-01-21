@@ -2,6 +2,7 @@
 #define MERGE_AND_SHRINK_MERGE_AND_SHRINK_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
 
 #include <memory>
 
@@ -16,6 +17,12 @@ class MergeAndShrinkHeuristic : public Heuristic {
     std::shared_ptr<ShrinkStrategy> shrink_strategy;
     std::shared_ptr<Labels> labels;
     long starting_peak_memory;
+    std::vector<int> variable_order;
+
+    CuddManager* cudd_manager;
+    CuddBDD* certificate;
+
+    //bool in_certificate(const GlobalState &global_state);
 
     /*
       TODO: after splitting transition system into several parts, we may
@@ -33,6 +40,9 @@ protected:
 public:
     explicit MergeAndShrinkHeuristic(const Options &opts);
     ~MergeAndShrinkHeuristic() = default;
+    virtual void build_unsolvability_certificate(const GlobalState &);
+    virtual int get_number_of_unsolvability_certificates();
+    virtual void write_subcertificates(std::ofstream &cert_file);
 };
 
 #endif

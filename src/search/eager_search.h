@@ -4,6 +4,7 @@
 #include "search_engine.h"
 
 #include "open_lists/open_list.h"
+#include "unsolvability/cudd_interface.h"
 
 #include <vector>
 
@@ -22,11 +23,17 @@ class EagerSearch : public SearchEngine {
     std::vector<Heuristic *> heuristics;
     std::vector<Heuristic *> preferred_operator_heuristics;
 
+    CuddManager *manager;
+    CuddBDD *bdd_exp;
+    CuddBDD *bdd_pr;
+
     std::pair<SearchNode, bool> fetch_next_node();
     void start_f_value_statistics(EvaluationContext &eval_context);
     void update_f_value_statistics(const SearchNode &node);
     void reward_progress();
     void print_checkpoint_line(int g) const;
+
+    void build_certificate();
 
 protected:
     virtual void initialize() override;
