@@ -11,7 +11,7 @@
 #include "global_operator.h"
 #include "globals.h"
 #include "heuristic.h"
-
+#include "unsolvability/cudd_interface.h"
 
 typedef std::vector<std::pair<int, int> > Tuple;
 
@@ -31,6 +31,10 @@ class HMHeuristic : public Heuristic {
     // h^m table
     std::map<Tuple, int> hm_table;
     bool was_updated;
+
+    CuddManager* cudd_manager;
+    std::vector<std::vector<CuddBDD*>> certificates;
+    std::vector<CuddBDD*> mutex_bdds;
 
     // auxiliary methods
     void init_hm_table(Tuple &t);
@@ -60,6 +64,8 @@ class HMHeuristic : public Heuristic {
     void dump_table() const;
     void dump_tuple(Tuple &tup) const;
 
+    void build_mutex_bdds();
+
 protected:
     virtual int compute_heuristic(const GlobalState &state);
     virtual void initialize();
@@ -68,6 +74,10 @@ public:
     HMHeuristic(const Options &opts);
     virtual ~HMHeuristic();
     virtual bool dead_ends_are_reliable() const;
+
+    virtual void build_unsolvability_certificate(const GlobalState &s);
+    virtual int get_number_of_unsolvability_certificates();
+    virtual void write_subcertificates(std::ofstream &cert_file);
 };
 
 #endif

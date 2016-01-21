@@ -139,7 +139,7 @@ fast_downward_plugin(
     HELP "Eager search algorithm"
     SOURCES
         eager_search.cc
-    DEPENDS G_EVALUATOR SUM_EVALUATOR
+    DEPENDS G_EVALUATOR SUM_EVALUATOR CUDD_INTERFACE
 )
 
 fast_downward_plugin(
@@ -174,10 +174,18 @@ fast_downward_plugin(
 )
 
 fast_downward_plugin(
+    NAME CUDD_INTERFACE
+    HELP "Interface to the CUDD BDD library"
+    SOURCES
+        unsolvability/cudd_interface.cc
+)
+
+fast_downward_plugin(
     NAME RELAXATION_HEURISTIC
     HELP "The base class for relaxation heuristics"
     SOURCES
         relaxation_heuristic.cc
+    DEPENDS CUDD_INTERFACE
 )
 
 fast_downward_plugin(
@@ -230,6 +238,7 @@ fast_downward_plugin(
     NAME HM_HEURISTIC
     HELP "The h^m heuristic"
     SOURCES hm_heuristic.cc
+    DEPENDS CUDD_INTERFACE
 )
 
 fast_downward_plugin(
@@ -265,6 +274,7 @@ fast_downward_plugin(
         merge_and_shrink/shrink_random.cc
         merge_and_shrink/shrink_strategy.cc
         merge_and_shrink/transition_system.cc
+    DEPENDS CUDD_INTERFACE
 )
 
 fast_downward_plugin(

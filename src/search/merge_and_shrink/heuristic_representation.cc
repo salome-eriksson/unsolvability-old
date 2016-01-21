@@ -21,7 +21,6 @@ int HeuristicRepresentation::get_domain_size() const {
     return domain_size;
 }
 
-
 HeuristicRepresentationLeaf::HeuristicRepresentationLeaf(
     int var_id, int domain_size)
     : HeuristicRepresentation(domain_size),
@@ -45,6 +44,19 @@ void HeuristicRepresentationLeaf::apply_abstraction_to_lookup_table(
 int HeuristicRepresentationLeaf::get_abstract_state(const State &state) const {
     int value = state[var_id].get_value();
     return lookup_table[value];
+}
+
+void HeuristicRepresentationLeaf::get_unsolvability_certificate(CuddBDD* h_inf,
+            std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
+    int val;
+    for(size_t i = 0; i < lookup_table.size(); ++i) {
+        val = lookup_table[i];
+        if(val == -1) {
+            h_inf->lor(var_id, i, false);
+        } else if(fill_bdd_for_val) {
+            bdd_for_val[val].lor(var_id,i,false);
+        }
+    }
 }
 
 
@@ -88,4 +100,42 @@ int HeuristicRepresentationMerge::get_abstract_state(
         state2 == TransitionSystem::PRUNED_STATE)
         return TransitionSystem::PRUNED_STATE;
     return lookup_table[state1][state2];
+}
+
+/*
+ * h_inf: states with infinite estimate
+ * bdd_for_val: is filled with bdds for each value (each bdd represents the
+ * variable assignment so far that maps to the value in the lookup_table for the current
+ * HeuristicRepresentation)
+ * fill_bdd_for_val: if bdd_for_val should be filled (this will not be necessary for the "root"
+ * table, since we are only interested in the states with infinite estimate
+ */
+void HeuristicRepresentationMerge::get_unsolvability_certificate(CuddBDD* h_inf,
+         std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
+    CuddManager* manager = h_inf->get_manager();
+    size_t rows = lookup_table.size();
+    size_t columns = lookup_table[0].size();
+    //get the bdds for the child nodes
+    std::vector<CuddBDD> left_child_bdds(rows, CuddBDD(manager, false));
+    std::vector<CuddBDD> right_child_bdds(columns, CuddBDD(manager, false));
+    left_child->get_unsolvability_certificate(h_inf, left_child_bdds, true);
+    right_child->get_unsolvability_certificate(h_inf, right_child_bdds, true);
+
+
+    int val;
+    CuddBDD tmp(manager);
+    for(size_t i = 0; i < rows; ++i) {
+        for(size_t j = 0; j < columns; ++j) {
+            val = lookup_table[i][j];
+            if(val == -1) {
+                tmp = left_child_bdds[i];
+                tmp.land(right_child_bdds[j]);
+                h_inf->lor(tmp);
+            } else if(fill_bdd_for_val) {
+                tmp = left_child_bdds[i];
+                tmp.land(right_child_bdds[j]);
+                bdd_for_val[val].lor(tmp);
+            }
+        }
+    }
 }

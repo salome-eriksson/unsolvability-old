@@ -5,8 +5,11 @@
 #include "scalar_evaluator.h"
 #include "task_proxy.h"
 
+#include "unsolvability/cudd_interface.h"
+
 #include <memory>
 #include <vector>
+#include <fstream>
 
 class GlobalOperator;
 class GlobalState;
@@ -72,6 +75,11 @@ public:
         EvaluationContext &eval_context) override;
 
     std::string get_description() const;
+
+    //TODO: abstract methods?
+    virtual void build_unsolvability_certificate(const GlobalState &) {}
+    virtual int get_number_of_unsolvability_certificates() { return -1; }
+    virtual void write_subcertificates(std::ofstream &) {}
 };
 
 #endif

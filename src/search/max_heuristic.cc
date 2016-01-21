@@ -100,8 +100,9 @@ int HSPMaxHeuristic::compute_heuristic(const GlobalState &state) {
     int total_cost = 0;
     for (size_t i = 0; i < goal_propositions.size(); ++i) {
         int prop_cost = goal_propositions[i]->cost;
-        if (prop_cost == -1)
+        if (prop_cost == -1) {
             return DEAD_END;
+        }
         total_cost = max(total_cost, prop_cost);
     }
 

@@ -6,6 +6,7 @@
 #include "merge_strategy.h"
 #include "shrink_strategy.h"
 #include "transition_system.h"
+#include "heuristic_representation.h"
 
 #include "../option_parser.h"
 #include "../plugin.h"
@@ -26,7 +27,7 @@ MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
       merge_strategy(opts.get<shared_ptr<MergeStrategy> >("merge_strategy")),
       shrink_strategy(opts.get<shared_ptr<ShrinkStrategy> >("shrink_strategy")),
       labels(opts.get<shared_ptr<Labels> >("label_reduction")),
-      starting_peak_memory(-1),
+      starting_peak_memory(-1), certificate(NULL),
       final_transition_system(nullptr) {
     /*
       TODO: Can we later get rid of the initialize calls, after rethinking
@@ -101,6 +102,8 @@ void MergeAndShrinkHeuristic::build_transition_system(const Timer &timer) {
     }
     cout << endl;
 
+    bool first = true;
+
     if (!final_transition_system) { // All atomic transition system are solvable.
         while (!merge_strategy->done()) {
             // Choose next transition systems to merge
@@ -108,6 +111,12 @@ void MergeAndShrinkHeuristic::build_transition_system(const Timer &timer) {
                 fts.get_vector());
             int merge_index1 = merge_indices.first;
             int merge_index2 = merge_indices.second;
+            //TODO hack for getting the variable order in case of linear merge strategy
+            if(first) {
+                variable_order.push_back(merge_index1);
+            }
+            variable_order.push_back(merge_index2);
+            first = false;
             assert(merge_index1 != merge_index2);
             TransitionSystem *transition_system1 = fts[merge_index1];
             TransitionSystem *transition_system2 = fts[merge_index2];
@@ -209,9 +218,49 @@ void MergeAndShrinkHeuristic::initialize() {
 int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) {
     State state = convert_global_state(global_state);
     int cost = final_transition_system->get_cost(state);
-    if (cost == -1)
+    if (cost == -1) {
         return DEAD_END;
+    }
     return cost;
+}
+
+void MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &) {
+    if(certificate != NULL) {
+        return;
+    }
+    //set up the CUDD manager with the right variable order
+    cudd_manager = new CuddManager(variable_order);
+    certificate = new CuddBDD(cudd_manager, false);
+
+    std::vector<CuddBDD> dummy_vector;
+
+    final_transition_system->get_heuristic_representation()->get_unsolvability_certificate(
+                certificate, dummy_vector, false);
+}
+
+int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
+    if(certificate != NULL) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void MergeAndShrinkHeuristic::write_subcertificates(std::ofstream &cert_file) {
+    if(certificate == NULL) {
+        return;
+    }
+    std::vector<CuddBDD*> bdds;
+    bdds.push_back(certificate);
+    std::vector<std::string> names;
+    names.push_back("cert_ms");
+    cudd_manager->dumpBDDs(bdds, names, "cert_ms.txt");
+    cert_file << "simple_certificate\n";
+    cert_file << "File:cert_ms.txt\n";
+    cert_file << "begin_variables\n";
+    cudd_manager->writeVarOrder(cert_file);
+    cert_file << "end_variables\n";
+    cert_file << "end_certificate\n";
 }
 
 static Heuristic *_parse(OptionParser &parser) {
