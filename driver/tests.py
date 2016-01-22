@@ -6,13 +6,14 @@ Test module for Fast Downward driver script. Run with
     py.test driver/tests.py
 """
 
+import os
 import subprocess
 
 from .aliases import ALIASES, PORTFOLIOS
 from .arguments import EXAMPLES
 from . import limits
-from .portfolio_runner import EXIT_PLAN_FOUND, EXIT_UNSOLVED_INCOMPLETE
-from .util import REPO_ROOT_DIR
+from .returncodes import EXIT_PLAN_FOUND, EXIT_UNSOLVED_INCOMPLETE
+from .util import REPO_ROOT_DIR, find_domain_filename
 
 
 def preprocess():
@@ -41,17 +42,12 @@ def test_commandline_args():
 
 def test_aliases():
     for alias, config in ALIASES.items():
-        # selmax is currently not supported.
-        if alias in ["seq-opt-fd-autotune", "seq-opt-selmax"]:
-            continue
         cmd = ["./fast-downward.py", "--alias", alias, "output"]
         assert run_driver(cmd) == 0
 
 
 def test_portfolios():
     for name, portfolio in PORTFOLIOS.items():
-        if name in ["seq-opt-fd-autotune", "seq-opt-selmax"]:
-            continue
         cmd = ["./fast-downward.py", "--portfolio", portfolio,
                "--search-time-limit", "30m", "output"]
         assert run_driver(cmd) in [
@@ -69,3 +65,11 @@ def test_time_limits():
             ]:
         assert (limits._get_soft_and_hard_time_limits(internal, external) ==
             (expected_soft, expected_hard))
+
+
+def test_automatic_domain_file_name_computation():
+    benchmarks_dir = os.path.join(REPO_ROOT_DIR, "benchmarks")
+    for dirpath, dirnames, filenames in os.walk(benchmarks_dir):
+        for filename in filenames:
+            if "domain" not in filename:
+                assert find_domain_filename(os.path.join(dirpath, filename))

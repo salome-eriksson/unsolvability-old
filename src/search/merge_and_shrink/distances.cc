@@ -1,5 +1,6 @@
 #include "distances.h"
 
+#include "label_equivalence_relation.h"
 #include "transition_system.h"
 
 #include "../priority_queue.h"
@@ -10,8 +11,8 @@
 using namespace std;
 
 
+namespace MergeAndShrink {
 const int Distances::DISTANCE_UNKNOWN;
-
 
 Distances::Distances(const TransitionSystem &transition_system)
     : transition_system(transition_system) {
@@ -19,6 +20,14 @@ Distances::Distances(const TransitionSystem &transition_system)
 }
 
 Distances::~Distances() {
+}
+
+void Distances::clear_distances() {
+    max_f = DISTANCE_UNKNOWN;
+    max_g = DISTANCE_UNKNOWN;
+    max_h = DISTANCE_UNKNOWN;
+    init_distances.clear();
+    goal_distances.clear();
 }
 
 int Distances::get_num_states() const {
@@ -34,16 +43,16 @@ bool Distances::is_unit_cost() const {
       that the actual shortest-path algorithms (e.g.
       compute_goal_distances_general_cost) do.
     */
-    for (TSConstIterator group_it = transition_system.begin();
-         group_it != transition_system.end(); ++group_it) {
-        if (group_it.get_cost() != 1)
+    for (const GroupAndTransitions &gat : transition_system) {
+        const LabelGroup &label_group = gat.label_group;
+        if (label_group.get_cost() != 1)
             return false;
     }
     return true;
 }
 
 static void breadth_first_search(
-    const vector<vector<int> > &graph, deque<int> &queue,
+    const vector<vector<int>> &graph, deque<int> &queue,
     vector<int> &distances) {
     while (!queue.empty()) {
         int state = queue.front();
@@ -59,12 +68,10 @@ static void breadth_first_search(
 }
 
 void Distances::compute_init_distances_unit_cost() {
-    vector<vector<int> > forward_graph(get_num_states());
-    for (TSConstIterator group_it = transition_system.begin();
-         group_it != transition_system.end(); ++group_it) {
-        const vector<Transition> &transitions = group_it.get_transitions();
-        for (size_t j = 0; j < transitions.size(); ++j) {
-            const Transition &transition = transitions[j];
+    vector<vector<int>> forward_graph(get_num_states());
+    for (const GroupAndTransitions &gat : transition_system) {
+        const vector<Transition> &transitions = gat.transitions;
+        for (const Transition &transition : transitions) {
             forward_graph[transition.src].push_back(transition.target);
         }
     }
@@ -81,12 +88,10 @@ void Distances::compute_init_distances_unit_cost() {
 }
 
 void Distances::compute_goal_distances_unit_cost() {
-    vector<vector<int> > backward_graph(get_num_states());
-    for (TSConstIterator group_it = transition_system.begin();
-         group_it != transition_system.end(); ++group_it) {
-        const vector<Transition> &transitions = group_it.get_transitions();
-        for (size_t j = 0; j < transitions.size(); ++j) {
-            const Transition &transition = transitions[j];
+    vector<vector<int>> backward_graph(get_num_states());
+    for (const GroupAndTransitions &gat : transition_system) {
+        const vector<Transition> &transitions = gat.transitions;
+        for (const Transition &transition : transitions) {
             backward_graph[transition.target].push_back(transition.src);
         }
     }
@@ -102,7 +107,7 @@ void Distances::compute_goal_distances_unit_cost() {
 }
 
 static void dijkstra_search(
-    const vector<vector<pair<int, int> > > &graph,
+    const vector<vector<pair<int, int>>> &graph,
     AdaptiveQueue<int> &queue,
     vector<int> &distances) {
     while (!queue.empty()) {
@@ -127,13 +132,12 @@ static void dijkstra_search(
 }
 
 void Distances::compute_init_distances_general_cost() {
-    vector<vector<pair<int, int> > > forward_graph(get_num_states());
-    for (TSConstIterator group_it = transition_system.begin();
-         group_it != transition_system.end(); ++group_it) {
-        const vector<Transition> &transitions = group_it.get_transitions();
-        int cost = group_it.get_cost();
-        for (size_t j = 0; j < transitions.size(); ++j) {
-            const Transition &transition = transitions[j];
+    vector<vector<pair<int, int>>> forward_graph(get_num_states());
+    for (const GroupAndTransitions &gat : transition_system) {
+        const LabelGroup &label_group = gat.label_group;
+        const vector<Transition> &transitions = gat.transitions;
+        int cost = label_group.get_cost();
+        for (const Transition &transition : transitions) {
             forward_graph[transition.src].push_back(
                 make_pair(transition.target, cost));
         }
@@ -153,13 +157,12 @@ void Distances::compute_init_distances_general_cost() {
 }
 
 void Distances::compute_goal_distances_general_cost() {
-    vector<vector<pair<int, int> > > backward_graph(get_num_states());
-    for (TSConstIterator group_it = transition_system.begin();
-         group_it != transition_system.end(); ++group_it) {
-        const vector<Transition> &transitions = group_it.get_transitions();
-        int cost = group_it.get_cost();
-        for (size_t j = 0; j < transitions.size(); ++j) {
-            const Transition &transition = transitions[j];
+    vector<vector<pair<int, int>>> backward_graph(get_num_states());
+    for (const GroupAndTransitions &gat : transition_system) {
+        const LabelGroup &label_group = gat.label_group;
+        const vector<Transition> &transitions = gat.transitions;
+        int cost = label_group.get_cost();
+        for (const Transition &transition : transitions) {
             backward_graph[transition.target].push_back(
                 make_pair(transition.src, cost));
         }
@@ -177,14 +180,6 @@ void Distances::compute_goal_distances_general_cost() {
     dijkstra_search(backward_graph, queue, goal_distances);
 }
 
-void Distances::clear_distances() {
-    max_f = DISTANCE_UNKNOWN;
-    max_g = DISTANCE_UNKNOWN;
-    max_h = DISTANCE_UNKNOWN;
-    init_distances.clear();
-    goal_distances.clear();
-}
-
 bool Distances::are_distances_computed() const {
     if (max_h == DISTANCE_UNKNOWN) {
         assert(max_f == DISTANCE_UNKNOWN);
@@ -196,7 +191,7 @@ bool Distances::are_distances_computed() const {
     return true;
 }
 
-std::vector<bool> Distances::compute_distances() {
+vector<bool> Distances::compute_distances() {
     /*
       This method does the following:
       - Computes the distances of abstract states from the abstract
@@ -270,31 +265,27 @@ std::vector<bool> Distances::compute_distances() {
 }
 
 bool Distances::apply_abstraction(
-    const vector<forward_list<int> > &collapsed_groups) {
+    const StateEquivalenceRelation &state_equivalence_relation) {
     assert(are_distances_computed());
+    assert(state_equivalence_relation.size() < init_distances.size());
+    assert(state_equivalence_relation.size() < goal_distances.size());
 
-    /*
-      TODO: Get rid of this repeated typedef, which also occurs elsewhere;
-      we should have a typedef for this and perhaps also for a vector of
-      this at a more central place.
-    */
-    typedef forward_list<AbstractStateRef> Group;
-
-    int new_num_states = collapsed_groups.size();
+    int new_num_states = state_equivalence_relation.size();
     vector<int> new_init_distances(new_num_states, DISTANCE_UNKNOWN);
     vector<int> new_goal_distances(new_num_states, DISTANCE_UNKNOWN);
 
     bool must_recompute = false;
     for (int new_state = 0; new_state < new_num_states; ++new_state) {
-        const Group &group = collapsed_groups[new_state];
-        assert(!group.empty());
+        const StateEquivalenceClass &state_equivalence_class =
+            state_equivalence_relation[new_state];
+        assert(!state_equivalence_class.empty());
 
-        Group::const_iterator pos = group.begin();
+        StateEquivalenceClass::const_iterator pos = state_equivalence_class.begin();
         int new_init_dist = init_distances[*pos];
         int new_goal_dist = goal_distances[*pos];
 
         ++pos;
-        for (; pos != group.end(); ++pos) {
+        for (; pos != state_equivalence_class.end(); ++pos) {
             if (init_distances[*pos] != new_init_dist) {
                 must_recompute = true;
                 break;
@@ -323,14 +314,11 @@ bool Distances::apply_abstraction(
     }
 }
 
-int Distances::get_max_f() const {
-    return max_f;
+void Distances::dump() const {
+    cout << "Distances: ";
+    for (size_t i = 0; i < goal_distances.size(); ++i) {
+        cout << i << ": " << goal_distances[i] << ", ";
+    }
+    cout << endl;
 }
-
-int Distances::get_max_g() const {
-    return max_g;
-}
-
-int Distances::get_max_h() const {
-    return max_h;
 }

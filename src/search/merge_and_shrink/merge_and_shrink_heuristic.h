@@ -6,30 +6,32 @@
 
 #include <memory>
 
-class Labels;
+namespace Utils {
+class Timer;
+}
+
+
+namespace MergeAndShrink {
+class FactoredTransitionSystem;
+class LabelReduction;
 class MergeStrategy;
 class ShrinkStrategy;
-class Timer;
 class TransitionSystem;
 
 class MergeAndShrinkHeuristic : public Heuristic {
+    // TODO: when the option parser supports it, the following should become
+    // unique pointers.
     std::shared_ptr<MergeStrategy> merge_strategy;
     std::shared_ptr<ShrinkStrategy> shrink_strategy;
-    std::shared_ptr<Labels> labels;
+    std::shared_ptr<LabelReduction> label_reduction;
     long starting_peak_memory;
     std::vector<int> variable_order;
 
     CuddManager* cudd_manager;
     CuddBDD* certificate;
 
-    //bool in_certificate(const GlobalState &global_state);
-
-    /*
-      TODO: after splitting transition system into several parts, we may
-      want to change all transition system pointers into unique_ptr.
-    */
-    TransitionSystem *final_transition_system;
-    void build_transition_system(const Timer &timer);
+    std::unique_ptr<FactoredTransitionSystem> fts;
+    void build_transition_system(const Utils::Timer &timer);
 
     void report_peak_memory_delta(bool final = false) const;
     void dump_options() const;
@@ -44,5 +46,6 @@ public:
     virtual int get_number_of_unsolvability_certificates();
     virtual void write_subcertificates(std::ofstream &cert_file);
 };
+}
 
 #endif
