@@ -9,11 +9,11 @@
 class State;
 
 
+namespace MergeAndShrink {
 class HeuristicRepresentation {
 protected:
     int domain_size;
 
-    void buildBDD(int var, std::vector<CuddBDD> &child_bdds, std::vector<int> &lookup, CuddBDD& bdd);
 public:
     explicit HeuristicRepresentation(int domain_size);
     virtual ~HeuristicRepresentation() = 0;
@@ -23,6 +23,7 @@ public:
     virtual int get_abstract_state(const State &state) const = 0;
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) = 0;
+    virtual void dump() const = 0;
     virtual void get_unsolvability_certificate(CuddBDD* h_inf,
                 std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) = 0;
 };
@@ -39,6 +40,7 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
+    virtual void dump() const override;
     virtual void get_unsolvability_certificate(CuddBDD* h_inf,
                 std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val);
 };
@@ -47,7 +49,7 @@ public:
 class HeuristicRepresentationMerge : public HeuristicRepresentation {
     std::unique_ptr<HeuristicRepresentation> left_child;
     std::unique_ptr<HeuristicRepresentation> right_child;
-    std::vector<std::vector<int> > lookup_table;
+    std::vector<std::vector<int>> lookup_table;
 public:
     HeuristicRepresentationMerge(
         std::unique_ptr<HeuristicRepresentation> left_child,
@@ -57,9 +59,10 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_abstract_state(const State &state) const override;
+    virtual void dump() const override;
     virtual void get_unsolvability_certificate(CuddBDD* h_inf,
                 std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val);
 };
-
+}
 
 #endif

@@ -6,7 +6,7 @@
 class State;
 
 
-namespace potentials {
+namespace Potentials {
 /*
   A potential function calculates the sum of potentials in a given state.
 
@@ -14,11 +14,11 @@ namespace potentials {
   overhead that is induced by evaluating heuristics whenever possible.
 */
 class PotentialFunction {
-    const std::vector<std::vector<double> > fact_potentials;
+    const std::vector<std::vector<double>> fact_potentials;
 
 public:
     explicit PotentialFunction(
-        const std::vector<std::vector<double> > &fact_potentials);
+        const std::vector<std::vector<double>> &fact_potentials);
     ~PotentialFunction() = default;
 
     int get_value(const State &state) const;

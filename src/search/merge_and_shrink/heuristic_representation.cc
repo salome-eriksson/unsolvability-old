@@ -10,6 +10,7 @@
 using namespace std;
 
 
+namespace MergeAndShrink {
 HeuristicRepresentation::HeuristicRepresentation(int domain_size)
     : domain_size(domain_size) {
 }
@@ -20,6 +21,7 @@ HeuristicRepresentation::~HeuristicRepresentation() {
 int HeuristicRepresentation::get_domain_size() const {
     return domain_size;
 }
+
 
 HeuristicRepresentationLeaf::HeuristicRepresentationLeaf(
     int var_id, int domain_size)
@@ -46,6 +48,13 @@ int HeuristicRepresentationLeaf::get_abstract_state(const State &state) const {
     return lookup_table[value];
 }
 
+void HeuristicRepresentationLeaf::dump() const {
+    for (const auto &value : lookup_table) {
+        cout << value << ", ";
+    }
+    cout << endl;
+}
+
 void HeuristicRepresentationLeaf::get_unsolvability_certificate(CuddBDD* h_inf,
             std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
     int val;
@@ -58,7 +67,6 @@ void HeuristicRepresentationLeaf::get_unsolvability_certificate(CuddBDD* h_inf,
         }
     }
 }
-
 
 HeuristicRepresentationMerge::HeuristicRepresentationMerge(
     unique_ptr<HeuristicRepresentation> left_child_,
@@ -102,6 +110,19 @@ int HeuristicRepresentationMerge::get_abstract_state(
     return lookup_table[state1][state2];
 }
 
+void HeuristicRepresentationMerge::dump() const {
+    for (const auto &row : lookup_table) {
+        for (const auto &value : row) {
+            cout << value << ", ";
+        }
+        cout << endl;
+    }
+    cout << "dump left child:" << endl;
+    left_child->dump();
+    cout << "dump right child:" << endl;
+    right_child->dump();
+}
+
 /*
  * h_inf: states with infinite estimate
  * bdd_for_val: is filled with bdds for each value (each bdd represents the
@@ -138,4 +159,5 @@ void HeuristicRepresentationMerge::get_unsolvability_certificate(CuddBDD* h_inf,
             }
         }
     }
+}
 }

@@ -8,14 +8,6 @@ if(NOT FAST_DOWNWARD_MAIN_CMAKELISTS_READ)
         "from the current directory and restart cmake.")
 endif()
 
-## == Options ==
-
-# Use all available LP solvers by default. If no solvers are installed,
-# this option can remain true. Setting this to false will compile without
-# LP solvers even if some of them are installed.
-option(USE_LP "Use all available LP solvers." TRUE)
-option(USE_CUDD "Use Cudd BDD library." TRUE)
-
 
 ## == Project ==
 
@@ -43,7 +35,11 @@ if(WIN32)
     target_link_libraries(downward psapi)
 endif()
 
-if(USE_LP)
+# If any enabled plugin requires an LP solver, compile with all
+# available LP solvers. If no solvers are installed, the planner will
+# still compile, but using heuristics that depend on an LP solver will
+# cause an error.
+if(PLUGIN_LP_SOLVER_ENABLED)
     find_package(OSI OPTIONAL_COMPONENTS Cpx Clp Grb)
     if(OSI_FOUND AND (OSI_Cpx_FOUND OR OSI_Clp_FOUND OR OSI_Grb_FOUND))
         foreach(SOLVER Cpx Clp Grb)
@@ -71,7 +67,7 @@ if(USE_LP)
     endif()
 endif()
 
-if(USE_CUDD)
+if(PLUGIN_CUDD_INTERFACE_ENABLED)
     find_package(CUDD)
     add_definitions("-D USE_CUDD")
     include_directories(${CUDD_INCLUDE_DIRS})

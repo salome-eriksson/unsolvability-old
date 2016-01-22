@@ -8,10 +8,12 @@
 #include "../option_parser.h"
 #include "../plugin.h"
 
+#include "../utils/system.h"
+
 using namespace std;
 
 
-namespace potentials {
+namespace Potentials {
 enum class OptimizeFor {
     INITIAL_STATE,
     ALL_STATES,
@@ -42,7 +44,7 @@ static Heuristic *_parse(OptionParser &parser, OptimizeFor opt_func) {
         return nullptr;
 
     return new PotentialHeuristic(
-               opts, create_potential_function(opts, opt_func));
+        opts, create_potential_function(opts, opt_func));
 }
 
 static Heuristic *_parse_initial_state_potential(OptionParser &parser) {

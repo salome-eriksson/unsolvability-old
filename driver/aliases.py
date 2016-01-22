@@ -125,19 +125,12 @@ ALIASES["seq-sat-lama-2011"] = [
 # Append --always to be on the safe side if we want to append
 # additional options later.
 
-ALIASES["seq-opt-fd-autotune"] = [
-    "--heuristic", "hlmcut=lmcut()",
-    "--heuristic", "hhmax=hmax()",
-    "--heuristic", "hselmax=selmax([hlmcut,hhmax],alpha=4,classifier=0,"
-    "                              conf_threshold=0.85,training_set=10,"
-    "                              sample=0,uniform=true)",
-    "--search", "astar(hselmax,mpd=false,cost_type=normal)"]
-
-ALIASES["seq-opt-selmax"] = [
-    "--search",
-    "astar(selmax([lmcut(),"
-    "              lmcount(lm_merged([lm_hm(m=1),lm_rhw()]),admissible=true)"
-    "             ],training_set=1000),mpd=true)"]
+ALIASES["lama-first"] = [
+    "--heuristic",
+    "hlm,hff=lm_ff_syn(lm_rhw(reasonable_orders=true,"
+    "                         lm_cost_type=one,cost_type=one))",
+    "--search", """lazy_greedy([hff,hlm],preferred=[hff,hlm],
+                               cost_type=one,reopen_closed=false)"""]
 
 ALIASES["seq-opt-bjolp"] = [
     "--search",

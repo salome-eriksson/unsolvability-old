@@ -2,17 +2,19 @@
 
 #include "factored_transition_system.h"
 #include "fts_factory.h"
+#include "label_reduction.h"
 #include "labels.h"
 #include "merge_strategy.h"
 #include "shrink_strategy.h"
 #include "transition_system.h"
-#include "heuristic_representation.h"
 
 #include "../option_parser.h"
 #include "../plugin.h"
 #include "../task_tools.h"
-#include "../timer.h"
-#include "../utilities.h"
+
+#include "../utils/memory.h"
+#include "../utils/system.h"
+#include "../utils/timer.h"
 
 #include <cassert>
 #include <iostream>
@@ -22,19 +24,24 @@
 
 using namespace std;
 
+
+namespace MergeAndShrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
     : Heuristic(opts),
-      merge_strategy(opts.get<shared_ptr<MergeStrategy> >("merge_strategy")),
-      shrink_strategy(opts.get<shared_ptr<ShrinkStrategy> >("shrink_strategy")),
-      labels(opts.get<shared_ptr<Labels> >("label_reduction")),
+      merge_strategy(opts.get<shared_ptr<MergeStrategy>>("merge_strategy")),
+      shrink_strategy(opts.get<shared_ptr<ShrinkStrategy>>("shrink_strategy")),
+      label_reduction(nullptr),
       starting_peak_memory(-1), certificate(NULL),
-      final_transition_system(nullptr) {
+      fts(nullptr) {
     /*
       TODO: Can we later get rid of the initialize calls, after rethinking
       how to handle communication between different components? See issue559.
     */
     merge_strategy->initialize(task);
-    labels->initialize(task_proxy);
+    if (opts.contains("label_reduction")) {
+        label_reduction = opts.get<shared_ptr<LabelReduction>>("label_reduction");
+        label_reduction->initialize(task_proxy);
+    }
 }
 
 void MergeAndShrinkHeuristic::report_peak_memory_delta(bool final) const {
@@ -43,72 +50,71 @@ void MergeAndShrinkHeuristic::report_peak_memory_delta(bool final) const {
     else
         cout << "Current";
     cout << " peak memory increase of merge-and-shrink computation: "
-         << get_peak_memory_in_kb() - starting_peak_memory << " KB" << endl;
+         << Utils::get_peak_memory_in_kb() - starting_peak_memory << " KB"
+         << endl;
 }
 
 void MergeAndShrinkHeuristic::dump_options() const {
     merge_strategy->dump_options();
     shrink_strategy->dump_options();
-    labels->dump_options();
+    if (label_reduction) {
+        label_reduction->dump_options();
+    } else {
+        cout << "Label reduction disabled" << endl;
+    }
 }
 
 void MergeAndShrinkHeuristic::warn_on_unusual_options() const {
     string dashes(79, '=');
-    if (!labels->reduce_before_merging() && !labels->reduce_before_shrinking()) {
+    if (!label_reduction) {
         cerr << dashes << endl
              << "WARNING! You did not enable label reduction. This may "
-        "drastically reduce the performance of merge-and-shrink!"
+            "drastically reduce the performance of merge-and-shrink!"
              << endl << dashes << endl;
-    } else if (labels->reduce_before_merging() && labels->reduce_before_shrinking()) {
+    } else if (label_reduction->reduce_before_merging() && label_reduction->reduce_before_shrinking()) {
         cerr << dashes << endl
              << "WARNING! You set label reduction to be applied twice in "
-        "each merge-and-shrink iteration, both before shrinking and\n"
-        "merging. This double computation effort does not pay off "
-        "for most configurations!"
-        << endl << dashes << endl;
+            "each merge-and-shrink iteration, both before shrinking and\n"
+            "merging. This double computation effort does not pay off "
+            "for most configurations!"
+             << endl << dashes << endl;
     } else {
-        if (labels->reduce_before_shrinking() &&
+        if (label_reduction->reduce_before_shrinking() &&
             (shrink_strategy->get_name() == "f-preserving"
              || shrink_strategy->get_name() == "random")) {
             cerr << dashes << endl
                  << "WARNING! Bucket-based shrink strategies such as "
-            "f-preserving random perform best if used with label\n"
-            "reduction before merging, not before shrinking!"
-            << endl << dashes << endl;
+                "f-preserving random perform best if used with label\n"
+                "reduction before merging, not before shrinking!"
+                 << endl << dashes << endl;
         }
-        if (labels->reduce_before_merging() &&
+        if (label_reduction->reduce_before_merging() &&
             shrink_strategy->get_name() == "bisimulation") {
             cerr << dashes << endl
                  << "WARNING! Shrinking based on bisimulation performs best "
-            "if used with label reduction before shrinking, not\n"
-            "before merging!"
-            << endl << dashes << endl;
+                "if used with label reduction before shrinking, not\n"
+                "before merging!"
+                 << endl << dashes << endl;
         }
     }
 }
 
-void MergeAndShrinkHeuristic::build_transition_system(const Timer &timer) {
+void MergeAndShrinkHeuristic::build_transition_system(const Utils::Timer &timer) {
     // TODO: We're leaking memory here in various ways. Fix this.
     //       Don't forget that build_atomic_transition_systems also
     //       allocates memory.
 
-    FactoredTransitionSystem fts = create_factored_transition_system(
-        task_proxy, labels);
-    for (TransitionSystem *transition_system : fts.get_vector()) {
-        if (!transition_system->is_solvable()) {
-            final_transition_system = transition_system;
-            break;
-        }
-    }
+    fts = Utils::make_unique_ptr<FactoredTransitionSystem>(
+        create_factored_transition_system(task_proxy));
     cout << endl;
 
     bool first = true;
 
-    if (!final_transition_system) { // All atomic transition system are solvable.
+    int final_index = -1; // TODO: get rid of this
+    if (fts->is_solvable()) { // All atomic transition system are solvable.
         while (!merge_strategy->done()) {
             // Choose next transition systems to merge
-            pair<int, int> merge_indices = merge_strategy->get_next(
-                fts.get_vector());
+            pair<int, int> merge_indices = merge_strategy->get_next(*fts);
             int merge_index1 = merge_indices.first;
             int merge_index2 = merge_indices.second;
             //TODO hack for getting the variable order in case of linear merge strategy
@@ -117,98 +123,72 @@ void MergeAndShrinkHeuristic::build_transition_system(const Timer &timer) {
             }
             variable_order.push_back(merge_index2);
             first = false;
+            cout << "Next pair of indices: (" << merge_index1 << ", " << merge_index2 << ")" << endl;
             assert(merge_index1 != merge_index2);
-            TransitionSystem *transition_system1 = fts[merge_index1];
-            TransitionSystem *transition_system2 = fts[merge_index2];
-            assert(transition_system1);
-            assert(transition_system2);
-            transition_system1->statistics(timer);
-            transition_system2->statistics(timer);
+            fts->statistics(merge_index1, timer);
+            fts->statistics(merge_index2, timer);
 
-            if (labels->reduce_before_shrinking()) {
-                labels->reduce(merge_indices, fts.get_vector());
+            if (label_reduction && label_reduction->reduce_before_shrinking()) {
+                label_reduction->reduce(merge_indices, *fts);
             }
 
             // Shrinking
             pair<bool, bool> shrunk = shrink_strategy->shrink(
-                *transition_system1, *transition_system2);
+                *fts, merge_index1, merge_index2);
             if (shrunk.first)
-                transition_system1->statistics(timer);
+                fts->statistics(merge_index1, timer);
             if (shrunk.second)
-                transition_system2->statistics(timer);
+                fts->statistics(merge_index2, timer);
 
-            if (labels->reduce_before_merging()) {
-                labels->reduce(merge_indices, fts.get_vector());
+            if (label_reduction && label_reduction->reduce_before_merging()) {
+                label_reduction->reduce(merge_indices, *fts);
             }
 
             // Merging
-            TransitionSystem *new_transition_system = new TransitionSystem(
-                task_proxy, labels, transition_system1, transition_system2);
-            new_transition_system->statistics(timer);
-            fts.get_vector().push_back(new_transition_system);
-
+            final_index = fts->merge(merge_index1, merge_index2);
             /*
               NOTE: both the shrinking strategy classes and the construction of
               the composite require input transition systems to be solvable.
             */
-            if (!new_transition_system->is_solvable()) {
-                final_transition_system = new_transition_system;
+            if (!fts->is_solvable()) {
                 break;
             }
-
-            transition_system1->release_memory();
-            transition_system2->release_memory();
-            fts[merge_index1] = nullptr;
-            fts[merge_index2] = nullptr;
+            fts->statistics(final_index, timer);
 
             report_peak_memory_delta();
             cout << endl;
         }
     }
 
-    if (final_transition_system) {
-        // Problem is unsolvable
-        for (TransitionSystem *transition_system : fts.get_vector()) {
-            if (transition_system) {
-                transition_system->release_memory();
-                transition_system = nullptr;
-            }
-        }
+    if (fts->is_solvable()) {
+        cout << "Final transition system size: "
+             << fts->get_ts(final_index).get_size() << endl;
+        // need to finalize before calling "get_cost"
+        fts->finalize();
+        // TODO: after adopting the task interface everywhere, change this
+        // back to compute_heuristic(task_proxy.get_initial_state())
+        cout << "initial h value: "
+             << fts->get_cost(task_proxy.get_initial_state())
+             << endl;
     } else {
-        assert(fts.get_vector().size() ==
-               task_proxy.get_variables().size() * 2 - 1);
-        for (size_t i = 0; i < fts.get_vector().size() - 1; ++i) {
-            assert(!fts[i]);
-        }
-        final_transition_system = fts.get_vector().back();
-        assert(final_transition_system);
-        final_transition_system->release_memory();
+        cout << "Abstract problem is unsolvable!" << endl;
     }
 
-    labels = nullptr;
+    merge_strategy = nullptr;
+    shrink_strategy = nullptr;
+    label_reduction = nullptr;
 }
 
 void MergeAndShrinkHeuristic::initialize() {
-    Timer timer;
+    Utils::Timer timer;
     cout << "Initializing merge-and-shrink heuristic..." << endl;
-    starting_peak_memory = get_peak_memory_in_kb();
+    starting_peak_memory = Utils::get_peak_memory_in_kb();
     verify_no_axioms(task_proxy);
     dump_options();
     warn_on_unusual_options();
     cout << endl;
 
     build_transition_system(timer);
-    if (final_transition_system->is_solvable()) {
-        cout << "Final transition system size: "
-             << final_transition_system->get_size() << endl;
-        // TODO: after adopting the task interface everywhere, change this
-        // back to compute_heuristic(task_proxy.get_initial_state())
-        cout << "initial h value: "
-             << final_transition_system->get_cost(task_proxy.get_initial_state())
-             << endl;
-    } else {
-        cout << "Abstract problem is unsolvable!" << endl;
-    }
     report_peak_memory_delta(true);
     cout << "Done initializing merge-and-shrink heuristic [" << timer << "]"
          << endl;
@@ -217,10 +197,9 @@ void MergeAndShrinkHeuristic::initialize() {
 
 int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) {
     State state = convert_global_state(global_state);
-    int cost = final_transition_system->get_cost(state);
-    if (cost == -1) {
+    int cost = fts->get_cost(state);
+    if (cost == -1)
         return DEAD_END;
-    }
     return cost;
 }
 
@@ -234,8 +213,7 @@ void MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState 
 
     std::vector<CuddBDD> dummy_vector;
 
-    final_transition_system->get_heuristic_representation()->get_unsolvability_certificate(
-                certificate, dummy_vector, false);
+    fts->get_unsolvability_certificate(certificate, dummy_vector, false);
 }
 
 int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
@@ -262,6 +240,7 @@ void MergeAndShrinkHeuristic::write_subcertificates(std::ofstream &cert_file) {
     cert_file << "end_variables\n";
     cert_file << "end_certificate\n";
 }
+
 
 static Heuristic *_parse(OptionParser &parser) {
     parser.document_synopsis(
@@ -309,23 +288,24 @@ static Heuristic *_parse(OptionParser &parser) {
         "label_reduction=label_reduction(before_shrinking=true, before_merging=false))");
 
     // Merge strategy option.
-    parser.add_option<shared_ptr<MergeStrategy> >(
+    parser.add_option<shared_ptr<MergeStrategy>>(
         "merge_strategy",
         "See detailed documentation for merge strategies. "
         "We currently recommend merge_dfp.");
 
     // Shrink strategy option.
-    parser.add_option<shared_ptr<ShrinkStrategy> >(
+    parser.add_option<shared_ptr<ShrinkStrategy>>(
         "shrink_strategy",
         "See detailed documentation for shrink strategies. "
         "We currently recommend shrink_bisimulation.");
 
     // Label reduction option.
-    parser.add_option<shared_ptr<Labels> >(
+    parser.add_option<shared_ptr<LabelReduction>>(
         "label_reduction",
         "See detailed documentation for labels. There is currently only "
         "one 'option' to use label_reduction. Also note the interaction "
-        "with shrink strategies.");
+        "with shrink strategies.",
+        OptionParser::NONE);
 
     Heuristic::add_options_to_parser(parser);
     Options opts = parser.parse();
@@ -338,3 +318,4 @@ static Heuristic *_parse(OptionParser &parser) {
 }
 
 static Plugin<Heuristic> _plugin("merge_and_shrink", _parse);
+}

@@ -1,14 +1,21 @@
 #include "merge_linear.h"
 
+#include "factored_transition_system.h"
+
 #include "../option_parser.h"
 #include "../plugin.h"
-#include "../utilities.h"
+
+#include "../utils/memory.h"
+#include "../utils/system.h"
 
 #include <cassert>
 #include <iostream>
 
 using namespace std;
+using Utils::ExitCode;
 
+
+namespace MergeAndShrink {
 MergeLinear::MergeLinear(const Options &opts)
     : MergeStrategy(),
       variable_order_type(VariableOrderType(opts.get_enum("variable_order"))),
@@ -17,11 +24,12 @@ MergeLinear::MergeLinear(const Options &opts)
 
 void MergeLinear::initialize(const shared_ptr<AbstractTask> task) {
     MergeStrategy::initialize(task);
-    variable_order_finder = make_unique_ptr<VariableOrderFinder>(
+    variable_order_finder = Utils::make_unique_ptr<VariableOrderFinder>(
         task, variable_order_type);
 }
 
-pair<int, int> MergeLinear::get_next(const vector<TransitionSystem *> &all_transition_systems) {
+pair<int, int> MergeLinear::get_next(FactoredTransitionSystem &fts) {
+    int num_transition_systems = fts.get_size();
     assert(initialized());
     assert(!done());
     assert(!variable_order_finder->done());
@@ -34,16 +42,16 @@ pair<int, int> MergeLinear::get_next(const vector<TransitionSystem *> &all_trans
     } else {
         // The most recent composite transition system is appended at the end of
         // all_transition_systems in merge_and_shrink.cc
-        first = all_transition_systems.size() - 1;
+        first = num_transition_systems - 1;
     }
     int second = variable_order_finder->next();
     cout << "Next variable: " << second << endl;
-    assert(all_transition_systems[first]);
-    assert(all_transition_systems[second]);
+    assert(fts.is_active(first));
+    assert(fts.is_active(second));
     --remaining_merges;
     if (done() && !variable_order_finder->done()) {
         cerr << "Variable order finder not done, but no merges remaining" << endl;
-        exit_with(EXIT_CRITICAL_ERROR);
+        Utils::exit_with(ExitCode::CRITICAL_ERROR);
     }
     return make_pair(first, second);
 }
@@ -85,3 +93,4 @@ static shared_ptr<MergeStrategy>_parse(OptionParser &parser) {
 }
 
 static PluginShared<MergeStrategy> _plugin("merge_linear", _parse);
+}

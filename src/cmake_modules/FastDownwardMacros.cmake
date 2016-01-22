@@ -49,6 +49,12 @@ macro(fast_downward_set_compiler_flags)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996") # function call with parameters that may be unsafe
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4456") # declaration hides previous local declaration
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4458") # declaration hides class member
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4267") # conversion from size_t to int with possible loss of data
+
+        # The following are disabled because of what seems to be compiler bugs.
+        # "unreferenced local function has been removed";
+        # see http://stackoverflow.com/questions/3051992/compiler-warning-at-c-template-base-class
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4505")
 
         # TODO: Configuration-specific flags. We currently rely on the fact that
         # CMAKE_CXX_FLAGS_RELEASE and CMAKE_CXX_FLAGS_DEBUG get reasonable settings
@@ -60,30 +66,36 @@ macro(fast_downward_set_compiler_flags)
 endmacro()
 
 macro(fast_downward_set_linker_flags)
-    # We force linking to be static because the dynamically linked code is
+    # We try to force linking to be static because the dynamically linked code is
     # about 10% slower on Linux (see issue67).
 
-    # Any libs we build should be static.
-    set(BUILD_SHARED_LIBS FALSE)
-
-    # Any libraries that are implicitly added to the end of the linker
-    # command should be linked statically.
-    set(LINK_SEARCH_END_STATIC TRUE)
-
-    # Do not add "-rdynamic" flag.
-    set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-    set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
-
-    # Only look for static libraries (Windows does not support this).
-    if(UNIX)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
-    endif()
-
-    # Set linker flags to link statically.
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -static -static-libgcc")
-    elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -static -static-libstdc++")
+    if(APPLE)
+        # Static linking is not supported by Apple.
+        # https://developer.apple.com/library/mac/qa/qa1118/_index.html
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g")
+    else()
+        # Any libs we build should be static.
+        set(BUILD_SHARED_LIBS FALSE)
+    
+        # Any libraries that are implicitly added to the end of the linker
+        # command should be linked statically.
+        set(LINK_SEARCH_END_STATIC TRUE)
+    
+        # Do not add "-rdynamic" flag.
+        set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
+        set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+    
+        # Only look for static libraries (Windows does not support this).
+        if(UNIX)
+            set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+        endif()
+    
+        # Set linker flags to link statically.
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -static -static-libgcc")
+        elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -static -static-libstdc++")
+        endif()
     endif()
 endmacro()
 
@@ -102,7 +114,7 @@ endmacro()
 macro(fast_downward_default_to_release_build)
     # Only for single-config generators (like Makefiles) that choose the build type at generation time.
     if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-        message("Defaulting to release build.")
+        message(STATUS "Defaulting to release build.")
         set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
     endif()
 endmacro()
@@ -146,11 +158,11 @@ macro(fast_downward_check_64_bit_option)
             "Do not set ALLOW_64_BIT unless you are sure you want a 64-bit build. "
             "See http://www.fast-downward.org/PlannerUsage#A64bit for details.")
         else()
-            message("Building for 32-bit.")
+            message(STATUS "Building for 32-bit.")
         endif()
     elseif(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
         if(ALLOW_64_BIT)
-            message("Building for 64-bit.")
+            message(STATUS "Building for 64-bit.")
         else()
             message(FATAL_ERROR "You are compiling the planner for 64-bit, "
             "which is not recommended. "
@@ -182,16 +194,16 @@ function(fast_downward_add_headers_to_sources_list _SOURCES_LIST_VAR)
 endfunction()
 
 function(fast_downward_plugin)
-    set(_OPTIONS DEACTIVATED)
+    set(_OPTIONS DEPENDENCY_ONLY CORE_PLUGIN)
     set(_ONE_VALUE_ARGS NAME DISPLAY_NAME HELP)
     set(_MULTI_VALUE_ARGS SOURCES DEPENDS)
-    cmake_parse_arguments(_PLUGIN "${_OPTIONS}" "${_ONE_VALUE_ARGS}" "${_MULTI_VALUE_ARGS}" ${ARGN} )
+    cmake_parse_arguments(_PLUGIN "${_OPTIONS}" "${_ONE_VALUE_ARGS}" "${_MULTI_VALUE_ARGS}" ${ARGN})
     # Check mandatory arguments.
     if(NOT _PLUGIN_NAME)
-        message( FATAL_ERROR "fast_downward_plugin: 'NAME' argument required." )
+        message(FATAL_ERROR "fast_downward_plugin: 'NAME' argument required.")
     endif()
     if(NOT _PLUGIN_SOURCES)
-        message( FATAL_ERROR "fast_downward_plugin: 'SOURCES' argument required." )
+        message(FATAL_ERROR "fast_downward_plugin: 'SOURCES' argument required.")
     endif()
     fast_downward_add_headers_to_sources_list(_PLUGIN_SOURCES)
     # Check optional arguments.
@@ -202,11 +214,14 @@ function(fast_downward_plugin)
         set(_PLUGIN_HELP ${_PLUGIN_DISPLAY_NAME})
     endif()
     set(_OPTION_DEFAULT TRUE)
-    if(_PLUGIN_DEACTIVATED)
+    if(_PLUGIN_DEPENDENCY_ONLY)
         set(_OPTION_DEFAULT FALSE)
     endif()
 
     option(PLUGIN_${_PLUGIN_NAME}_ENABLED ${_PLUGIN_HELP} ${_OPTION_DEFAULT})
+    if(_PLUGIN_DEPENDENCY_ONLY OR _PLUGIN_CORE_PLUGIN)
+        mark_as_advanced(PLUGIN_${_PLUGIN_NAME}_ENABLED)
+    endif()
 
     set(PLUGIN_${_PLUGIN_NAME}_DISPLAY_NAME ${_PLUGIN_DISPLAY_NAME} PARENT_SCOPE)
     set(PLUGIN_${_PLUGIN_NAME}_SOURCES ${_PLUGIN_SOURCES} PARENT_SCOPE)
@@ -231,6 +246,7 @@ function(fast_downward_add_plugin_sources _SOURCES_LIST_VAR)
                 message(STATUS "Enabling plugin ${PLUGIN_${DEPENDENCY}_DISPLAY_NAME} "
                         "because plugin ${PLUGIN_${PLUGIN}_DISPLAY_NAME} is enabled and depends on it.")
                 set(PLUGIN_${DEPENDENCY}_ENABLED TRUE)
+                set(PLUGIN_${DEPENDENCY}_ENABLED TRUE PARENT_SCOPE)
                 list(APPEND _UNCHECKED_PLUGINS ${DEPENDENCY})
             endif()
         endforeach()

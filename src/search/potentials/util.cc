@@ -3,6 +3,7 @@
 #include "potential_function.h"
 #include "potential_optimizer.h"
 
+#include "../heuristic.h"
 #include "../option_parser.h"
 #include "../sampling.h"
 #include "../successor_generator.h"
@@ -13,7 +14,7 @@
 using namespace std;
 
 
-namespace potentials {
+namespace Potentials {
 vector<State> sample_without_dead_end_detection(
     PotentialOptimizer &optimizer, int num_samples) {
     const shared_ptr<AbstractTask> task = optimizer.get_task();
@@ -23,8 +24,8 @@ vector<State> sample_without_dead_end_detection(
     SuccessorGenerator successor_generator(task);
     int init_h = optimizer.get_potential_function()->get_value(initial_state);
     return sample_states_with_random_walks(
-               task_proxy, successor_generator, num_samples, init_h,
-               get_average_operator_cost(task_proxy));
+        task_proxy, successor_generator, num_samples, init_h,
+        get_average_operator_cost(task_proxy));
 }
 
 string get_admissible_potentials_reference() {
@@ -51,7 +52,7 @@ void prepare_parser_for_admissible_potentials(OptionParser &parser) {
         "Bound potentials by this number",
         "1e8",
         Bounds("0.0", "infinity"));
-    add_lp_solver_option_to_parser(parser);
+    LP::add_lp_solver_option_to_parser(parser);
     Heuristic::add_options_to_parser(parser);
 }
 }
