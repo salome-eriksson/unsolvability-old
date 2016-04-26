@@ -30,12 +30,14 @@ def open(task_filename=None, domain_filename=None):
 
     if not domain_filename:
         dirname, basename = os.path.split(task_filename)
+        print dirname
+        print basename
         domain_filename = os.path.join(dirname, "domain.pddl")
         if not os.path.exists(domain_filename) and re.match(r"p[0-9][0-9]\b", basename):
             domain_filename = os.path.join(dirname, basename[:4] + "domain.pddl")
         if not os.path.exists(domain_filename) and re.match(r"p[0-9][0-9]\b", basename):
             domain_filename = os.path.join(dirname, basename[:3] + "-domain.pddl")
-        if not os.path.exists(domain_filename) and re.match(r"p[0-9][0-9]\b", basename):
+        if not os.path.exists(domain_filename):
             domain_filename = os.path.join(dirname, "domain_" + basename)
         if not os.path.exists(domain_filename) and basename.endswith("-problem.pddl"):
             domain_filename = os.path.join(dirname, basename[:-13] + "-domain.pddl")
