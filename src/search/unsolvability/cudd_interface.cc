@@ -50,6 +50,8 @@ CuddBDD::CuddBDD(CuddManager *manager,const std::vector<std::pair<int,int> >& po
         //TODO: can this even happen?
         if(var != -1) {
             cube[var] = 1;
+        } else {
+            std::cout << "HALP!!! THIS SHOULD NOT HAPPEN" << std::endl;
         }
     }
     for(size_t i = 0; i < neg_vars.size(); ++i) {
