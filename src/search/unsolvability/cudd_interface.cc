@@ -123,6 +123,8 @@ void CuddBDD::lor_bddvar(int var, int val, bool neg) {
     } else {
         tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_bddIthVar(manager->ddmgr, bdd_var));
     }
+    Cudd_Ref(tmp);
+    Cudd_RecursiveDeref(manager->ddmgr, bdd);
     bdd = tmp;
 }
 
