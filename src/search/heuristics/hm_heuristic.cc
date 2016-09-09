@@ -306,17 +306,12 @@ void HMHeuristic::dump_tuple(const Tuple &tup) const {
 void HMHeuristic::build_mutex_bdds() {
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         int amount_vals = g_variable_domain[i];
-        // if the last value of the variable is not a bdd_variable, it is
-        // either "none of those" or "NegatedAtom" --> ignore that value
-        if(!cudd_manager->isVariable(i, g_variable_domain[i]-1)) {
-            amount_vals-=1;
-        }
         for(int j = 0; j < amount_vals; ++j) {
             CuddBDD bdd_j(cudd_manager, false);
-            bdd_j.lor_bddvar(i,j,true);
+            bdd_j.lor(i,j,true);
             for(int k = j+1; k < amount_vals; ++k) {
                 CuddBDD* res = new CuddBDD(bdd_j);
-                res->lor_bddvar(i, k, true);
+                res->lor(i, k, true);
                 mutex_bdds.push_back(res);
             }
         }
@@ -371,14 +366,6 @@ void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
         if(subsumed) {
             continue;
         }
-        // for some reason, hm also combines tuples where one or several variables are
-        // of type "NegatedAtom" or "<none of those">
-        // we simply ignore those tuples
-        // TODO: ask Malte if this is correct behaviour
-        if(contains_negated_or_none_of_those(tuple)) {
-            continue;
-        }
-
         // build bdd for negated tuple
         CuddBDD* bdd = new CuddBDD(cudd_manager, tuple, emptyvec);
         bdd->negate();
@@ -412,16 +399,6 @@ void HMHeuristic::write_subcertificates(ofstream &cert_file) {
         cert_file << "end_certificate\n";
     }
 }
-
-bool HMHeuristic::contains_negated_or_none_of_those(Tuple &tuple) {
-    for(std::pair<int,int> t : tuple) {
-        if(neg_none[t.first] == t.second) {
-            return true;
-        }
-    }
-    return false;
-}
-
 
 static Heuristic *_parse(OptionParser &parser) {
     parser.document_synopsis("h^m heuristic", "");
