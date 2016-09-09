@@ -20,8 +20,8 @@ CuddBDD::CuddBDD(CuddManager *manager, bool positive)
 
 CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
     : manager(manager) {
-    assert(!manager->fact_bdds[var].empty());
-    bdd = manager->fact_bdds[var][val];
+    assert(var < (int)manager->fact_to_var.size() && val < (int)manager->fact_to_var[var].size());
+    bdd = Cudd_bddIthVar(manager->ddmgr, manager->fact_to_var[var][val]);
     if(neg) {
         bdd = Cudd_Not(bdd);
     }
@@ -32,10 +32,7 @@ CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     : manager(manager) {
     std::vector<int> cube(manager->amount_vars, 0);
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        int bdd_var = manager->fact_to_bdd_var[i][state[i]];
-        if(bdd_var != -1) {
-            cube[bdd_var] = 1;
-        }
+        cube[manager->fact_to_var[i][state[i]]] = 1;
     }
     bdd = Cudd_CubeArrayToBdd(manager->ddmgr, &cube[0]);
     Cudd_Ref(bdd);
@@ -46,20 +43,16 @@ CuddBDD::CuddBDD(CuddManager *manager,const std::vector<std::pair<int,int> >& po
     : manager(manager) {
     std::vector<int> cube(manager->amount_vars, 2);
     for(size_t i = 0; i < pos_vars.size(); ++i) {
-        int var = manager->fact_to_bdd_var[pos_vars[i].first][pos_vars[i].second];
-        //TODO: can this even happen?
-        if(var != -1) {
-            cube[var] = 1;
-        } else {
-            std::cout << "HALP!!! THIS SHOULD NOT HAPPEN" << std::endl;
-        }
+        const std::pair<int,int>& p = pos_vars[i];
+        assert(p.first < (int)manager->fact_to_var.size()
+               && p.second < (int)manager->fact_to_var[p.first].size());
+        cube[manager->fact_to_var[p.first][p.second]] = 1;
     }
     for(size_t i = 0; i < neg_vars.size(); ++i) {
-        int var = manager->fact_to_bdd_var[neg_vars[i].first][neg_vars[i].second];
-        //TODO: can this even happen?
-        if(var != -1) {
-            cube[var] = 0;
-        }
+        const std::pair<int,int>& p = neg_vars[i];
+        assert(p.first < (int)manager->fact_to_var.size()
+               && p.second < (int)manager->fact_to_var[p.first].size());
+        cube[manager->fact_to_var[p.first][p.second]] = 0;
     }
     bdd = Cudd_CubeArrayToBdd(manager->ddmgr, &cube[0]);
     Cudd_Ref(bdd);
@@ -89,12 +82,12 @@ CuddBDD CuddBDD::operator=(const CuddBDD& right) {
 }
 
 void CuddBDD::land(int var, int val, bool neg) {
-    assert(!manager->fact_bdds[var].empty());
+    assert(var < (int)manager->fact_to_var.size() && val < (int)manager->fact_to_var[var].size());
     DdNode* tmp;
     if(neg) {
-        tmp = Cudd_bddAnd(manager->ddmgr, bdd, Cudd_Not(manager->fact_bdds[var][val]));
+        tmp = Cudd_bddAnd(manager->ddmgr, bdd, Cudd_Not(Cudd_bddIthVar(manager->ddmgr, manager->fact_to_var[var][val])));
     } else {
-        tmp = Cudd_bddAnd(manager->ddmgr, bdd, manager->fact_bdds[var][val]);
+        tmp = Cudd_bddAnd(manager->ddmgr, bdd, Cudd_bddIthVar(manager->ddmgr, manager->fact_to_var[var][val]));
     }
     Cudd_Ref(tmp);
     Cudd_RecursiveDeref(manager->ddmgr, bdd);
@@ -102,26 +95,12 @@ void CuddBDD::land(int var, int val, bool neg) {
 }
 
 void CuddBDD::lor(int var, int val, bool neg) {
-    assert(!manager->fact_bdds[var].empty());
+    assert(var < (int)manager->fact_to_var.size() && val < (int)manager->fact_to_var[var].size());
     DdNode* tmp;
     if(neg) {
-        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_Not(manager->fact_bdds[var][val]));
+        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_Not(Cudd_bddIthVar(manager->ddmgr, manager->fact_to_var[var][val])));
     } else {
-        tmp = Cudd_bddOr(manager->ddmgr, bdd, manager->fact_bdds[var][val]);
-    }
-    Cudd_Ref(tmp);
-    Cudd_RecursiveDeref(manager->ddmgr, bdd);
-    bdd = tmp;
-}
-
-void CuddBDD::lor_bddvar(int var, int val, bool neg) {
-    int bdd_var = manager->fact_to_bdd_var[var][val];
-    assert(bdd_var != -1);
-    DdNode *tmp;
-    if(neg) {
-        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_Not(Cudd_bddIthVar(manager->ddmgr, bdd_var)));
-    } else {
-        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_bddIthVar(manager->ddmgr, bdd_var));
+        tmp = Cudd_bddOr(manager->ddmgr, bdd, Cudd_bddIthVar(manager->ddmgr, manager->fact_to_var[var][val]));
     }
     Cudd_Ref(tmp);
     Cudd_RecursiveDeref(manager->ddmgr, bdd);
@@ -180,80 +159,81 @@ void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
 
 
 CuddManager::CuddManager() {
-    std::vector<int> var_order;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        var_order.push_back(i);
+    int count = 0;
+    std::vector<std::vector<int>> var_order(g_variable_domain.size());
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        var_order[i] = std::vector<int>(g_variable_domain[i]);
+        for(size_t j = 0; j < var_order[i].size(); ++j) {
+            var_order[i][j] = count++;
+        }
     }
     initialize_manager(var_order);
 }
 
 CuddManager::CuddManager(std::vector<int> &var_order) {
+    assert(var_order.size() == g_variable_domain.size());
+    int count = 0;
+    std::vector<std::vector<int>> detailed_var_order(g_variable_domain.size());
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        assert(var_order[i] < (int)g_variable_domain.size()
+               && detailed_var_order[var_order[i]].empty());
+        for(int j = 0; j < g_variable_domain[var_order[i]]; ++j) {
+            detailed_var_order[var_order[i]][j] = count++;
+        }
+    }
+    initialize_manager(detailed_var_order);
+}
+
+CuddManager::CuddManager(std::vector<std::vector<int>> &var_order) {
     initialize_manager(var_order);
 }
 
-void CuddManager::initialize_manager(std::vector<int> &var_order) {
-
-    std::vector<bool> hasNoneOfThose(g_variable_domain.size(), false);
+void CuddManager::initialize_manager(std::vector<std::vector<int>> &var_order) {
+    //assert var_order has the right dimensions and count total amount of facts
+    assert(var_order.size() == g_variable_domain.size());
     amount_vars = 0;
-
-    //collect which variables have a "none of those" value and count total number
-    //of PDDL variables
-    for(size_t i = 0; i < var_order.size(); ++i) {
-        int index = var_order[i];
-        std::string last_fact = g_fact_names[index][g_variable_domain[index]-1];
-        if(last_fact.substr(0,15).compare("<none of those>") == 0 ||
-                last_fact.substr(0,11).compare("NegatedAtom") == 0) {
-            hasNoneOfThose[index] = true;
-            amount_vars += g_variable_domain[index]-1;
-        } else {
-            amount_vars += g_variable_domain[index];
-        }
-
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        assert((int)var_order[i].size() == g_variable_domain[i]);
+        amount_vars += g_variable_domain[i];
     }
+
+    var_to_fact.resize(amount_vars, std::pair<int,int>(-1,-1));
+    int assigned_vars = 0;
+
+    // count how many variables are assigned in the vector and ensure that
+    // none are assigned the same number
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        for(size_t j = 0; j < var_order[i].size(); ++j) {
+            int x = var_order[i][j];
+            if(var_order[i][j] >= 0) {
+                assigned_vars++;
+                assert(var_to_fact[x].first == -1);
+                var_to_fact[x] = std::pair<int,int>(i,j);
+            }
+        }
+    }
+    // copy var_order
+    // TODO: check if this is an actual copy
+    fact_to_var = var_order;
+
+    // fill in unassigned variables
+    for(size_t i = 0; i < fact_to_var.size(); i++) {
+        for(size_t j = 0; j < fact_to_var[i].size(); j++) {
+            if(fact_to_var[i][j] < 0) {
+                fact_to_var[i][j] = assigned_vars;
+                var_to_fact[assigned_vars] = std::pair<int,int>(i,j);
+                assigned_vars++;
+            }
+        }
+    }
+    assert(assigned_vars == amount_vars);
 
     ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
-
-    // fact_bdds represent for each var-val pair (from the search) the correct bdd
-    fact_bdds.resize(g_variable_domain.size());
-    // var_to_fact_pair shows which var-val pair corresponds to which bdd var
-    var_to_fact_pair.resize(amount_vars);
-    fact_to_bdd_var.resize(g_variable_domain.size());
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        fact_to_bdd_var[i] = std::vector<int>(g_variable_domain[i], -1);
-    }
-    int count = 0;
-    for(size_t i = 0; i < var_order.size(); ++i) {
-        int index = var_order[i];
-        fact_bdds[index] = std::vector<DdNode*>(g_variable_domain[index], Cudd_ReadOne(ddmgr));
-        int pddl_vars = g_variable_domain[index];
-        if(hasNoneOfThose[index]) {
-            pddl_vars--;
-        }
-        for(int j = 0; j < pddl_vars; ++j) {
-            var_to_fact_pair[count] = std::make_pair(index,j);
-            fact_to_bdd_var[index][j] = count;
-            for(int x = 0; x < g_variable_domain[index]; ++x) {
-                DdNode* tmp;
-                if(x == j) {
-                    tmp = Cudd_bddAnd(ddmgr, fact_bdds[index][x], Cudd_bddIthVar(ddmgr, count));
-                } else {
-                    tmp = Cudd_bddAnd(ddmgr, fact_bdds[index][x], Cudd_Not(Cudd_bddIthVar(ddmgr, count)));
-                }
-                Cudd_Ref(tmp);
-                Cudd_RecursiveDeref(ddmgr, fact_bdds[index][x]);
-                fact_bdds[index][x] = tmp;
-            }
-            count++;
-        }
-    }
-    assert(count == amount_vars);
 }
 
 void CuddManager::writeVarOrder(std::ofstream &file) const {
-    for(size_t i = 0; i < var_to_fact_pair.size(); ++i) {
-        std::pair<int,int> p = var_to_fact_pair[i];
-        //substring, because we remove "Atom "
-        file << g_fact_names[p.first][p.second].substr(5, g_fact_names[p.first][p.second].size()-5) << "\n";
+    for(size_t i = 0; i < var_to_fact.size(); ++i) {
+        file << var_to_fact[i].first << "," << var_to_fact[i].second << "\n";
     }
 }
 
@@ -268,10 +248,6 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string>
     }
     Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], names_char,
                             NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], NULL);
-}
-
-bool CuddManager::isVariable(int var, int val) const {
-    return (fact_to_bdd_var[var][val] != -1);
 }
 
 #endif

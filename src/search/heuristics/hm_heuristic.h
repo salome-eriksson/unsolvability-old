@@ -75,8 +75,6 @@ public:
     virtual void build_unsolvability_certificate(const GlobalState &s);
     virtual int get_number_of_unsolvability_certificates();
     virtual void write_subcertificates(std::ofstream &cert_file);
-
-    bool contains_negated_or_none_of_those(Tuple &tuple);
 };
 }
 

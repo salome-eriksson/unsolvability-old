@@ -56,7 +56,6 @@ public:
     CUDD_METHOD(CuddBDD operator=(const CuddBDD& right))
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
-    CUDD_METHOD(void lor_bddvar(int var, int val, bool neg = false))
     CUDD_METHOD(void negate())
     CUDD_METHOD(void land(const CuddBDD &bdd2))
     CUDD_METHOD(void lor(const CuddBDD &bdd2))
@@ -79,17 +78,20 @@ class CuddManager {
 private:
 #ifdef USE_CUDD
     DdManager* ddmgr;
-    std::vector<std::pair<int,int> > var_to_fact_pair;
-    std::vector<std::vector<DdNode*> > fact_bdds;
-    // saves to which bdd var a fact corresponds.
-    // If the fact is a "negated atom" or "none of those", -1 is saved as value
-    std::vector<std::vector<int> > fact_to_bdd_var;
+    std::vector<std::pair<int,int>> var_to_fact;
+    std::vector<std::vector<int>> fact_to_var;
+    // all managers have variables equal to the total number of facts
+    // but it is easier to save it here
     int amount_vars;
 #endif
-    CUDD_METHOD(void initialize_manager(std::vector<int> &var_order))
+    CUDD_METHOD(void initialize_manager(std::vector<std::vector<int>> &var_order))
 public:
     CUDD_METHOD(CuddManager())
+    // only provides an order over the task variables (which consist of several facts)
     CUDD_METHOD(CuddManager(std::vector<int> &var_order))
+    // provides ordering over all facts
+    // facts that have no defined order are passed with a negative value
+    CUDD_METHOD(CuddManager(std::vector<std::vector<int>> &var_order))
 
     CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const)

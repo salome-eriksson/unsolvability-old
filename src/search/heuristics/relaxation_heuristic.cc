@@ -195,7 +195,8 @@ void RelaxationHeuristic::simplify() {
  * that the related information contained in the propositions is still there
  */
 void RelaxationHeuristic::build_unsolvability_certificate(const GlobalState &s) {
-    //see if the state is already covered by an existing certificate;
+    // see if the state is already covered by an existing certificate;
+    // TODO: can we use Leq here?
     for(size_t i = 0; i < certificates.size(); ++i) {
         CuddBDD copy = *certificates[i];
         copy.land(CuddBDD(cudd_manager, s));
