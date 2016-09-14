@@ -232,9 +232,14 @@ void CuddManager::initialize_manager(std::vector<std::vector<int>> &var_order) {
 }
 
 void CuddManager::writeVarOrder(std::ofstream &file) const {
-    for(size_t i = 0; i < var_to_fact.size(); ++i) {
-        file << var_to_fact[i].first << "," << var_to_fact[i].second << "\n";
+    for(size_t i = 0; i < fact_to_var.size(); ++i) {
+        for(size_t j = 0; j < fact_to_var[i].size(); ++j) {
+            file << fact_to_var[i][j] << "\n";
+        }
     }
+    /*for(size_t i = 0; i < var_to_fact.size(); ++i) {
+        file << var_to_fact[i].first << "," << var_to_fact[i].second << "\n";
+    }*/
 }
 
 void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const {

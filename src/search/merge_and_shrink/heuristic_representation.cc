@@ -60,10 +60,17 @@ void HeuristicRepresentationLeaf::get_unsolvability_certificate(CuddBDD* h_inf,
     int val;
     for(size_t i = 0; i < lookup_table.size(); ++i) {
         val = lookup_table[i];
+        CuddBDD fact_bdd(h_inf->get_manager(), var_id, i, false);
+        for(size_t x = 0; x < lookup_table.size(); ++x) {
+            if(x == i) {
+                continue;
+            }
+            fact_bdd.land(var_id, x, true);
+        }
         if(val == -1) {
-            h_inf->lor(var_id, i, false);
+            h_inf->lor(fact_bdd);
         } else if(fill_bdd_for_val) {
-            bdd_for_val[val].lor(var_id,i,false);
+            bdd_for_val[val].lor(fact_bdd);
         }
     }
 }

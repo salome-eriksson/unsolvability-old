@@ -186,12 +186,7 @@ bool SearchCertificate::is_inductive() {
             if(cube[2*i] == 1) {
                 s[bddvar_to_global_fact[2*i]] = 1;
             } else if(cube[2*i] == 2) {
-                // if the don't care variable did not occur in the original search
-                // (-> index >= original_bdd_vars) then we do not need to distinguish this
-                // variable because it would not result in two distinct search states
-                if(i < original_bdd_vars) {
-                    dont_cares.push_back(bddvar_to_global_fact[2*i]);
-                }
+                dont_cares.push_back(bddvar_to_global_fact[2*i]);
                 s[bddvar_to_global_fact[2*i]] = 2;
             } else {
                 assert(cube[2*i] == 0);
