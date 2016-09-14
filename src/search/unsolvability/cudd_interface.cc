@@ -178,7 +178,7 @@ CuddManager::CuddManager(std::vector<int> &var_order) {
         assert(var_order[i] < (int)g_variable_domain.size()
                && detailed_var_order[var_order[i]].empty());
         for(int j = 0; j < g_variable_domain[var_order[i]]; ++j) {
-            detailed_var_order[var_order[i]][j] = count++;
+            detailed_var_order[var_order[i]].push_back(count++);
         }
     }
     initialize_manager(detailed_var_order);
