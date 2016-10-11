@@ -6,7 +6,8 @@ rm task.txt
 #PDDL_FILE=../../clickgame/prob05.pddl
 #PDDL_FILE=no-mystery/prob04.pddl
 #PDDL_FILE=../../sokoban_benchmarks/mode02-50set-easy/sokoban-mode02-6x6-3s-1.pddl
-PDDL_FILE=../../../unsolvable-pddl-tasks/unsolvable-childsnack/childsnack-03-05-07-06.pddl
+#PDDL_FILE=../../../unsolvable-pddl-tasks/unsolvable-childsnack/childsnack-03-05-07-06.pddl
+PDDL_FILE=3unsat/sat-3-22-5-1.pddl
 echo "-------------------------------------------------"
 echo "RUNNING TASK"
 echo "-------------------------------------------------"
