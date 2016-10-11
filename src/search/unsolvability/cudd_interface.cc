@@ -171,7 +171,6 @@ CuddManager::CuddManager() {
 }
 
 CuddManager::CuddManager(std::vector<int> &var_order) {
-    assert(var_order.size() == g_variable_domain.size());
     int count = 0;
     std::vector<std::vector<int>> detailed_var_order(g_variable_domain.size());
     for(size_t i = 0; i < var_order.size(); ++i) {
@@ -179,6 +178,13 @@ CuddManager::CuddManager(std::vector<int> &var_order) {
                && detailed_var_order[var_order[i]].empty());
         for(int j = 0; j < g_variable_domain[var_order[i]]; ++j) {
             detailed_var_order[var_order[i]].push_back(count++);
+        }
+    }
+    for(size_t i = 0; i < detailed_var_order.size(); ++i) {
+        if(detailed_var_order[i].empty()) {
+            detailed_var_order[i].resize(g_variable_domain[i], -1);
+        } else {
+            assert((int)detailed_var_order[i].size() == g_variable_domain[i]);
         }
     }
     initialize_manager(detailed_var_order);
