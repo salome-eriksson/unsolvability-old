@@ -25,12 +25,12 @@ public:
   Task(std::string file);
   const std::vector<std::string>& get_fact_names();
   const std::string& get_fact(int n);
-  int find_fact(std::string& fact_name);
   const Action& get_action(int n);
   int get_number_of_actions();
   int get_number_of_facts();
   const Cube& get_initial_state();
   const Cube& get_goal();
+  void dump_action(int n);
 };
 
 #endif /* TASK_H */

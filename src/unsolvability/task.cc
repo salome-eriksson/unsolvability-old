@@ -97,7 +97,7 @@ Task::Task(std::string taskfile) {
         while(line.compare("end_action")!= 0) {
             split(line, linevec, ':');
             assert(linevec.size() == 2);
-            int fact = fact_map.at(linevec[1]);
+            int fact = stoi(linevec[1]);
             if(linevec[0].compare("PRE") == 0) {
                 actions[i].pre.push_back(fact);
             } else if(linevec[0].compare("ADD") == 0) {
@@ -121,12 +121,6 @@ const std::string& Task::get_fact(int n) {
     return fact_names[n];
 }
 
-int Task::find_fact(std::string &fact_name) {
-    int pos = find(fact_names.begin(), fact_names.end(), fact_name) - fact_names.begin();
-    assert(pos < fact_names.size());
-    return pos;
-}
-
 const Action& Task::get_action(int n) {
   return actions[n];
 }
@@ -145,4 +139,24 @@ const Cube& Task::get_initial_state() {
 
 const std::vector<int>& Task::get_goal() {
   return goal;
+}
+
+void Task::dump_action(int n) {
+   Action& a = actions[n];
+   std::cout << "Name: " << a.name << ", cost: " << a.cost << std::endl;
+   std::cout << "Preconditions: ";
+   for(int i = 0; i < a.pre.size(); ++i) {
+       std::cout << fact_names[a.pre[i]] << ", ";
+   }std::cout << std::endl;
+   for(int i = 0; i < a.change.size(); ++i) {
+       if(a.change[i] !=0) {
+           if(a.change[i] < 0) {
+               std::cout << "delete " << fact_names[i] << std::endl;
+           } else {
+               std::cout << "add " << fact_names[i] << std::endl;
+           }
+       } else {
+           std::cout << "no change to" << fact_names[i] << std::endl;
+       }
+   }
 }

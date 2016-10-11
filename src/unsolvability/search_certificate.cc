@@ -138,6 +138,7 @@ bool SearchCertificate::is_inductive() {
         // are neither in bdd_exp nor bdd_pr --> not inductive
         if(!succ.Leq(union_primed)) {
             std::cout << "action " << i << " is not inductive" << std::endl;
+            task->dump_action(i);
             return false;
         }
     } // end loop over actions
