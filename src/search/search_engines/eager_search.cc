@@ -350,10 +350,14 @@ void EagerSearch::build_certificate() {
     ofstream task_file;
     task_file.open("task.txt");
 
+    int count = 0;
+    std::vector<std::vector<int>> fact_to_var;
     task_file << "begin_atoms:" << fact_amount << "\n";
     for(size_t i = 0; i < g_fact_names.size(); ++i) {
+        fact_to_var.push_back(std::vector<int>(g_fact_names[i].size(), -1));
         for(size_t j = 0; j < g_fact_names[i].size(); ++j) {
             task_file << g_fact_names[i][j] << "\n";
+            fact_to_var[i][j] = count++;
         }
     }
     task_file << "end_atoms\n";
@@ -380,21 +384,21 @@ void EagerSearch::build_certificate() {
         const std::vector<GlobalCondition>& pre = op.get_preconditions();
         const std::vector<GlobalEffect>& post = op.get_effects();
         for(size_t i = 0; i < pre.size(); ++i) {
-            task_file << "PRE:" << g_fact_names[pre[i].var][pre[i].val] << "\n";
+            task_file << "PRE:" << fact_to_var[pre[i].var][pre[i].val] << "\n";
         }
         for(size_t i = 0; i < post.size(); ++i) {
             if(!post[i].conditions.empty()) {
                 std::cout << "CONDITIONAL EFFECTS, ABORT!";
                 std::exit(1);
             }
-            task_file << "ADD:" << g_fact_names[post[i].var][post[i].val] << "\n";
+            task_file << "ADD:" << fact_to_var[post[i].var][post[i].val] << "\n";
             // all other facts from this FDR variable are set to false
             // TODO: can we make this more compact / smarter?
             for(int j = 0; j < g_variable_domain[post[i].var]; j++) {
                 if(j == post[i].val) {
                     continue;
                 }
-                task_file << "DEL:" << g_fact_names[post[i].var][j] << "\n";
+                task_file << "DEL:" << fact_to_var[post[i].var][j] << "\n";
             }
         }
         task_file << "end_action\n";
