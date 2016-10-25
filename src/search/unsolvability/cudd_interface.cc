@@ -6,6 +6,13 @@
 #ifdef USE_CUDD
 #include "dddmp.h"
 
+using Utils::ExitCode;
+
+
+void exit_oom(long size) {
+    Utils::exit_with(ExitCode::OUT_OF_MEMORY);
+}
+
 CuddBDD::CuddBDD() : manager(NULL), bdd(NULL) {}
 
 CuddBDD::CuddBDD(CuddManager *manager, bool positive)
@@ -235,6 +242,8 @@ void CuddManager::initialize_manager(std::vector<std::vector<int>> &var_order) {
     assert(assigned_vars == amount_vars);
 
     ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
+    extern DD_OOMFP MMoutOfMemory;
+    MMoutOfMemory = exit_oom;
 }
 
 void CuddManager::writeVarOrder(std::ofstream &file) const {
