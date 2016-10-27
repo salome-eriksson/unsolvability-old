@@ -19,8 +19,7 @@ Certificate* build_certificate(std::string file, Task* task) {
     std::ifstream stream;
     stream.open(file.c_str());
     if(!stream.is_open()) {
-        std::cout << "invalid certificate file" << std::endl;
-        exit(0);
+        exit_with(ExitCode::NO_CERTIFICATE_FILE);
     }
     std::string line;
     std::getline(stream, line);
@@ -35,8 +34,7 @@ Certificate* build_certificate(std::string file, Task* task) {
         std::cout << "reading in search certificate" << std::endl;
         return new SearchCertificate(task, stream);
     } else {
-        std::cout << "unknown certificate type: " << line << std::endl;
-        exit(0);
+        exit_with(ExitCode::PARSING_ERROR);
     }
     return NULL;
 }
@@ -62,12 +60,6 @@ int main(int argc, char** argv) {
     double verify_start = timer();
     bool valid = certificate->is_certificate_for(task->get_initial_state());
     double verify_end =  timer();
-    std::cout << "Certificate is valid: ";
-    if(valid) {
-        std::cout << "yes" << std::endl;
-    } else {
-        std::cout << "no" << std::endl;
-    }
     double parsing_time = parsing_end-parsing_start;
     double verification_time = verify_end - verify_start;
     std::cout << "Verify total time: " << timer() << std::endl;
@@ -76,5 +68,10 @@ int main(int argc, char** argv) {
     std::cout << "Verify verification time: ";
     std::cout << std::fixed << std::setprecision(2) << verification_time << std::endl;
     std::cout << "Verify memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
-    exit(0);
+    std::cout << "Certificate is valid: ";
+    if(valid) {
+        exit_with(ExitCode::CERTIFICATE_VALID);
+    } else {
+        exit_with(ExitCode::CERTIFICATE_NOT_VALID);
+    }
 }

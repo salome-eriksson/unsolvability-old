@@ -8,11 +8,25 @@
 
 static Timer timer;
 
+enum class ExitCode {
+    CERTIFICATE_VALID = 0,
+    CRITICAL_ERROR = 1,
+    CERTIFICATE_NOT_VALID = 2,
+    NO_TASK_FILE= 3,
+    NO_CERTIFICATE_FILE = 4,
+    PARSING_ERROR = 5,
+    OUT_OF_MEMORY = 6,
+    TIMEOUT = 7
+};
+
 //TODO: move this to an appropriate place
 void split(const std::string &s, std::vector<std::string> &vec, char delim);
 void print_parsing_error_and_exit(std::string &line, std::string expected);
 void print_info(std::string info);
 void initialize_timer();
 int get_peak_memory_in_kb(bool use_buffered_input = true);
+void exit_with(ExitCode code);
+
+
 
 #endif /* GLOBAL_FUNCS_H */
