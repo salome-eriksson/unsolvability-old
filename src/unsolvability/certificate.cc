@@ -10,6 +10,7 @@
 
 Certificate::Certificate(Task *task)
     : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
+    manager.SetTimeLimit(2000 - timer());
 
 }
 
@@ -35,7 +36,7 @@ void Certificate::read_in_variable_order(std::ifstream &in) {
         count++;
         if(!std::getline(in, line)) {
             std::cout << "file ended without \"end_variables\"" << std::endl;
-            exit(0);
+            exit_with(ExitCode::PARSING_ERROR);
         }
     }
 

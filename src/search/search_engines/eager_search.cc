@@ -321,26 +321,6 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
 }
 
 void EagerSearch::build_certificate() {
-    ofstream cert_file;
-    std::vector<CuddBDD*> bdds(2, NULL);
-    bdds[0] = bdd_exp;
-    bdds[1] = bdd_pr;
-    std::vector<string> names;
-    names.push_back("bdd_exp");
-    names.push_back("bdd_pr");
-    manager->dumpBDDs(bdds, names, "cert_search.txt");
-    cert_file.open("certificate.txt");
-    cert_file << "search_certificate\n";
-    cert_file << "File:cert_search.txt\n";
-    cert_file << "begin_variables\n";
-    manager->writeVarOrder(cert_file);
-    cert_file << "end_variables\n";
-    cert_file << "subcertificates:"
-              << heuristics[0]->get_number_of_unsolvability_certificates() << "\n";
-    heuristics[0]->write_subcertificates(cert_file);
-    cert_file << "end_subcertificates\n";
-    cert_file << "end_certificate\n";
-
     //write task file
     int fact_amount = 0;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
@@ -404,6 +384,27 @@ void EagerSearch::build_certificate() {
         task_file << "end_action\n";
     }
     task_file << "end_actions\n";
+
+
+    ofstream cert_file;
+    std::vector<CuddBDD*> bdds(2, NULL);
+    bdds[0] = bdd_exp;
+    bdds[1] = bdd_pr;
+    std::vector<string> names;
+    names.push_back("bdd_exp");
+    names.push_back("bdd_pr");
+    manager->dumpBDDs(bdds, names, "cert_search.txt");
+    cert_file.open("certificate.txt");
+    cert_file << "search_certificate\n";
+    cert_file << "File:cert_search.txt\n";
+    cert_file << "begin_variables\n";
+    manager->writeVarOrder(cert_file);
+    cert_file << "end_variables\n";
+    cert_file << "subcertificates:"
+              << heuristics[0]->get_number_of_unsolvability_certificates() << "\n";
+    heuristics[0]->write_subcertificates(cert_file);
+    cert_file << "end_subcertificates\n";
+    cert_file << "end_certificate\n";
 }
 
 static SearchEngine *_parse(OptionParser &parser) {

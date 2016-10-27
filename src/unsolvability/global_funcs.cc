@@ -20,7 +20,7 @@ void split(const std::string &s, std::vector<std::string> &vec, char delim) {
 void print_parsing_error_and_exit(std::string &line, std::string expected) {
     std::cout << "unexpected line in certificate: " << line
               << " (expected \"" << expected << "\")" << std::endl;
-    exit(0);
+    exit_with(ExitCode::PARSING_ERROR);
 }
 
 void print_info(std::string info) {
@@ -55,4 +55,38 @@ int get_peak_memory_in_kb(bool use_buffered_input) {
     if (memory_in_kb == -1)
         std::cerr << "warning: could not determine peak memory" << std::endl;
     return memory_in_kb;
+}
+
+void exit_with(ExitCode code) {
+    std::string msg;
+    switch(code) {
+    case ExitCode::CERTIFICATE_VALID:
+        msg = "Exiting: certificate is valid";
+        break;
+    case ExitCode::CERTIFICATE_NOT_VALID:
+        msg = "Exiting: certificate is not valid";
+        break;
+    case ExitCode::CRITICAL_ERROR:
+        msg = "Exiting: unexplained critical error";
+        break;
+    case ExitCode::PARSING_ERROR:
+        msg = "Exiting: parsing error";
+        break;
+    case ExitCode::NO_CERTIFICATE_FILE:
+        msg = "Exiting: no certificate file found";
+        break;
+    case ExitCode::NO_TASK_FILE:
+        msg = "Exiting: no task file found";
+        break;
+    case ExitCode::OUT_OF_MEMORY:
+        msg = "Exiting: memory limit reached";
+        break;
+    case ExitCode::TIMEOUT:
+        msg = "Exiting: timeout reached";
+        break;
+    default:
+        msg = "Exiting: default exitcode";
+        break;
+    }
+    exit(static_cast<int>(code));
 }

@@ -58,7 +58,7 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
         } else {
             std::cout << "subcertificate " << i
                       << " type unknown: " << line << std::endl;
-            exit(0);
+            exit_with(ExitCode::PARSING_ERROR);
         }
     }
     std::getline(in, line);

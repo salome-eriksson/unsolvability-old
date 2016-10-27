@@ -10,6 +10,9 @@ Task::Task(std::string taskfile) {
 
     std::ifstream in;
     in.open(taskfile.c_str());
+    if(!in.is_open()) {
+        exit_with(ExitCode::NO_TASK_FILE);
+    }
     std::string line;
     std::vector<std::string> linevec;
     std::unordered_map<std::string, int> fact_map;
