@@ -7,6 +7,9 @@
 
 #include "global_funcs.h"
 
+Timer timer;
+int g_timeout;
+
 //TODO: move this to an appropriate place
 void split(const std::string &s, std::vector<std::string> &vec, char delim) {
     vec.clear();
@@ -29,6 +32,10 @@ void print_info(std::string info) {
 
 void initialize_timer() {
     timer = Timer();
+}
+
+void set_timeout(int x) {
+    g_timeout = x;
 }
 
 int get_peak_memory_in_kb(bool use_buffered_input) {
@@ -88,5 +95,18 @@ void exit_with(ExitCode code) {
         msg = "Exiting: default exitcode";
         break;
     }
+    std::cout << msg << std::endl;
     exit(static_cast<int>(code));
+}
+
+void exit_oom(long size) {
+    std::cout << "abort memory " << get_peak_memory_in_kb() << "KB" << std::endl;
+    std::cout << "abort time " << timer << std::endl;
+    exit_with(ExitCode::OUT_OF_MEMORY);
+}
+
+void exit_timeout(std::string) {
+    std::cout << "abort memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
+    std::cout << "abort time: " << timer << std::endl;
+    exit_with(ExitCode::TIMEOUT);
 }
