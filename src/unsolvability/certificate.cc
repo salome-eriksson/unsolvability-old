@@ -10,7 +10,10 @@
 
 Certificate::Certificate(Task *task)
     : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
-    manager.SetTimeLimit(2000 - timer());
+    if(g_timeout > 0) {
+        manager.SetTimeLimit(g_timeout*1000 - timer());
+    }
+    manager.setTimeoutHandler(exit_timeout);
 
 }
 

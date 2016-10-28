@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <cassert>
 #include <stdlib.h>
 #include <iomanip>
@@ -42,13 +43,27 @@ Certificate* build_certificate(std::string file, Task* task) {
 
 
 int main(int argc, char** argv) {
-    if(argc < 3) {
-        std::cout << "Usage: verify <pddl-file> <certificate-file>" << std::endl;
+    if(argc < 3 || argc > 4) {
+        std::cout << "Usage: verify <pddl-file> <certificate-file> [timeout]" << std::endl;
+        std::cout << "timeout is an optional parameter in seconds" << std::endl;
         exit(0);
     }
     initialize_timer();
+    extern DD_OOMFP MMoutOfMemory;
+    MMoutOfMemory = exit_oom;
     std::string pddl_file = argv[1];
     std::string certificate_file = argv[2];
+    int x = 0;
+    if(argc == 4) {
+        std::istringstream ss(argv[3]);
+        if (!(ss >> x) || x < 0) {
+            std::cout << "Usage: verify <pddl-file> <certificate-file> [timeout]" << std::endl;
+            std::cout << "timeout is an optional parameter in seconds" << std::endl;
+            exit(0);
+        }
+        std::cout << "using timeout of " << g_timeout << " seconds" << std::endl;
+    }
+    set_timeout(x);
     print_info("Starting parsing");
     double parsing_start = timer();
     Task* task = new Task(pddl_file);
@@ -68,7 +83,6 @@ int main(int argc, char** argv) {
     std::cout << "Verify verification time: ";
     std::cout << std::fixed << std::setprecision(2) << verification_time << std::endl;
     std::cout << "Verify memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
-    std::cout << "Certificate is valid: ";
     if(valid) {
         exit_with(ExitCode::CERTIFICATE_VALID);
     } else {

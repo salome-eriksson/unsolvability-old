@@ -6,7 +6,8 @@
 
 #include "timer.h"
 
-static Timer timer;
+extern Timer timer;
+extern int g_timeout;
 
 enum class ExitCode {
     CERTIFICATE_VALID = 0,
@@ -24,8 +25,11 @@ void split(const std::string &s, std::vector<std::string> &vec, char delim);
 void print_parsing_error_and_exit(std::string &line, std::string expected);
 void print_info(std::string info);
 void initialize_timer();
+void set_timeout(int x);
 int get_peak_memory_in_kb(bool use_buffered_input = true);
 void exit_with(ExitCode code);
+void exit_oom(long size);
+void exit_timeout(std::string);
 
 
 
