@@ -15,11 +15,6 @@ StrongConjunctiveCertificate::StrongConjunctiveCertificate(Task *task, std::ifst
     assert(line_arr.size() == 2);
     std::string certificate_file = line_arr[1];
     std::cout << "strong conjunctive certificate file: " << certificate_file << std::endl;
-    std::getline(in, line);
-    if(line.compare("begin_variables") != 0) {
-        print_parsing_error_and_exit(line, "begin_variables");
-    }
-    read_in_variable_order(in);
     assert(certificates.empty());
     parse_bdd_file(certificate_file, certificates);
     std::getline(in, line);

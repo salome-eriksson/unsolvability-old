@@ -18,11 +18,9 @@
 
 class Certificate {
 protected:
-  std::vector<int> fact_to_bddvar;
+  //std::vector<int> fact_to_bddvar;
   Task* task;
   Cudd manager;
-  // also builds the mapping between global facts and bdd variables
-  void read_in_variable_order(std::ifstream &facts);
   void parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds);
   BDD build_bdd_for_action(const Action &a);
   BDD build_bdd_from_cube(const Cube &cube);
