@@ -35,16 +35,12 @@ void HMHeuristic::initialize() {
          << "Please do not use this for comparison!" << endl;
     generate_all_tuples();
 
-    cudd_manager = new CuddManager();
-    int count = 0;
-    neg_none.resize(task_proxy.get_variables().size(), -1);
-    for(VariableProxy vars: task_proxy.get_variables()) {
-        std::string name = vars.get_fact(vars.get_domain_size()-1).get_name();
-        if(name.substr(0,7).compare("Negated") == 0 || name.substr(0,5).compare("<none") == 0) {
-            neg_none[count] = vars.get_domain_size()-1;
-        }
-        count++;
+    std::vector<int> var_order(g_variable_domain.size());
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        var_order[i] = (int) i;
     }
+    CuddManager::set_variable_order(var_order);
+    cudd_manager = CuddManager::get_instance();
 }
 
 
@@ -393,9 +389,6 @@ void HMHeuristic::write_subcertificates(ofstream &cert_file) {
         cudd_manager->dumpBDDs(certificates[i], names, txtname);
         cert_file << "strong_conjunctive_certificate\n";
         cert_file << "File:" << txtname << "\n";
-        cert_file << "begin_variables\n";
-        cudd_manager->writeVarOrder(cert_file);
-        cert_file << "end_variables\n";
         cert_file << "end_certificate\n";
     }
 }

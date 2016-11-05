@@ -34,7 +34,6 @@ class HMHeuristic : public Heuristic {
     CuddManager* cudd_manager;
     std::vector<std::vector<CuddBDD*>> certificates;
     std::vector<CuddBDD*> mutex_bdds;
-    std::vector<int> neg_none;
     void build_mutex_bdds();
 
     // auxiliary methods

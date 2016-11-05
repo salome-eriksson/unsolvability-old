@@ -58,10 +58,6 @@ void EagerSearch::initialize() {
     heuristics.assign(hset.begin(), hset.end());
     assert(!heuristics.empty());
 
-    manager = new CuddManager();
-    bdd_exp = new CuddBDD(manager, false);
-    bdd_pr = new CuddBDD(manager, false);
-
     const GlobalState &initial_state = g_initial_state();
     // Note: we consider the initial state as reached by a preferred
     // operator.
@@ -69,7 +65,15 @@ void EagerSearch::initialize() {
 
     statistics.inc_evaluated_states();
 
-    if (open_list->is_dead_end(eval_context)) {
+    // initial_dead is introduced because we need to make sure that
+    // the heuristics are initialized before getting the manager
+    // (because the heuristics set the variable order)
+    bool initial_dead = open_list->is_dead_end(eval_context);
+    manager = CuddManager::get_instance();
+    bdd_exp = new CuddBDD(manager, false);
+    bdd_pr = new CuddBDD(manager, false);
+
+    if (initial_dead) {
         bdd_pr->lor(CuddBDD(manager, initial_state));
         heuristics[0]->build_unsolvability_certificate(initial_state);
         cout << "Initial state is a dead end." << endl;
@@ -321,70 +325,7 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
 }
 
 void EagerSearch::build_certificate() {
-    //write task file
-    int fact_amount = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        fact_amount += g_variable_domain[i];
-    }
-
-    ofstream task_file;
-    task_file.open("task.txt");
-
-    int count = 0;
-    std::vector<std::vector<int>> fact_to_var;
-    task_file << "begin_atoms:" << fact_amount << "\n";
-    for(size_t i = 0; i < g_fact_names.size(); ++i) {
-        fact_to_var.push_back(std::vector<int>(g_fact_names[i].size(), -1));
-        for(size_t j = 0; j < g_fact_names[i].size(); ++j) {
-            task_file << g_fact_names[i][j] << "\n";
-            fact_to_var[i][j] = count++;
-        }
-    }
-    task_file << "end_atoms\n";
-
-    task_file << "begin_init\n";
-    for(size_t i = 0; i < g_fact_names.size(); ++i) {
-        task_file << g_fact_names[i][g_initial_state()[i]] << "\n";
-    }
-    task_file << "end_init\n";
-
-    task_file << "begin_goal\n";
-    for(size_t i = 0; i < g_goal.size(); ++i) {
-        task_file << g_fact_names[g_goal[i].first][g_goal[i].second] << "\n";
-    }
-    task_file << "end_goal\n";
-
-
-    task_file << "begin_actions:" << g_operators.size() << "\n";
-    for(size_t op_index = 0;  op_index< g_operators.size(); ++op_index) {
-        const GlobalOperator& op = g_operators[op_index];
-        task_file << "begin_action\n"
-                  << op.get_name() << "\n"
-                  << "cost: "<< op.get_cost() <<"\n";
-        const std::vector<GlobalCondition>& pre = op.get_preconditions();
-        const std::vector<GlobalEffect>& post = op.get_effects();
-        for(size_t i = 0; i < pre.size(); ++i) {
-            task_file << "PRE:" << fact_to_var[pre[i].var][pre[i].val] << "\n";
-        }
-        for(size_t i = 0; i < post.size(); ++i) {
-            if(!post[i].conditions.empty()) {
-                std::cout << "CONDITIONAL EFFECTS, ABORT!";
-                std::exit(1);
-            }
-            task_file << "ADD:" << fact_to_var[post[i].var][post[i].val] << "\n";
-            // all other facts from this FDR variable are set to false
-            // TODO: can we make this more compact / smarter?
-            for(int j = 0; j < g_variable_domain[post[i].var]; j++) {
-                if(j == post[i].val) {
-                    continue;
-                }
-                task_file << "DEL:" << fact_to_var[post[i].var][j] << "\n";
-            }
-        }
-        task_file << "end_action\n";
-    }
-    task_file << "end_actions\n";
-
+    manager->writeTaskFile();
 
     ofstream cert_file;
     std::vector<CuddBDD*> bdds(2, NULL);
@@ -397,14 +338,12 @@ void EagerSearch::build_certificate() {
     cert_file.open("certificate.txt");
     cert_file << "search_certificate\n";
     cert_file << "File:cert_search.txt\n";
-    cert_file << "begin_variables\n";
-    manager->writeVarOrder(cert_file);
-    cert_file << "end_variables\n";
     cert_file << "subcertificates:"
               << heuristics[0]->get_number_of_unsolvability_certificates() << "\n";
     heuristics[0]->write_subcertificates(cert_file);
     cert_file << "end_subcertificates\n";
     cert_file << "end_certificate\n";
+    cert_file.close();
 }
 
 static SearchEngine *_parse(OptionParser &parser) {

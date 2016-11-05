@@ -45,11 +45,8 @@ Task::Task(std::string taskfile) {
     initial_state.resize(factamount, 0);
     std::getline(in, line);
     while(line.compare("end_init") != 0) {
-        auto index = fact_map.find(line);
-        if(index == fact_map.end()) {
-            print_parsing_error_and_exit(line, "<initial state atom>");
-        }
-        initial_state[index->second] = 1;
+        int index = stoi(line);
+        initial_state[index] = 1;
         std::getline(in, line);
     }
 
@@ -62,11 +59,8 @@ Task::Task(std::string taskfile) {
     std::getline(in, line);
     goal.resize(factamount, 2);
     while(line.compare("end_goal") != 0) {
-        auto index = fact_map.find(line);
-        if(index == fact_map.end()) {
-            print_parsing_error_and_exit(line, "<goal atom>");
-        }
-        goal[index->second] = 1;
+        int index = stoi(line);
+        goal[index] = 1;
         std::getline(in, line);
     }
 

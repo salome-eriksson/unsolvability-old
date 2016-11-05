@@ -1,5 +1,6 @@
 #include "cudd_interface.h"
 #include "../globals.h"
+#include "../global_operator.h"
 
 #include <algorithm>
 
@@ -8,6 +9,8 @@
 
 using Utils::ExitCode;
 
+std::vector<int> CuddManager::var_order = std::vector<int>();
+CuddManager* CuddManager::instance = NULL;
 
 void exit_oom(long size) {
     Utils::exit_with(ExitCode::OUT_OF_MEMORY);
@@ -45,18 +48,18 @@ CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     Cudd_Ref(bdd);
 }
 
-CuddBDD::CuddBDD(CuddManager *manager,const std::vector<std::pair<int,int> >& pos_vars,
-                 const std::vector<std::pair<int,int> > &neg_vars)
+CuddBDD::CuddBDD(CuddManager *manager,const std::vector<std::pair<int,int> >& pos_facts,
+                 const std::vector<std::pair<int,int> > &neg_facts)
     : manager(manager) {
     std::vector<int> cube(manager->amount_vars, 2);
-    for(size_t i = 0; i < pos_vars.size(); ++i) {
-        const std::pair<int,int>& p = pos_vars[i];
+    for(size_t i = 0; i < pos_facts.size(); ++i) {
+        const std::pair<int,int>& p = pos_facts[i];
         assert(p.first < (int)manager->fact_to_var.size()
                && p.second < (int)manager->fact_to_var[p.first].size());
         cube[manager->fact_to_var[p.first][p.second]] = 1;
     }
-    for(size_t i = 0; i < neg_vars.size(); ++i) {
-        const std::pair<int,int>& p = neg_vars[i];
+    for(size_t i = 0; i < neg_facts.size(); ++i) {
+        const std::pair<int,int>& p = neg_facts[i];
         assert(p.first < (int)manager->fact_to_var.size()
                && p.second < (int)manager->fact_to_var[p.first].size());
         cube[manager->fact_to_var[p.first][p.second]] = 0;
@@ -164,97 +167,102 @@ void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
     fclose(f);
 }
 
-
-CuddManager::CuddManager() {
-    int count = 0;
-    std::vector<std::vector<int>> var_order(g_variable_domain.size());
-    for(size_t i = 0; i < var_order.size(); ++i) {
-        var_order[i] = std::vector<int>(g_variable_domain[i]);
-        for(size_t j = 0; j < var_order[i].size(); ++j) {
-            var_order[i][j] = count++;
-        }
-    }
-    initialize_manager(var_order);
-}
-
 CuddManager::CuddManager(std::vector<int> &var_order) {
-    int count = 0;
-    std::vector<std::vector<int>> detailed_var_order(g_variable_domain.size());
-    for(size_t i = 0; i < var_order.size(); ++i) {
-        assert(var_order[i] < (int)g_variable_domain.size()
-               && detailed_var_order[var_order[i]].empty());
-        for(int j = 0; j < g_variable_domain[var_order[i]]; ++j) {
-            detailed_var_order[var_order[i]].push_back(count++);
-        }
-    }
-    for(size_t i = 0; i < detailed_var_order.size(); ++i) {
-        if(detailed_var_order[i].empty()) {
-            detailed_var_order[i].resize(g_variable_domain[i], -1);
-        } else {
-            assert((int)detailed_var_order[i].size() == g_variable_domain[i]);
-        }
-    }
-    initialize_manager(detailed_var_order);
-}
-
-CuddManager::CuddManager(std::vector<std::vector<int>> &var_order) {
-    initialize_manager(var_order);
-}
-
-void CuddManager::initialize_manager(std::vector<std::vector<int>> &var_order) {
-    //assert var_order has the right dimensions and count total amount of facts
     assert(var_order.size() == g_variable_domain.size());
+    fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
     amount_vars = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        assert((int)var_order[i].size() == g_variable_domain[i]);
-        amount_vars += g_variable_domain[i];
-    }
-
-    var_to_fact.resize(amount_vars, std::pair<int,int>(-1,-1));
-    int assigned_vars = 0;
-
-    // count how many variables are assigned in the vector and ensure that
-    // none are assigned the same number
     for(size_t i = 0; i < var_order.size(); ++i) {
-        for(size_t j = 0; j < var_order[i].size(); ++j) {
-            int x = var_order[i][j];
-            if(var_order[i][j] >= 0) {
-                assigned_vars++;
-                assert(var_to_fact[x].first == -1);
-                var_to_fact[x] = std::pair<int,int>(i,j);
-            }
+        int index = var_order[i];
+        fact_to_var[index].resize(g_variable_domain[index]);
+        for(int j = 0; j < g_variable_domain[index]; ++j) {
+            fact_to_var[index][j] = amount_vars++;
         }
     }
-    // copy var_order
-    // TODO: check if this is an actual copy
-    fact_to_var = var_order;
-
-    // fill in unassigned variables
-    for(size_t i = 0; i < fact_to_var.size(); i++) {
-        for(size_t j = 0; j < fact_to_var[i].size(); j++) {
-            if(fact_to_var[i][j] < 0) {
-                fact_to_var[i][j] = assigned_vars;
-                var_to_fact[assigned_vars] = std::pair<int,int>(i,j);
-                assigned_vars++;
-            }
-        }
-    }
-    assert(assigned_vars == amount_vars);
-
     ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
     extern DD_OOMFP MMoutOfMemory;
     MMoutOfMemory = exit_oom;
 }
 
-void CuddManager::writeVarOrder(std::ofstream &file) const {
-    for(size_t i = 0; i < fact_to_var.size(); ++i) {
-        for(size_t j = 0; j < fact_to_var[i].size(); ++j) {
-            file << fact_to_var[i][j] << "\n";
+void CuddManager::set_variable_order(std::vector<int> &_var_order) {
+    if(!var_order.empty()) {
+        std::cerr << "Tried to set variable order twice" << std::endl;
+        Utils::exit_with(Utils::ExitCode::CRITICAL_ERROR);
+    }
+    assert(_var_order.size() == g_variable_domain.size());
+    var_order = _var_order;
+}
+
+CuddManager* CuddManager::get_instance() {
+    if(var_order.empty()) {
+        std::cerr << "Tried to create manager without setting variable order" << std::endl;
+        Utils::exit_with(Utils::ExitCode::CRITICAL_ERROR);
+    }
+    if(!instance) {
+        instance = new CuddManager(var_order);
+    }
+    return instance;
+}
+
+void CuddManager::writeTaskFile() const{
+    std::ofstream task_file;
+    task_file.open("task.txt");
+
+    int fact_amount = 0;
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        fact_amount += g_variable_domain[i];
+    }
+    task_file << "begin_atoms:" << fact_amount << "\n";
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        int var = var_order[i];
+        for(size_t j = 0; j < g_fact_names[var].size(); ++j) {
+            task_file << g_fact_names[var][j] << "\n";
         }
     }
-    /*for(size_t i = 0; i < var_to_fact.size(); ++i) {
-        file << var_to_fact[i].first << "," << var_to_fact[i].second << "\n";
-    }*/
+    task_file << "end_atoms\n";
+
+    task_file << "begin_init\n";
+    for(size_t i = 0; i < g_fact_names.size(); ++i) {
+        task_file << fact_to_var[i][g_initial_state()[i]] << "\n";
+    }
+    task_file << "end_init\n";
+
+    task_file << "begin_goal\n";
+    for(size_t i = 0; i < g_goal.size(); ++i) {
+        task_file << fact_to_var[g_goal[i].first][g_goal[i].second] << "\n";
+    }
+    task_file << "end_goal\n";
+
+
+    task_file << "begin_actions:" << g_operators.size() << "\n";
+    for(size_t op_index = 0;  op_index< g_operators.size(); ++op_index) {
+        const GlobalOperator& op = g_operators[op_index];
+        task_file << "begin_action\n"
+                  << op.get_name() << "\n"
+                  << "cost: "<< op.get_cost() <<"\n";
+        const std::vector<GlobalCondition>& pre = op.get_preconditions();
+        const std::vector<GlobalEffect>& post = op.get_effects();
+        for(size_t i = 0; i < pre.size(); ++i) {
+            task_file << "PRE:" << fact_to_var[pre[i].var][pre[i].val] << "\n";
+        }
+        for(size_t i = 0; i < post.size(); ++i) {
+            if(!post[i].conditions.empty()) {
+                std::cout << "CONDITIONAL EFFECTS, ABORT!";
+                std::exit(1);
+            }
+            task_file << "ADD:" << fact_to_var[post[i].var][post[i].val] << "\n";
+            // all other facts from this FDR variable are set to false
+            // TODO: can we make this more compact / smarter?
+            for(int j = 0; j < g_variable_domain[post[i].var]; j++) {
+                if(j == post[i].val) {
+                    continue;
+                }
+                task_file << "DEL:" << fact_to_var[post[i].var][j] << "\n";
+            }
+        }
+        task_file << "end_action\n";
+    }
+    task_file << "end_actions\n";
+    task_file.close();
 }
 
 void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const {

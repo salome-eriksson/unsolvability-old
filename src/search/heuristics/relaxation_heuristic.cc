@@ -62,7 +62,12 @@ void RelaxationHeuristic::initialize() {
         for (size_t j = 0; j < op->precondition.size(); ++j)
             op->precondition[j]->precondition_of.push_back(op);
     }
-    cudd_manager = new CuddManager();
+    std::vector<int> var_order(g_variable_domain.size());
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        var_order[i] = (int) i;
+    }
+    CuddManager::set_variable_order(var_order);
+    cudd_manager = CuddManager::get_instance();
 }
 
 Proposition *RelaxationHeuristic::get_proposition(const FactProxy &fact) {
@@ -232,9 +237,6 @@ void RelaxationHeuristic::write_subcertificates(std::ofstream &cert_file) {
         cudd_manager->dumpBDDs(bdds, names, txtname);
         cert_file << "simple_certificate\n";
         cert_file << "File:" << txtname << "\n";
-        cert_file << "begin_variables\n";
-        cudd_manager->writeVarOrder(cert_file);
-        cert_file << "end_variables\n";
         cert_file << "end_certificate\n";
     }
 }

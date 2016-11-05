@@ -190,6 +190,10 @@ void MergeAndShrinkHeuristic::initialize() {
 
     build_transition_system(timer);
     report_peak_memory_delta(true);
+
+    CuddManager::set_variable_order(variable_order);
+    cudd_manager = CuddManager::get_instance();
+
     cout << "Done initializing merge-and-shrink heuristic [" << timer << "]"
          << endl;
     cout << endl;
@@ -207,8 +211,6 @@ void MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState 
     if(certificate != NULL) {
         return;
     }
-    //set up the CUDD manager with the right variable order
-    cudd_manager = new CuddManager(variable_order);
     certificate = new CuddBDD(cudd_manager, false);
 
     std::vector<CuddBDD> dummy_vector;
@@ -235,9 +237,6 @@ void MergeAndShrinkHeuristic::write_subcertificates(std::ofstream &cert_file) {
     cudd_manager->dumpBDDs(bdds, names, "cert_ms.txt");
     cert_file << "simple_certificate\n";
     cert_file << "File:cert_ms.txt\n";
-    cert_file << "begin_variables\n";
-    cudd_manager->writeVarOrder(cert_file);
-    cert_file << "end_variables\n";
     cert_file << "end_certificate\n";
 }
 

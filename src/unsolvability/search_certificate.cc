@@ -22,11 +22,6 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     assert(line_arr.size() == 2);
     std::string certificate_file = line_arr[1];
     std::cout << "search certificate file: " << certificate_file << std::endl;
-    std::getline(in, line);
-    if(line.compare("begin_variables") != 0) {
-        print_parsing_error_and_exit(line, "begin_variables");
-    }
-    read_in_variable_order(in);
     std::vector<BDD> bddvec;
     parse_bdd_file(certificate_file, bddvec);
     assert(bddvec.size() == 2);
@@ -36,7 +31,7 @@ SearchCertificate::SearchCertificate(Task *task, std::ifstream &in)
     //create a mapping from bdd vars back to the global facts
     bddvar_to_global_fact = std::vector<int>(task->get_number_of_facts()*2, -1);
     for(size_t i = 0; i < task->get_number_of_facts(); ++i) {
-        bddvar_to_global_fact[fact_to_bddvar[i]] = i;
+        bddvar_to_global_fact[2*i] = i;
     }
 
     //parse subcertificates

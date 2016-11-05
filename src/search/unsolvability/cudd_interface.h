@@ -47,10 +47,10 @@ public:
     CUDD_METHOD(CuddBDD(CuddManager *manager, bool positive=true))
     CUDD_METHOD(CuddBDD(CuddManager *manager, int var, int val, bool neg=false))
     CUDD_METHOD(CuddBDD(CuddManager *manager, const GlobalState &state))
-    //create a cube where the facts denoted by pos_vars are true
-    //and the facts denoted by neg_vars are false
-    CUDD_METHOD(CuddBDD(CuddManager *manager, const std::vector<std::pair<int,int> >& pos_vars,
-                        const std::vector<std::pair<int,int> > &neg_vars))
+    //create a cube where pos_facts are true and neg_facts are false
+    CUDD_METHOD(CuddBDD(CuddManager *manager,
+                        const std::vector<std::pair<int,int>> &pos_facts,
+                        const std::vector<std::pair<int,int>> &neg_facts))
     CUDD_METHOD(CuddBDD(const CuddBDD& from))
     CUDD_METHOD(~CuddBDD())
     CUDD_METHOD(CuddBDD operator=(const CuddBDD& right))
@@ -77,25 +77,23 @@ class CuddManager {
     friend class CuddBDD;
 private:
 #ifdef USE_CUDD
+    static CuddManager *instance;
     DdManager* ddmgr;
-    std::vector<std::pair<int,int>> var_to_fact;
+    //std::vector<std::pair<int,int>> var_to_fact;
+    static std::vector<int> var_order;
     std::vector<std::vector<int>> fact_to_var;
-    // all managers have variables equal to the total number of facts
-    // but it is easier to save it here
     int amount_vars;
 #endif
-    CUDD_METHOD(void initialize_manager(std::vector<std::vector<int>> &var_order))
-public:
-    CUDD_METHOD(CuddManager())
-    // only provides an order over the task variables (which consist of several facts)
     CUDD_METHOD(CuddManager(std::vector<int> &var_order))
-    // provides ordering over all facts
-    // facts that have no defined order are passed with a negative value
-    CUDD_METHOD(CuddManager(std::vector<std::vector<int>> &var_order))
-
-    CUDD_METHOD(void writeVarOrder(std::ofstream &file) const)
+public:
+    // This method can only be called once and must be called before
+    // the first manager is requested
+    // TODO: maybe this can be done nicer...
+    CUDD_METHOD(static void set_variable_order(std::vector<int> &_var_order))
+    CUDD_METHOD(static CuddManager *get_instance())
+    CUDD_METHOD(void writeTaskFile() const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const)
-    CUDD_METHOD(bool isVariable(int var, int val) const)
+    //CUDD_METHOD(bool isVariable(int var, int val) const)
 };
 
 #endif
