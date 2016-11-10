@@ -314,7 +314,7 @@ void HMHeuristic::build_mutex_bdds() {
     }
 }
 
-void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+int HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
     if(mutex_bdds.empty()) {
         build_mutex_bdds();
     }
@@ -330,7 +330,7 @@ void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
             }
         }
         if(covered) {
-            return;
+            return -1;
         }
     } // end looping over certificates
 
@@ -369,14 +369,15 @@ void HMHeuristic::build_unsolvability_certificate(const GlobalState &s) {
     }
 
     certificates.push_back(new_cert);
+    return -1;
 }
 
 int HMHeuristic::get_number_of_unsolvability_certificates() {
     return certificates.size();
 }
 
-void HMHeuristic::write_subcertificates(ofstream &cert_file) {
-    if(certificates.empty()) {
+void HMHeuristic::write_subcertificates(std::string) {
+    /*if(certificates.empty()) {
         return;
     }
     for(size_t i = 0; i < certificates.size(); ++i) {
@@ -390,7 +391,7 @@ void HMHeuristic::write_subcertificates(ofstream &cert_file) {
         cert_file << "strong_conjunctive_certificate\n";
         cert_file << "File:" << txtname << "\n";
         cert_file << "end_certificate\n";
-    }
+    }*/
 }
 
 static Heuristic *_parse(OptionParser &parser) {

@@ -31,7 +31,7 @@ MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
       merge_strategy(opts.get<shared_ptr<MergeStrategy>>("merge_strategy")),
       shrink_strategy(opts.get<shared_ptr<ShrinkStrategy>>("shrink_strategy")),
       label_reduction(nullptr),
-      starting_peak_memory(-1), certificate(NULL),
+      starting_peak_memory(-1), certificate(NULL), certificate_id(0),
       fts(nullptr) {
     /*
       TODO: Can we later get rid of the initialize calls, after rethinking
@@ -207,15 +207,18 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
     return cost;
 }
 
-void MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &) {
+int MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &s) {
     if(certificate != NULL) {
-        return;
+        assert(certificate_id != 0);
+        return certificate_id;
     }
     certificate = new CuddBDD(cudd_manager, false);
+    certificate_id = s.get_id().hash();
 
     std::vector<CuddBDD> dummy_vector;
 
     fts->get_unsolvability_certificate(certificate, dummy_vector, false);
+    return certificate_id;
 }
 
 int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
@@ -226,18 +229,13 @@ int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
     }
 }
 
-void MergeAndShrinkHeuristic::write_subcertificates(std::ofstream &cert_file) {
+void MergeAndShrinkHeuristic::write_subcertificates(std::string cert_file) {
     if(certificate == NULL) {
         return;
     }
-    std::vector<CuddBDD*> bdds;
-    bdds.push_back(certificate);
-    std::vector<std::string> names;
-    names.push_back("cert_ms");
-    cudd_manager->dumpBDDs(bdds, names, "cert_ms.txt");
-    cert_file << "simple_certificate\n";
-    cert_file << "File:cert_ms.txt\n";
-    cert_file << "end_certificate\n";
+    std::vector<std::pair<int,CuddBDD*>> bdds;
+    bdds.push_back(std::make_pair(certificate_id,certificate));
+    cudd_manager->dumpBDDs(bdds, cert_file);
 }
 
 

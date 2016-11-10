@@ -79,7 +79,6 @@ private:
 #ifdef USE_CUDD
     static CuddManager *instance;
     DdManager* ddmgr;
-    //std::vector<std::pair<int,int>> var_to_fact;
     static std::vector<int> var_order;
     std::vector<std::vector<int>> fact_to_var;
     int amount_vars;
@@ -91,9 +90,10 @@ public:
     // TODO: maybe this can be done nicer...
     CUDD_METHOD(static void set_variable_order(std::vector<int> &_var_order))
     CUDD_METHOD(static CuddManager *get_instance())
+    CUDD_METHOD(int get_amount_vars() const)
+    CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
     CUDD_METHOD(void writeTaskFile() const)
-    CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const)
-    //CUDD_METHOD(bool isVariable(int var, int val) const)
+    CUDD_METHOD(void dumpBDDs(std::vector<std::pair<int,CuddBDD*>> &bdds, std::string filename) const)
 };
 
 #endif

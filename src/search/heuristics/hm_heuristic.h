@@ -71,9 +71,9 @@ public:
     virtual ~HMHeuristic();
     virtual bool dead_ends_are_reliable() const;
 
-    virtual void build_unsolvability_certificate(const GlobalState &s);
+    virtual int build_unsolvability_certificate(const GlobalState &s);
     virtual int get_number_of_unsolvability_certificates();
-    virtual void write_subcertificates(std::ofstream &cert_file);
+    virtual void write_subcertificates(std::string);
 };
 }
 

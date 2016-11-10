@@ -199,14 +199,14 @@ void RelaxationHeuristic::simplify() {
  * This assumes that the heuristic value from s has recently been calculated and
  * that the related information contained in the propositions is still there
  */
-void RelaxationHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+int RelaxationHeuristic::build_unsolvability_certificate(const GlobalState &s) {
     // see if the state is already covered by an existing certificate;
     // TODO: can we use Leq here?
     for(size_t i = 0; i < certificates.size(); ++i) {
-        CuddBDD copy = *certificates[i];
+        CuddBDD copy = *(certificates[i].second);
         copy.land(CuddBDD(cudd_manager, s));
         if(!copy.isZero()) {
-            return;
+            return certificates[i].first;
         }
     }
     std::vector<std::pair<int,int> > unreachable_facts;
@@ -218,26 +218,19 @@ void RelaxationHeuristic::build_unsolvability_certificate(const GlobalState &s) 
         }
     }
     CuddBDD* bdd = new CuddBDD(cudd_manager, std::vector<std::pair<int, int> >(), unreachable_facts);
-    certificates.push_back(bdd);
+    int index = (int)s.get_id().hash();
+    certificates.push_back(std::make_pair(index,bdd));
+    return index;
 }
 
 int RelaxationHeuristic::get_number_of_unsolvability_certificates() {
     return certificates.size();
 }
 
-void RelaxationHeuristic::write_subcertificates(std::ofstream &cert_file) {
+void RelaxationHeuristic::write_subcertificates(std::string cert_file) {
     if(certificates.empty()) {
         return;
     }
-    for(size_t i = 0; i < certificates.size(); ++i) {
-        std::vector<CuddBDD*> bdds(1, certificates[i]);
-        std::string name = "cert_relax"+std::to_string(i);
-        std::string txtname = name+".txt";
-        std::vector<std::string> names(1, name);
-        cudd_manager->dumpBDDs(bdds, names, txtname);
-        cert_file << "simple_certificate\n";
-        cert_file << "File:" << txtname << "\n";
-        cert_file << "end_certificate\n";
-    }
+    cudd_manager->dumpBDDs(certificates, cert_file);
 }
 }
