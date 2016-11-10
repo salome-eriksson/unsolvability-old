@@ -8,6 +8,7 @@
 
 #include "task.h"
 #include "certificate.h"
+#include "disjunctive_certificate.h"
 #include "simple_certificate.h"
 #include "strong_conjunctive_certificate.h"
 #include "search_certificate.h"
@@ -34,6 +35,9 @@ Certificate* build_certificate(std::string file, Task* task) {
     } else if(line.compare("search_certificate") == 0) {
         std::cout << "reading in search certificate" << std::endl;
         return new SearchCertificate(task, stream);
+    } else if(line.compare("disjunctive_certificate") == 0) {
+        std::cout << "reading in disjunctive certificate" << std::endl;
+        return new DisjunctiveCertificate(task, stream);
     } else {
         exit_with(ExitCode::PARSING_ERROR);
     }

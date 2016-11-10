@@ -14,7 +14,6 @@ Certificate::Certificate(Task *task)
         manager.SetTimeLimit(g_timeout*1000 - timer());
     }
     manager.setTimeoutHandler(exit_timeout);
-
 }
 
 Certificate::~Certificate() {

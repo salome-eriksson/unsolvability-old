@@ -79,15 +79,9 @@ void EagerSearch::initialize() {
     statebdd_file.open("states.bdd");
     amount_vars = manager->get_amount_vars();
     fact_to_var = manager->get_fact_to_var();
-    cert_file << "State BDDs: states.bdd\n";
-    cert_file << "Heuristic Certificates BDDs: h_certs.bdd\n";
-    cert_file << "begin hints\n";
-    /*initial_state.dump_pddl();
-    initial_state.dump_fdr();
-    dump_state_bdd(initial_state);
-    manager->writeTaskFile();
-    statebdd_file.close();
-    exit(0);*/
+    cert_file << "disjunctive_certificate\n";
+    cert_file << "State BDDs:states.bdd\n";
+    cert_file << "Heuristic Certificates BDDs:h_certs.bdd\n";
 
     if (initial_dead) {
         heuristics[0]->build_unsolvability_certificate(initial_state);
