@@ -203,6 +203,14 @@ CuddManager* CuddManager::get_instance() {
     return instance;
 }
 
+int CuddManager::get_amount_vars() const {
+    return amount_vars;
+}
+
+const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {
+    return &fact_to_var;
+}
+
 void CuddManager::writeTaskFile() const{
     std::ofstream task_file;
     task_file.open("task.txt");
@@ -265,17 +273,22 @@ void CuddManager::writeTaskFile() const{
     task_file.close();
 }
 
-void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::vector<std::string> &names, std::string filename) const {
+void CuddManager::dumpBDDs(std::vector<std::pair<int,CuddBDD*>> &bdds, std::string filename) const {
     int size = bdds.size();
+    std::ofstream filestream;
+    filestream.open(filename);
+    filestream << size;
     DdNode** bdd_arr = new DdNode*[size];
-    char** names_char = new char*[size];
     for(int i = 0; i < size; ++i) {
-        bdd_arr[i] = bdds[i]->bdd;
-        names_char[i] = new char[names[i].size() + 1];
-        strcpy(names_char[i], names[i].c_str());
+        bdd_arr[i] = bdds[i].second->bdd;
+        filestream << " " << bdds[i].first;
     }
-    Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], names_char,
-                            NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, &filename[0], NULL);
+    filestream << "\n";
+    filestream.close();
+    FILE *fp;
+    fp = fopen(filename.c_str(), "a");
+    Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], NULL,
+                            NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
 }
 
 #endif

@@ -26,8 +26,10 @@ class EagerSearch : public SearchEngine {
     std::vector<Heuristic *> preferred_operator_heuristics;
 
     CuddManager *manager;
-    CuddBDD *bdd_exp;
-    CuddBDD *bdd_pr;
+    std::ofstream statebdd_file;
+    std::ofstream cert_file;
+    int amount_vars;
+    const std::vector<std::vector<int>> *fact_to_var;
 
     std::pair<SearchNode, bool> fetch_next_node();
     void start_f_value_statistics(EvaluationContext &eval_context);
@@ -36,6 +38,7 @@ class EagerSearch : public SearchEngine {
     void print_checkpoint_line(int g) const;
 
     void build_certificate();
+    void dump_state_bdd(const GlobalState &s);
 
 protected:
     virtual void initialize() override;

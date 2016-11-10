@@ -96,9 +96,9 @@ public:
     }
 
     //TODO: abstract methods?
-    virtual void build_unsolvability_certificate(const GlobalState &) {}
+    virtual int build_unsolvability_certificate(const GlobalState &) { return -1; }
     virtual int get_number_of_unsolvability_certificates() { return -1; }
-    virtual void write_subcertificates(std::ofstream &) {}
+    virtual void write_subcertificates(std::string) {}
 };
 
 #endif

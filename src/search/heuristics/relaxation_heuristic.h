@@ -57,7 +57,7 @@ protected:
     std::vector<Proposition *> goal_propositions;
 
     CuddManager* cudd_manager;
-    std::vector<CuddBDD*> certificates;
+    std::vector<std::pair<int,CuddBDD*>> certificates;
 
     Proposition *get_proposition(const FactProxy &fact);
     virtual void initialize();
@@ -67,9 +67,9 @@ public:
     virtual ~RelaxationHeuristic();
     virtual bool dead_ends_are_reliable() const;
 
-    virtual void build_unsolvability_certificate(const GlobalState &s);
+    virtual int build_unsolvability_certificate(const GlobalState &s);
     virtual int get_number_of_unsolvability_certificates();
-    virtual void write_subcertificates(std::ofstream &cert_file);
+    virtual void write_subcertificates(std::string cert_file);
 };
 }
 

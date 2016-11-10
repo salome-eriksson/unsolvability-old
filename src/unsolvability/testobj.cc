@@ -93,7 +93,96 @@ static void testBdd5(Cudd& mgr, int verbosity);
 int
 main(int argc, char **argv)
 {
-    int verbosity = 1;
+    FILE *fp;
+    fp=fopen("states.bdd", "r");
+    int numvars = 42;
+    int compose[numvars];
+    for(int i = 0; i < numvars; ++i) {
+        compose[i] = 2*i;
+    }
+    Cudd mgr(numvars*2,0);
+    std::cout << "created manager" << std::endl;
+    BDD x = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
+      DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, NULL, fp));
+    std::cout << "Read in first bdd" << std::endl;
+      
+    BDD y = mgr.bddOne();
+    y = y - mgr.bddVar(0);
+    y = y - mgr.bddVar(2);
+    y = y - mgr.bddVar(4);
+    y = y - mgr.bddVar(6);
+    y = y - mgr.bddVar(8);
+    y = y * mgr.bddVar(10);
+    y = y * mgr.bddVar(12);
+    y = y - mgr.bddVar(14);
+    y = y - mgr.bddVar(16);
+    y = y * mgr.bddVar(18);
+    y = y * mgr.bddVar(20);
+    y = y - mgr.bddVar(22);
+    y = y * mgr.bddVar(24);
+    y = y - mgr.bddVar(26);
+    y = y - mgr.bddVar(28);
+    y = y * mgr.bddVar(30);
+    y = y * mgr.bddVar(32);
+    y = y - mgr.bddVar(34);
+    y = y - mgr.bddVar(36);
+    y = y - mgr.bddVar(38);
+    y = y - mgr.bddVar(40);
+    y = y * mgr.bddVar(42);
+    y = y - mgr.bddVar(44);
+    y = y - mgr.bddVar(46);
+    y = y - mgr.bddVar(48);
+    y = y * mgr.bddVar(50);
+    y = y - mgr.bddVar(52);
+    y = y - mgr.bddVar(54);
+    y = y - mgr.bddVar(56);
+    y = y - mgr.bddVar(58);
+    y = y - mgr.bddVar(60);
+    y = y - mgr.bddVar(62);
+    y = y - mgr.bddVar(64);
+    y = y - mgr.bddVar(66);
+    y = y - mgr.bddVar(68);
+    y = y * mgr.bddVar(70);
+    y = y - mgr.bddVar(72);
+    y = y - mgr.bddVar(74);
+    y = y - mgr.bddVar(76);
+    y = y - mgr.bddVar(78);
+    y = y - mgr.bddVar(80);
+    y = y * mgr.bddVar(82);
+    
+    if(x.Leq(y)) {
+        std::cout << "x leq y" << std::endl;
+    }
+    if(y.Leq(x)) {
+        std::cout << "y leq x" << std::endl;
+    }
+    if(x == y) {
+        std::cout << "IT WORKED!!!" << std::endl;
+    }
+    /*BDD a = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
+      DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, NULL, fp));
+    std::cout << "Read in second bdd" << std::endl;
+    BDD b = mgr.bddVar(0);
+    b = b - mgr.bddVar(2);
+    b = b - mgr.bddVar(4);
+    b = b * mgr.bddVar(6);
+    b = b - mgr.bddVar(8);
+    b = b * mgr.bddVar(10);
+    b = b - mgr.bddVar(12);
+    b = b - mgr.bddVar(14);
+    b = b * mgr.bddVar(16);
+    b = b - mgr.bddVar(18);
+    if(a.Leq(b)) {
+        std::cout << "x leq y" << std::endl;
+    }
+    if(b.Leq(a)) {
+        std::cout << "y leq x" << std::endl;
+    }
+    if(a == b) {
+        std::cout << "IT WORKED!!!" << std::endl;
+    }*/
+    exit(0);
+    /*int verbosity = 1;
 
     if (argc == 2) {
         int retval = sscanf(argv[1], "%d", &verbosity);
@@ -167,7 +256,7 @@ main(int argc, char **argv)
     if(!res.IsZero()) {
        std::cout << "yup, they intersect alright" << std::endl;
        std::cout << res.FactoredFormString() << std::endl;
-    }
+    }*/
     
     
     /*BDD a = (v1+!v2)*v3;
@@ -228,7 +317,7 @@ main(int argc, char **argv)
     //testBdd3(mgr,verbosity);
     //testBdd4(mgr,verbosity);
     //testBdd5(mgr,verbosity);
-    if (verbosity) mgr.info();
+    //if (verbosity) mgr.info();
     return 0;
 
 } // main

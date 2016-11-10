@@ -29,6 +29,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
 
     CuddManager* cudd_manager;
     CuddBDD* certificate;
+    int certificate_id;
 
     std::unique_ptr<FactoredTransitionSystem> fts;
     void build_transition_system(const Utils::Timer &timer);
@@ -42,9 +43,9 @@ protected:
 public:
     explicit MergeAndShrinkHeuristic(const Options &opts);
     ~MergeAndShrinkHeuristic() = default;
-    virtual void build_unsolvability_certificate(const GlobalState &);
+    virtual int build_unsolvability_certificate(const GlobalState &s);
     virtual int get_number_of_unsolvability_certificates();
-    virtual void write_subcertificates(std::ofstream &cert_file);
+    virtual void write_subcertificates(std::string cert_file);
 };
 }
 
