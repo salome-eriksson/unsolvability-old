@@ -17,12 +17,7 @@
 
 /* TODO: clean up includes! */
 
-Certificate* build_certificate(std::string file, Task* task) {
-    std::ifstream stream;
-    stream.open(file.c_str());
-    if(!stream.is_open()) {
-        exit_with(ExitCode::NO_CERTIFICATE_FILE);
-    }
+Certificate* build_certificate(std::ifstream &stream, Task* task) {
     std::string line;
     std::getline(stream, line);
 
@@ -71,7 +66,13 @@ int main(int argc, char** argv) {
     print_info("Starting parsing");
     double parsing_start = timer();
     Task* task = new Task(pddl_file);
-    Certificate* certificate = build_certificate(certificate_file, task);
+    // stream needs to be opened here so its reference lives during the entire execution
+    std::ifstream certificate_stream;
+    certificate_stream.open(certificate_file);
+    if(!certificate_stream.is_open()) {
+        exit_with(ExitCode::NO_CERTIFICATE_FILE);
+    }
+    Certificate* certificate = build_certificate(certificate_stream, task);
     double parsing_end = timer();
     print_info("Finished parsing");
     std::cout << "Amount of Actions: " << task->get_number_of_actions() << std::endl;
@@ -87,6 +88,7 @@ int main(int argc, char** argv) {
     std::cout << "Verify verification time: ";
     std::cout << std::fixed << std::setprecision(2) << verification_time << std::endl;
     std::cout << "Verify memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
+    certificate_stream.close();
     if(valid) {
         exit_with(ExitCode::CERTIFICATE_VALID);
     } else {
