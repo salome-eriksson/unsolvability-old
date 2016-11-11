@@ -255,7 +255,7 @@ void CuddManager::writeTaskFile() const{
         for(size_t i = 0; i < post.size(); ++i) {
             if(!post[i].conditions.empty()) {
                 std::cout << "CONDITIONAL EFFECTS, ABORT!";
-                std::exit(1);
+                Utils::exit_with(Utils::ExitCode::CRITICAL_ERROR);
             }
             task_file << "ADD:" << fact_to_var[post[i].var][post[i].val] << "\n";
             // all other facts from this FDR variable are set to false

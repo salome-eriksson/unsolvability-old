@@ -112,6 +112,7 @@ Task::Task(std::string taskfile) {
         print_parsing_error_and_exit(line, "end_actions");
     }
     assert(!getline(in, line));
+    in.close();
 }
 
 const std::string& Task::get_fact(int n) {

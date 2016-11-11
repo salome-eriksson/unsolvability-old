@@ -82,6 +82,7 @@ void EagerSearch::initialize() {
     cert_file << "disjunctive_certificate\n";
     cert_file << "State BDDs:states.bdd\n";
     cert_file << "Heuristic Certificates BDDs:h_certs.bdd\n";
+    cert_file << "begin hints\n";
 
     if (initial_dead) {
         heuristics[0]->build_unsolvability_certificate(initial_state);
@@ -92,6 +93,7 @@ void EagerSearch::initialize() {
         start_f_value_statistics(eval_context);
         SearchNode node = search_space.get_node(initial_state);
         node.open_initial();
+        dump_state_bdd(initial_state);
 
         open_list->insert(eval_context, initial_state.get_id());
     }
@@ -197,6 +199,7 @@ SearchStatus EagerSearch::step() {
                 continue;
             }
             succ_node.open(node, op);
+            dump_state_bdd(succ_state);
 
             open_list->insert(eval_context, succ_state.get_id());
             if (search_progress.check_progress(eval_context)) {
@@ -246,7 +249,6 @@ SearchStatus EagerSearch::step() {
                 succ_node.update_parent(node, op);
             }
         }
-        dump_state_bdd(succ_state);
         cert_file << " " << get_op_index(op) << " " << succ_state.get_id().hash();
     }
     cert_file << "\n";

@@ -30,6 +30,7 @@ benchmarks/unsat-tpp/*
 *.creator.user
 *.files
 *.includes
+*.bdd
 output
 output.sas
 CMakeCache.txt

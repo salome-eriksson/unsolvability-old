@@ -23,7 +23,8 @@ private:
    DisjCertMap certificate;
    std::ifstream &cert_stream;
 
-   void store_bdds(std::string file);
+   void store_state_bdds(std::string file);
+   void store_hcert_bdds(std::string file);
 public:
   DisjunctiveCertificate(Task *task, std::ifstream &stream);
   bool contains_state(const Cube &state);
