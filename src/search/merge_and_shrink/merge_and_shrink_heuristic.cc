@@ -191,6 +191,20 @@ void MergeAndShrinkHeuristic::initialize() {
     build_transition_system(timer);
     report_peak_memory_delta(true);
 
+    // variable order can be incomplete if partial abstraction is already unsolvable
+    if(variable_order.size() < g_variable_domain.size()) {
+        std::vector<bool> covered = std::vector<bool>(g_variable_domain.size(), false);
+        for(size_t i = 0; i < variable_order.size(); ++i) {
+            covered[variable_order[i]] = true;
+        }
+        for(size_t i = 0; i < covered.size(); ++i) {
+            if(!covered[i]) {
+                variable_order.push_back(i);
+            }
+        }
+    }
+    assert(variable_order.size() == g_variable_domain.size());
+
     CuddManager::set_variable_order(variable_order);
     cudd_manager = CuddManager::get_instance();
 
