@@ -79,21 +79,20 @@ void EagerSearch::initialize() {
     manager = CuddManager::get_instance();
     // for the maia grid, use a directory of another file system
     directory = "";
-    srand(time(NULL));
-    rand_number = rand();
+    char *sge_env = std::getenv("SGE_TASK_ID");
+    if(sge_env != NULL) {
+        directory = "/scratch/eriksson/unsolvability/" + std::string(sge_env) + "/";
+    }
     std::ofstream cert_file;
     cert_file.open("certificate.txt");
-    hint_file.open(directory + "hints-" + std::to_string(rand_number) + ".txt");
+    hint_file.open(directory + "hints.txt");
     amount_vars = manager->get_amount_vars();
     fact_to_var = manager->get_fact_to_var();
     // there is currently no safeguard that these are the actual names used
     cert_file << "disjunctive_certificate\n";
-    cert_file << "State BDDs:" << directory << "states-"
-              << std::to_string(rand_number) << ".bdd\n";
-    cert_file << "Heuristic Certificates BDDs:" << directory << "h_cert-"
-              << std::to_string(rand_number) << ".bdd\n";
-    cert_file << "hints:" << directory << "hints-"
-              << std::to_string(rand_number) << ".txt\n";
+    cert_file << "State BDDs:" << directory << "states.bdd\n";
+    cert_file << "Heuristic Certificates BDDs:" << directory << "h_cert.bdd\n";
+    cert_file << "hints:" << directory << "hints.txt\n";
     cert_file.close();
 
     if (initial_dead) {
@@ -127,7 +126,7 @@ SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
         double writing_start = Utils::g_timer();
-        std::string hcerts_filename = directory + "h_cert-" + std::to_string(rand_number) + ".bdd";
+        std::string hcerts_filename = directory + "h_cert.bdd";
         heuristics[0]->write_subcertificates(hcerts_filename);
         write_statebdds();
         manager->writeTaskFile();
@@ -362,7 +361,7 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
 }
 
 void EagerSearch::write_statebdds() {
-    std::string statebdd_file = directory + "states-" + std::to_string(rand_number) + ".bdd";
+    std::string statebdd_file = directory + "states.bdd";
     std::ofstream stream;
     stream.open(statebdd_file);
 
