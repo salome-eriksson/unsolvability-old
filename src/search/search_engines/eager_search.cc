@@ -8,6 +8,7 @@
 #include "../option_parser.h"
 #include "../plugin.h"
 #include "../successor_generator.h"
+#include "../utils/timer.h"
 
 #include "../open_lists/open_list_factory.h"
 
@@ -16,6 +17,7 @@
 #include <memory>
 #include <set>
 #include <fstream>
+#include <stdlib.h>
 
 using namespace std;
 static inline int get_op_index(const GlobalOperator *op) {
@@ -75,14 +77,24 @@ void EagerSearch::initialize() {
     // (because the heuristics set the variable order)
     bool initial_dead = open_list->is_dead_end(eval_context);
     manager = CuddManager::get_instance();
+    // for the maia grid, use a directory of another file system
+    directory = "";
+    srand(time(NULL));
+    rand_number = rand();
+    std::ofstream cert_file;
     cert_file.open("certificate.txt");
-    statebdd_file.open("states.bdd");
+    hint_file.open(directory + "hints-" + std::to_string(rand_number) + ".txt");
     amount_vars = manager->get_amount_vars();
     fact_to_var = manager->get_fact_to_var();
+    // there is currently no safeguard that these are the actual names used
     cert_file << "disjunctive_certificate\n";
-    cert_file << "State BDDs:states.bdd\n";
-    cert_file << "Heuristic Certificates BDDs:h_certs.bdd\n";
-    cert_file << "begin hints\n";
+    cert_file << "State BDDs:" << directory << "states-"
+              << std::to_string(rand_number) << ".bdd\n";
+    cert_file << "Heuristic Certificates BDDs:" << directory << "h_cert-"
+              << std::to_string(rand_number) << ".bdd\n";
+    cert_file << "hints:" << directory << "hints-"
+              << std::to_string(rand_number) << ".txt\n";
+    cert_file.close();
 
     if (initial_dead) {
         heuristics[0]->build_unsolvability_certificate(initial_state);
@@ -93,7 +105,6 @@ void EagerSearch::initialize() {
         start_f_value_statistics(eval_context);
         SearchNode node = search_space.get_node(initial_state);
         node.open_initial();
-        dump_state_bdd(initial_state);
 
         open_list->insert(eval_context, initial_state.get_id());
     }
@@ -115,11 +126,15 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
-        heuristics[0]->write_subcertificates("h_certs.bdd");
-        cert_file << "end hints\n";
+        double writing_start = Utils::g_timer();
+        std::string hcerts_filename = directory + "h_cert-" + std::to_string(rand_number) + ".bdd";
+        heuristics[0]->write_subcertificates(hcerts_filename);
+        write_statebdds();
         manager->writeTaskFile();
-        cert_file.close();
-        statebdd_file.close();
+        hint_file << "end hints";
+        hint_file.close();
+        double writing_end = Utils::g_timer();
+        std::cout << "Time for writing unsolvability certificate: " << writing_end - writing_start << std::endl;
         return FAILED;
     }
     SearchNode node = n.first;
@@ -147,10 +162,10 @@ SearchStatus EagerSearch::step() {
     }
 
     // TODO: it is very distributed atm where in the code the hints are actually written
-    cert_file << s.get_id().hash() << " " << applicable_ops.size();
+    hint_file << s.get_id().hash() << " " << applicable_ops.size();
     for (const GlobalOperator *op : applicable_ops) {
         if ((node.get_real_g() + op->get_cost()) >= bound) {
-            cert_file << " " << get_op_index(op) << " -1";
+            hint_file << " " << get_op_index(op) << " -1";
             continue;
         }
 
@@ -163,7 +178,7 @@ SearchStatus EagerSearch::step() {
         // Previously encountered dead end. Don't re-evaluate.
         if (succ_node.is_dead_end()) {
             int hint = heuristics[0]->build_unsolvability_certificate(succ_state);
-            cert_file << " " << get_op_index(op) << " " << hint;
+            hint_file << " " << get_op_index(op) << " " << hint;
             continue;
         }
 
@@ -193,13 +208,12 @@ SearchStatus EagerSearch::step() {
 
             if (open_list->is_dead_end(eval_context)) {
                 int hint = heuristics[0]->build_unsolvability_certificate(succ_state);
-                cert_file << " " << get_op_index(op) << " " << hint;
+                hint_file << " " << get_op_index(op) << " " << hint;
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
             }
             succ_node.open(node, op);
-            dump_state_bdd(succ_state);
 
             open_list->insert(eval_context, succ_state.get_id());
             if (search_progress.check_progress(eval_context)) {
@@ -249,9 +263,9 @@ SearchStatus EagerSearch::step() {
                 succ_node.update_parent(node, op);
             }
         }
-        cert_file << " " << get_op_index(op) << " " << succ_state.get_id().hash();
+        hint_file << " " << get_op_index(op) << " " << succ_state.get_id().hash();
     }
-    cert_file << "\n";
+    hint_file << "\n";
 
     return IN_PROGRESS;
 }
@@ -347,7 +361,23 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
     }
 }
 
-void EagerSearch::dump_state_bdd(const GlobalState &s) {
+void EagerSearch::write_statebdds() {
+    std::string statebdd_file = directory + "states-" + std::to_string(rand_number) + ".bdd";
+    std::ofstream stream;
+    stream.open(statebdd_file);
+
+    // loop over all states and insert closed states in statebdd_file
+    for(const StateID id : *g_state_registry) {
+        const GlobalState &state = g_state_registry->lookup_state(id);
+        if(search_space.get_node(state).is_closed()) {
+            dump_state_bdd(state, stream);
+        }
+    }
+
+    stream.close();
+}
+
+void EagerSearch::dump_state_bdd(const GlobalState &s, std::ofstream &statebdd_file) {
     // first dump index
     statebdd_file << s.get_id().hash() << "\n";
 

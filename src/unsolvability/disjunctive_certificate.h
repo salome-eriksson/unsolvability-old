@@ -21,7 +21,7 @@ typedef std::unordered_map<int, DisjCertEntry> DisjCertMap;
 class DisjunctiveCertificate : public Certificate {
 private:
    DisjCertMap certificate;
-   std::ifstream &cert_stream;
+   std::ifstream hint_stream;
 
    void store_state_bdds(std::string file);
    void store_hcert_bdds(std::string file);

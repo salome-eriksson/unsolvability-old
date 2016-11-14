@@ -1,7 +1,10 @@
 #!/bin/bash
 
-rm cert*.txt
+rm certificate.txt
 rm task.txt
+rm *.bdd
+rm hints-*
+rm h_cert-*
 
 #PDDL_FILE=../../clickgame/prob05.pddl
 #PDDL_FILE=no-mystery/prob04.pddl
