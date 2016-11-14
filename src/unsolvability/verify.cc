@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
             std::cout << "timeout is an optional parameter in seconds" << std::endl;
             exit(0);
         }
-        std::cout << "using timeout of " << g_timeout << " seconds" << std::endl;
+        std::cout << "using timeout of " << x << " seconds" << std::endl;
     }
     set_timeout(x);
     print_info("Starting parsing");
