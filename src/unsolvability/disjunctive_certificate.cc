@@ -11,14 +11,14 @@
 #include <sstream>
 
 DisjunctiveCertificate::DisjunctiveCertificate(Task *task, std::ifstream &stream)
-    :  Certificate(task), cert_stream(stream) {
+    :  Certificate(task) {
 
     //oftenly used variables
     std::string line;
     std::vector<std::string> line_arr;
 
     // parse bdd file
-    std::getline(cert_stream, line);
+    std::getline(stream, line);
     split(line, line_arr, ':');
     if(line_arr[0].compare("State BDDs") != 0) {
         print_parsing_error_and_exit(line, "State BDDs:<state bdd file>");
@@ -29,7 +29,7 @@ DisjunctiveCertificate::DisjunctiveCertificate(Task *task, std::ifstream &stream
     store_state_bdds(state_bdds_file);
 
     // parse h cert bdd file
-    std::getline(cert_stream, line);
+    std::getline(stream, line);
     line_arr.clear();
     split(line, line_arr, ':');
     if(line_arr[0].compare("Heuristic Certificates BDDs") != 0) {
@@ -40,10 +40,17 @@ DisjunctiveCertificate::DisjunctiveCertificate(Task *task, std::ifstream &stream
     std::cout << "Heuristic Certificates BDDs file: " << hcert_bdds_file << std::endl;
     store_hcert_bdds(hcert_bdds_file);
 
-    std::getline(cert_stream, line);
-    if(line.compare("begin hints") != 0) {
-        print_parsing_error_and_exit(line, "begin hints");
+    std::getline(stream, line);
+    line_arr.clear();
+    split(line, line_arr, ':');
+    if(line_arr[0].compare("hints") != 0) {
+        print_parsing_error_and_exit(line, "hints:<hints file>");
     }
+    assert(line_arr.size() == 2);
+    std::string hint_file = line_arr[1];
+    std::cout << "Hint file: " << hint_file << std::endl;
+    hint_stream.open(hint_file);
+
 }
 
 void DisjunctiveCertificate::store_state_bdds(std::string file) {
@@ -149,7 +156,7 @@ bool DisjunctiveCertificate::is_inductive() {
     }
 
     // read in hints and check if the corresponding bdds are inductive
-    std::getline(cert_stream, line);
+    std::getline(hint_stream, line);
     while(line.compare("end hints") != 0) {
         // read index and hints
         std::stringstream ss(line);
@@ -197,9 +204,9 @@ bool DisjunctiveCertificate::is_inductive() {
         index = -1;
 
         // read in next line
-        std::getline(cert_stream, line);
+        std::getline(hint_stream, line);
     }
-
+    hint_stream.close();
 
     // check over all bdds that are not covered yet - they must be self-inductive
     for (DisjCertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {

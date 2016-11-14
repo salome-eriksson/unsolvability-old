@@ -26,10 +26,16 @@ class EagerSearch : public SearchEngine {
     std::vector<Heuristic *> preferred_operator_heuristics;
 
     CuddManager *manager;
-    std::ofstream statebdd_file;
-    std::ofstream cert_file;
+    std::ofstream hint_file;
     int amount_vars;
     const std::vector<std::vector<int>> *fact_to_var;
+    // state bdds, h certificate bdds and hints are written in this directory
+    // and have this random number in their name
+    // states: <directory>states-<rand>.bdd
+    // h certificates: <directory>h_cert-<rand>.bdd
+    // hints: <directory>hints-<rand>.txt
+    int rand_number;
+    std::string directory;
 
     std::pair<SearchNode, bool> fetch_next_node();
     void start_f_value_statistics(EvaluationContext &eval_context);
@@ -37,8 +43,8 @@ class EagerSearch : public SearchEngine {
     void reward_progress();
     void print_checkpoint_line(int g) const;
 
-    void build_certificate();
-    void dump_state_bdd(const GlobalState &s);
+    void write_statebdds();
+    void dump_state_bdd(const GlobalState &s, std::ofstream &statebdd_file);
 
 protected:
     virtual void initialize() override;
