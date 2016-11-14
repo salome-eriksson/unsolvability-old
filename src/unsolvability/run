@@ -3,8 +3,7 @@
 rm certificate.txt
 rm task.txt
 rm *.bdd
-rm hints-*
-rm h_cert-*
+rm hints.txt
 
 #PDDL_FILE=../../clickgame/prob05.pddl
 #PDDL_FILE=no-mystery/prob04.pddl
