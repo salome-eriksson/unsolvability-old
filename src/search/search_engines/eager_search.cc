@@ -81,7 +81,7 @@ void EagerSearch::initialize() {
     directory = "";
     char *sge_env = std::getenv("SGE_TASK_ID");
     if(sge_env != NULL) {
-        directory = "/scratch/eriksson/unsolvability/" + std::string(sge_env) + "/";
+        directory = "/tmp/eriksson-unsolv-" + std::string(sge_env) + "/";
     }
     std::ofstream cert_file;
     cert_file.open("certificate.txt");
