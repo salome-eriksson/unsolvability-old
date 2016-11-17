@@ -245,6 +245,9 @@ int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
 
 void MergeAndShrinkHeuristic::write_subcertificates(std::string cert_file) {
     if(certificate == NULL) {
+        std::ofstream cert_stream;
+        cert_stream.open(cert_file);
+        cert_stream.close();
         return;
     }
     std::vector<std::pair<int,CuddBDD*>> bdds;

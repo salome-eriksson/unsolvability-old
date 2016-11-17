@@ -61,6 +61,10 @@ void DisjunctiveCertificate::store_state_bdds(std::string file) {
     int index = -1;
     FILE *fp;
     fp = fopen(file.c_str(), "r");
+    if(!fp) {
+        std::cout << "could not open state bdd file" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
 
     while(fscanf(fp, "%d", &index) == 1) {
         assert(index >= 0 && certificate.find(index) == certificate.end());
@@ -85,7 +89,14 @@ void DisjunctiveCertificate::store_hcert_bdds(std::string file) {
     int res = -1;
     FILE *fp;
     fp = fopen(file.c_str(), "r");
+    if(!fp) {
+        std::cout << "could not open h_cert bdd file" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
     res = fscanf(fp, "%d", &amount);
+    if(res == EOF) {
+        return;
+    }
     assert(res == 1);
     assert(amount >= 0);
     std::vector<int> indices = std::vector<int>(amount, -1);
