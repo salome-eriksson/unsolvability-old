@@ -255,6 +255,8 @@ void CuddManager::writeTaskFile() const{
         for(size_t i = 0; i < post.size(); ++i) {
             if(!post[i].conditions.empty()) {
                 std::cout << "CONDITIONAL EFFECTS, ABORT!";
+                task_file.close();
+                std::remove("task.txt");
                 Utils::exit_with(Utils::ExitCode::CRITICAL_ERROR);
             }
             task_file << "ADD:" << fact_to_var[post[i].var][post[i].val] << "\n";

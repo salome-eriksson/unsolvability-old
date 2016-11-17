@@ -229,6 +229,9 @@ int RelaxationHeuristic::get_number_of_unsolvability_certificates() {
 
 void RelaxationHeuristic::write_subcertificates(std::string cert_file) {
     if(certificates.empty()) {
+        std::ofstream cert_stream;
+        cert_stream.open(cert_file);
+        cert_stream.close();
         return;
     }
     cudd_manager->dumpBDDs(certificates, cert_file);
