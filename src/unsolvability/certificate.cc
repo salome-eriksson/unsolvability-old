@@ -1,4 +1,5 @@
 #include "certificate.h"
+
 #include <string.h>
 #include <cassert>
 #include <fstream>
@@ -6,7 +7,6 @@
 #include <algorithm>
 
 #include "dddmp.h"
-#include "cudd.h"
 
 Certificate::Certificate(Task *task)
     : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
@@ -21,8 +21,8 @@ Certificate::~Certificate() {
 }
 
 
-void Certificate::parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds) {
-    assert(bdds.empty());
+void Certificate::parse_bdd_file(std::string bddfile) {
+    print_info("reading in bdd file " + bddfile);
 
     // move variables so the primed versions are in between
     int compose[task->get_number_of_facts()];
@@ -30,17 +30,36 @@ void Certificate::parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds) {
         compose[i] = 2*i;
     }
 
-    DdNode **tmpArray;
-    int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-        DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,&bddfile[0],NULL,&tmpArray);
-
-    bdds.resize(nRoots);
-
-    for (int i=0; i<nRoots; i++) {
-        bdds[i] = BDD(manager, tmpArray[i]);
-        Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
+    FILE *fp;
+    fp = fopen(bddfile.c_str(), "r");
+    if(!fp) {
+        std::cout << "could not open bdd file" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
     }
-    FREE(tmpArray);
+
+    int amount = -1;
+    while(fscanf(fp, "%d", &amount) == 1) {
+        assert(amount > 0);
+        std::vector<int> indices = std::vector<int>(amount, -1);
+        for(int i = 0; i < amount; ++i) {
+            int res = fscanf(fp, "%d", &indices[i]);
+            assert(res == 1);
+            assert(indices[i] >= 0 && certificate.find(indices[i]) == certificate.end());
+        }
+        DdNode **tmpArray;
+        int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
+            DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
+        assert(nRoots == amount);
+
+        for (int i=0; i<nRoots; i++) {
+            certificate[indices[i]] = CertEntry(BDD(manager, tmpArray[i]), false);
+            Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
+        }
+        FREE(tmpArray);
+        amount = -1;
+    }
+
+    print_info("finished reading in bdd file " + bddfile);
 }
 
 //TODO: maybe change to IndicesToCube? But how to deal with frame axioms?
@@ -119,7 +138,7 @@ void Certificate::dump_bdd(BDD &bdd, std::string filename) {
         nameschar[i] = new char[names[i].size() + 1];
         strcpy(nameschar[i], names[i].c_str());
     }
-    std::string bddname = "bla";
+    std::string bddname = filename;
     FILE* f = fopen(filename.c_str(), "w");
     Dddmp_cuddBddStore(manager.getManager(),&bddname[0], bdd.getNode(), nameschar, NULL,
             DDDMP_MODE_TEXT, DDDMP_VARNAMES, &filename[0], f);

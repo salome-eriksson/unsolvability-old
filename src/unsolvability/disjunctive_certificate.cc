@@ -10,120 +10,44 @@
 #include <stdlib.h>
 #include <sstream>
 
-DisjunctiveCertificate::DisjunctiveCertificate(Task *task, std::ifstream &stream)
-    :  Certificate(task) {
+DisjunctiveCertificate::DisjunctiveCertificate(Task *task, std::ifstream &stream, int r_)
+    :  Certificate(task), r(r_) {
 
     //oftenly used variables
     std::string line;
     std::vector<std::string> line_arr;
 
-    // parse bdd file
     std::getline(stream, line);
     split(line, line_arr, ':');
-    if(line_arr[0].compare("State BDDs") != 0) {
-        print_parsing_error_and_exit(line, "State BDDs:<state bdd file>");
+    if(line_arr[0].compare("bdd-files") != 0) {
+        print_parsing_error_and_exit(line, "bdd-files:<#bdd-files>");
     }
     assert(line_arr.size() == 2);
-    std::string state_bdds_file = line_arr[1];
-    std::cout << "State BDDs file: " << state_bdds_file << std::endl;
-    store_state_bdds(state_bdds_file);
-
-    // parse h cert bdd file
-    std::getline(stream, line);
-    line_arr.clear();
-    split(line, line_arr, ':');
-    if(line_arr[0].compare("Heuristic Certificates BDDs") != 0) {
-        print_parsing_error_and_exit(line, "Heuristic Certificates BDDs:<h_cert bdd file>");
-    }
-    assert(line_arr.size() == 2);
-    std::string hcert_bdds_file = line_arr[1];
-    std::cout << "Heuristic Certificates BDDs file: " << hcert_bdds_file << std::endl;
-    store_hcert_bdds(hcert_bdds_file);
-
-    std::getline(stream, line);
-    line_arr.clear();
-    split(line, line_arr, ':');
-    if(line_arr[0].compare("hints") != 0) {
-        print_parsing_error_and_exit(line, "hints:<hints file>");
-    }
-    assert(line_arr.size() == 2);
-    std::string hint_file = line_arr[1];
-    std::cout << "Hint file: " << hint_file << std::endl;
-    hint_stream.open(hint_file);
-
-}
-
-void DisjunctiveCertificate::store_state_bdds(std::string file) {
-    int compose[task->get_number_of_facts()];
-    for(int i = 0; i < task->get_number_of_facts(); ++i) {
-        compose[i] = 2*i;
-    }
-    int index = -1;
-    FILE *fp;
-    fp = fopen(file.c_str(), "r");
-    if(!fp) {
-        std::cout << "could not open state bdd file" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-    }
-
-    while(fscanf(fp, "%d", &index) == 1) {
-        assert(index >= 0 && certificate.find(index) == certificate.end());
-        DdNode **tmpArray;
-        int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-            DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
-
-        assert(nRoots == 1);
-        certificate[index] = DisjCertEntry(BDD(manager, tmpArray[0]), false);
-        Cudd_RecursiveDeref(manager.getManager(), tmpArray[0]);
-        FREE(tmpArray);
-        index = -1;
-    }
-}
-
-void DisjunctiveCertificate::store_hcert_bdds(std::string file) {
-    int compose[task->get_number_of_facts()];
-    for(int i = 0; i < task->get_number_of_facts(); ++i) {
-        compose[i] = 2*i;
-    }
-    int amount = -1;
-    int res = -1;
-    FILE *fp;
-    fp = fopen(file.c_str(), "r");
-    if(!fp) {
-        std::cout << "could not open h_cert bdd file" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-    }
-    res = fscanf(fp, "%d", &amount);
-    if(res == EOF) {
-        return;
-    }
-    assert(res == 1);
-    assert(amount >= 0);
-    std::vector<int> indices = std::vector<int>(amount, -1);
+    int amount = stoi(line_arr[1]);
     for(int i = 0; i < amount; ++i) {
-        res = fscanf(fp, "%d", &indices[i]);
-        assert(res == 1);
-        assert(indices[i] >= 0);
+        std::string certificate_file;
+        std::getline(stream, certificate_file);
+        parse_bdd_file(certificate_file);
     }
-    DdNode **tmpArray;
-    int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-        DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
-    assert(nRoots == amount);
 
-    for (int i=0; i<nRoots; i++) {
-        certificate[indices[i]] = DisjCertEntry(BDD(manager, tmpArray[i]), false);
-        Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
+    if(std::getline(stream, line)) {
+        line_arr.clear();
+        split(line, line_arr, ':');
+        if(line_arr[0].compare("hints") != 0) {
+            print_parsing_error_and_exit(line, "hints:<hints file>");
+        }
+        assert(line_arr.size() == 2);
+        std::string hint_file = line_arr[1];
+        std::cout << "Hint file: " << hint_file << std::endl;
+        hint_stream.open(hint_file);
     }
-    FREE(tmpArray);
 
 }
-
-// stubs
 
 bool DisjunctiveCertificate::contains_state(const Cube &state) {
     BDD statebdd = build_bdd_from_cube(state);
 
-    for(DisjCertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
+    for(CertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
         if(statebdd.Leq(it->second.bdd)) {
             return true;
         }
@@ -134,7 +58,7 @@ bool DisjunctiveCertificate::contains_state(const Cube &state) {
 bool DisjunctiveCertificate::contains_goal() {
     BDD goalbdd = build_bdd_from_cube(task->get_goal());
 
-    for(DisjCertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
+    for(CertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
         // here we cannot use subset, since we also need to return true if the certificate
         // contains only some but not all goal states
         goalbdd = goalbdd.Intersect(it->second.bdd);
@@ -145,20 +69,7 @@ bool DisjunctiveCertificate::contains_goal() {
     return false;
 }
 
-bool DisjunctiveCertificate::is_inductive() {
-    // oftenly used variables
-    std::string line;
-    int hint_amount = -1;
-    int tmp = -1;
-    int index = -1;
-    std::vector<int> hints = std::vector<int>(task->get_number_of_actions(), -1);
-
-    // build action bdds
-    std::vector<BDD> action_bdds(task->get_number_of_actions(), BDD());
-    for(size_t i = 0; i < action_bdds.size(); ++i) {
-        action_bdds[i] = build_bdd_for_action(task->get_action(i));
-    }
-
+bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
     // permutation for renaming the certificate to the primed variables
     int permutation[task->get_number_of_facts()*2];
     for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
@@ -166,7 +77,13 @@ bool DisjunctiveCertificate::is_inductive() {
       permutation[(2*i)+1] = 2*i;
     }
 
-    // read in hints and check if the corresponding bdds are inductive
+    // oftenly used variables
+    std::string line;
+    int hint_amount = -1;
+    int tmp = -1;
+    int index = -1;
+    std::vector<int> hints = std::vector<int>(task->get_number_of_actions(), -1);
+
     std::getline(hint_stream, line);
     while(line.compare("end hints") != 0) {
         // read index and hints
@@ -218,9 +135,33 @@ bool DisjunctiveCertificate::is_inductive() {
         std::getline(hint_stream, line);
     }
     hint_stream.close();
+    return true;
+}
 
-    // check over all bdds that are not covered yet - they must be self-inductive
-    for (DisjCertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
+bool DisjunctiveCertificate::is_inductive() {
+    // build action bdds
+    std::vector<BDD> action_bdds(task->get_number_of_actions(), BDD());
+    for(size_t i = 0; i < action_bdds.size(); ++i) {
+        action_bdds[i] = build_bdd_for_action(task->get_action(i));
+    }
+
+    // read in hints and check if the corresponding bdds are inductive
+    // if not, we can return false already, if they are we need to check the rest
+    if(hint_stream.is_open()) {
+        if(!check_hints(action_bdds)) {
+            return false;
+        }
+    }
+
+    // permutation for renaming the certificate to the primed variables
+    int permutation[task->get_number_of_facts()*2];
+    for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
+      permutation[2*i] = (2*i)+1;
+      permutation[(2*i)+1] = 2*i;
+    }
+
+    // check over all bdds that are not covered yet
+    for (CertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
         // bdd is covered
         if(it->second.covered) {
             continue;
@@ -234,12 +175,12 @@ bool DisjunctiveCertificate::is_inductive() {
             if(!succ.Leq(cert_i_perm)) {
                 return false;
             }
-            it->second.covered = true;
         }
+        it->second.covered = true;
     }
 
     // sanity check
-    for (DisjCertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
+    for (CertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
         // bdd is covered
         if(!it->second.covered) {
             std::cout << "Did not check all subcertificates, this should not happen!" << std::endl;
