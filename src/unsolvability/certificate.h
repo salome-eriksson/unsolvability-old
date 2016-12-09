@@ -3,32 +3,33 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
+
 #include "task.h"
 #include "global_funcs.h"
+
 #include "cuddObj.hh"
 
+struct CertEntry {
+    BDD bdd;
+    bool covered;
+    CertEntry() : bdd(BDD()), covered(false) {}
+    CertEntry(BDD _bdd, bool _covered) : bdd(_bdd), covered(_covered) {}
+};
 
-/*
- * Each certificate has its own variable order. Fact_to_bddvar is used to map
- * from the "global" variable order (given by the task) to the local one.
- * Note that each certificate contains ALL variables from the task (even those which
- * were not present when creating the certificate), and they also have a primed version
- * of each variable right next to the unprimed one.
- */
+typedef std::unordered_map<int, CertEntry> CertMap;
 
 class Certificate {
 protected:
-  //std::vector<int> fact_to_bddvar;
   Task* task;
   Cudd manager;
-  void parse_bdd_file(std::string bddfile, std::vector<BDD> &bdds);
+  CertMap certificate;
+  void parse_bdd_file(std::string bddfile);
   BDD build_bdd_for_action(const Action &a);
   BDD build_bdd_from_cube(const Cube &cube);
 public:
   Certificate(Task *task);
   virtual ~Certificate();
-  // The variable ordering of the cube corresponds to the global variable ordering
-  // (as defined in Task)
   virtual bool contains_state(const Cube &state) = 0;
   virtual bool contains_goal() = 0;
   virtual bool is_inductive() = 0;

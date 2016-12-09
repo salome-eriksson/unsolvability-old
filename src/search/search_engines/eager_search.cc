@@ -89,9 +89,10 @@ void EagerSearch::initialize() {
     amount_vars = manager->get_amount_vars();
     fact_to_var = manager->get_fact_to_var();
     // there is currently no safeguard that these are the actual names used
-    cert_file << "disjunctive_certificate\n";
-    cert_file << "State BDDs:" << directory << "states.bdd\n";
-    cert_file << "Heuristic Certificates BDDs:" << directory << "h_cert.bdd\n";
+    cert_file << "certificate-type:disjunctive:1\n";
+    cert_file << "bdd-files:2\n";
+    cert_file << directory << "states.bdd\n";
+    cert_file << directory << "h_cert.bdd\n";
     cert_file << "hints:" << directory << "hints.txt\n";
     cert_file.close();
 
@@ -377,8 +378,8 @@ void EagerSearch::write_statebdds() {
 }
 
 void EagerSearch::dump_state_bdd(const GlobalState &s, std::ofstream &statebdd_file) {
-    // first dump index
-    statebdd_file << s.get_id().hash() << "\n";
+    // first dump amount of bdds (=1) and index
+    statebdd_file << "1 " << s.get_id().hash() << "\n";
 
     // header
     statebdd_file << ".ver DDDMP-2.0\n";
