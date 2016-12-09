@@ -17,6 +17,7 @@ syntax: glob
 
 cert*.txt
 task.txt
+hints.txt
 callgrind*
 benchmarks/3unsat/*
 benchmarks/bottleneck/*

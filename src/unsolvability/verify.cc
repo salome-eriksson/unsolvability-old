@@ -27,9 +27,6 @@ Certificate* build_certificate(std::ifstream &stream, Task* task) {
     } else if(line.compare("strong_conjunctive_certificate") == 0) {
         std::cout << "reading in strong conjunctive certificate" << std::endl;
         return new StrongConjunctiveCertificate(task, stream);
-    } else if(line.compare("search_certificate") == 0) {
-        std::cout << "reading in search certificate" << std::endl;
-        return new SearchCertificate(task, stream);
     } else if(line.compare("disjunctive_certificate") == 0) {
         std::cout << "reading in disjunctive certificate" << std::endl;
         return new DisjunctiveCertificate(task, stream);
@@ -48,8 +45,8 @@ int main(int argc, char** argv) {
         exit(0);
     }
     initialize_timer();
-    extern DD_OOMFP MMoutOfMemory;
-    MMoutOfMemory = exit_oom;
+    //extern DD_OOMFP MMoutOfMemory;
+    //MMoutOfMemory = exit_oom;
     std::string pddl_file = argv[1];
     std::string certificate_file = argv[2];
     int x = 0;
