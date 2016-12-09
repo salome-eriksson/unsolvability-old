@@ -93,18 +93,18 @@ static void testBdd5(Cudd& mgr, int verbosity);
 int
 main(int argc, char **argv)
 {
-    FILE *fp;
+    /*FILE *fp;
     fp=fopen("states.bdd", "r");
     int numvars = 42;
     int compose[numvars];
     for(int i = 0; i < numvars; ++i) {
         compose[i] = 2*i;
-    }
-    Cudd mgr(numvars*2,0);
+    }*/
+    Cudd mgr(42*2,0);
     std::cout << "created manager" << std::endl;
-    BDD x = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
+/*    BDD x = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
       DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, NULL, fp));
-    std::cout << "Read in first bdd" << std::endl;
+    std::cout << "Read in first bdd" << std::endl;*/
       
     BDD y = mgr.bddOne();
     y = y - mgr.bddVar(0);
@@ -150,7 +150,7 @@ main(int argc, char **argv)
     y = y - mgr.bddVar(80);
     y = y * mgr.bddVar(82);
     
-    if(x.Leq(y)) {
+    /*if(x.Leq(y)) {
         std::cout << "x leq y" << std::endl;
     }
     if(y.Leq(x)) {
@@ -158,7 +158,7 @@ main(int argc, char **argv)
     }
     if(x == y) {
         std::cout << "IT WORKED!!!" << std::endl;
-    }
+    }*/
     /*BDD a = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
       DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, NULL, fp));
     std::cout << "Read in second bdd" << std::endl;
@@ -181,7 +181,6 @@ main(int argc, char **argv)
     if(a == b) {
         std::cout << "IT WORKED!!!" << std::endl;
     }*/
-    exit(0);
     /*int verbosity = 1;
 
     if (argc == 2) {
