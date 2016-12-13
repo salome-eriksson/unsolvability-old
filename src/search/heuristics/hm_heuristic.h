@@ -2,6 +2,7 @@
 #define HEURISTICS_HM_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
 
 #include <algorithm>
 #include <iostream>
@@ -32,6 +33,11 @@ class HMHeuristic : public Heuristic {
     // h^m table
     std::map<Tuple, int> hm_table;
     bool was_updated;
+
+    CuddManager* cudd_manager;
+    std::vector<std::vector<CuddBDD*>> certificates;
+    std::vector<CuddBDD*> mutex_bdds;
+    void build_mutex_bdds();
 
     // auxiliary methods
     void init_hm_table(const Tuple &t);
@@ -64,6 +70,10 @@ public:
     explicit HMHeuristic(const options::Options &opts);
 
     virtual bool dead_ends_are_reliable() const;
+
+    virtual int build_unsolvability_certificate(const GlobalState &s);
+    virtual int get_number_of_unsolvability_certificates();
+    virtual void write_subcertificates(std::string);
 };
 }
 

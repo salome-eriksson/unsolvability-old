@@ -8,3 +8,33 @@
 ^misc/autodoc/downward-xmlrpc\.secret$
 ^builds/
 ^src/CMakeLists.txt.user$
+
+
+^src/unsolvability/.*\.o$
+^src/unsolvability/Makefile\.depend$
+^src/unsolvability/verify$
+
+# use glob syntax.
+syntax: glob
+
+cert*.txt
+task.txt
+hints.txt
+callgrind*
+benchmarks/3unsat/*
+benchmarks/bottleneck/*
+benchmarks/unsat-nomystery/*
+benchmarks/unsat-pegsol-strips/
+benchmarks/unsat-rovers/*
+benchmarks/unsat-tiles/*
+benchmarks/unsat-tpp/*
+*.config
+*.creator
+*.creator.user
+*.files
+*.includes
+*.bdd
+output
+output.sas
+CMakeCache.txt
+cmake.check_cache

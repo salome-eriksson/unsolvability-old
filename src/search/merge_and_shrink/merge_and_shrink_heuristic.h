@@ -2,6 +2,7 @@
 #define MERGE_AND_SHRINK_MERGE_AND_SHRINK_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
 
 #include <memory>
 
@@ -36,6 +37,13 @@ class MergeAndShrinkHeuristic : public Heuristic {
 
     const Verbosity verbosity;
     long starting_peak_memory;
+
+    std::vector<int> variable_order;
+
+    CuddManager* cudd_manager;
+    CuddBDD* certificate;
+    int certificate_id;
+
     // The final merge-and-shrink representation, storing goal distances.
     std::unique_ptr<MergeAndShrinkRepresentation> mas_representation;
 
@@ -53,6 +61,9 @@ public:
     virtual ~MergeAndShrinkHeuristic() override = default;
     static void add_shrink_limit_options_to_parser(options::OptionParser &parser);
     static void handle_shrink_limit_options_defaults(options::Options &opts);
+    virtual int build_unsolvability_certificate(const GlobalState &s);
+    virtual int get_number_of_unsolvability_certificates();
+    virtual void write_subcertificates(std::string cert_file);
 };
 }
 

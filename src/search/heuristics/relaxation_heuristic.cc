@@ -50,6 +50,12 @@ RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
         for (size_t j = 0; j < op->precondition.size(); ++j)
             op->precondition[j]->precondition_of.push_back(op);
     }
+    std::vector<int> var_order(g_variable_domain.size());
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        var_order[i] = (int) i;
+    }
+    CuddManager::set_variable_order(var_order);
+    cudd_manager = CuddManager::get_instance();
 }
 
 RelaxationHeuristic::~RelaxationHeuristic() {
@@ -182,5 +188,47 @@ void RelaxationHeuristic::simplify() {
         });
 
     cout << " done! [" << unary_operators.size() << " unary operators]" << endl;
+}
+
+/*
+ * This assumes that the heuristic value from s has recently been calculated and
+ * that the related information contained in the propositions is still there
+ */
+int RelaxationHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+    // see if the state is already covered by an existing certificate;
+    // TODO: can we use Leq here?
+    for(size_t i = 0; i < certificates.size(); ++i) {
+        CuddBDD copy = *(certificates[i].second);
+        copy.land(CuddBDD(cudd_manager, s));
+        if(!copy.isZero()) {
+            return certificates[i].first;
+        }
+    }
+    std::vector<std::pair<int,int> > unreachable_facts;
+    for(size_t i = 0; i < propositions.size(); ++i) {
+        for(size_t j = 0; j < propositions[i].size(); ++j) {
+            if(propositions[i][j].cost == -1) {
+                unreachable_facts.push_back(std::make_pair(i,j));
+            }
+        }
+    }
+    CuddBDD* bdd = new CuddBDD(cudd_manager, std::vector<std::pair<int, int> >(), unreachable_facts);
+    int index = (int)s.get_id().hash();
+    certificates.push_back(std::make_pair(index,bdd));
+    return index;
+}
+
+int RelaxationHeuristic::get_number_of_unsolvability_certificates() {
+    return certificates.size();
+}
+
+void RelaxationHeuristic::write_subcertificates(std::string cert_file) {
+    if(certificates.empty()) {
+        std::ofstream cert_stream;
+        cert_stream.open(cert_file);
+        cert_stream.close();
+        return;
+    }
+    cudd_manager->dumpBDDs(certificates, cert_file);
 }
 }

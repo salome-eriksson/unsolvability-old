@@ -73,6 +73,13 @@ if(PLUGIN_LP_SOLVER_ENABLED AND USE_LP)
     endif()
 endif()
 
+if(PLUGIN_CUDD_INTERFACE_ENABLED)
+    find_package(CUDD)
+    add_definitions("-D USE_CUDD")
+    include_directories(${CUDD_INCLUDE_DIRS})
+    target_link_libraries(downward ${CUDD_LIBRARIES})
+endif()
+
 if ($ENV{DOWNWARD_USE_ISNAN_WORKAROUND})
     set(USE_ISNAN_WORKAROUND_DEFAULT_VALUE TRUE)
 else()
