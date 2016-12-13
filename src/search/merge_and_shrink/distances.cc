@@ -246,10 +246,10 @@ vector<bool> Distances::compute_distances(Verbosity verbosity) {
         // States that are both unreachable and irrelevant are counted
         // as unreachable, not irrelevant. (Doesn't really matter, of
         // course.)
-        if (g == INF) {
+        /*if (g == INF) {
             ++unreachable_count;
             prunable_states[i] = true;
-        } else if (h == INF) {
+        } else */if (h == INF) {
             ++irrelevant_count;
             prunable_states[i] = true;
         } else {
