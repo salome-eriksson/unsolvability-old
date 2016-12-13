@@ -1,5 +1,5 @@
 #add your path to the cudd package here
-CUDD_DIR=$(HOME)/progs/cudd
+CUDD_DIR=$(DOWNWARD_CUDD_ROOT)
 
 CXX = g++
 CXXFLAGS = -g -O3 -m32 -std=c++11 -D_FILE_OFFSET_BITS=64

@@ -15,9 +15,10 @@ Installing CUDD
   (I don't know why this is necessary, but else the dddmp library complains...)
 5. In your .bashrc export the path to the CUDD library:
    "export export DOWNWARD_CUDD_ROOT=<path-to-cudd>
-6. Compile Fast Downward with ./build.py (choose a 32 bit compilation if you
+6. In the Makefile under src/unsolvability, add your CUDD path in the beginning
+7. Compile Fast Downward with ./build.py (choose a 32 bit compilation if you
    compiled the library in 32 bit)
-7. Compile the verifier by calling make in the src/unsolvability directory
+8. Compile the verifier by calling make in the src/unsolvability directory
    (you need to change the Makefile if you want a 64 bit compilation)
 
 
