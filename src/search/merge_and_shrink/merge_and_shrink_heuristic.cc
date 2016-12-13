@@ -46,7 +46,7 @@ MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
       max_states_before_merge(opts.get<int>("max_states_before_merge")),
       shrink_threshold_before_merge(opts.get<int>("threshold_before_merge")),
       verbosity(static_cast<Verbosity>(opts.get_enum("verbosity"))),
-      starting_peak_memory(-1),
+      starting_peak_memory(-1), certificate(NULL), certificate_id(0),
       mas_representation(nullptr) {
     assert(max_states_before_merge > 0);
     assert(max_states >= max_states_before_merge);
@@ -203,6 +203,8 @@ void MergeAndShrinkHeuristic::build(const utils::Timer &timer) {
     print_time(timer, "after computation of atomic transition systems");
     cout << endl;
 
+    bool first = true;
+
     if (fts.is_solvable()) { // All atomic transition system are solvable.
         unique_ptr<MergeStrategy> merge_strategy =
             merge_strategy_factory->compute_merge_strategy(task_proxy, fts);
@@ -213,6 +215,13 @@ void MergeAndShrinkHeuristic::build(const utils::Timer &timer) {
             pair<int, int> merge_indices = merge_strategy->get_next();
             int merge_index1 = merge_indices.first;
             int merge_index2 = merge_indices.second;
+            //TODO hack for getting the variable order in case of linear merge strategy
+            if(first) {
+                variable_order.push_back(merge_index1);
+            }
+            variable_order.push_back(merge_index2);
+            first = false;
+            cout << "Next pair of indices: (" << merge_index1 << ", " << merge_index2 << ")" << endl;
             assert(merge_index1 != merge_index2);
             if (verbosity >= Verbosity::NORMAL) {
                 cout << "Next pair of indices: ("
@@ -280,6 +289,23 @@ void MergeAndShrinkHeuristic::build(const utils::Timer &timer) {
             }
         }
     }
+
+    // variable order can be incomplete if partial abstraction is already unsolvable
+    if(variable_order.size() < g_variable_domain.size()) {
+        std::vector<bool> covered = std::vector<bool>(g_variable_domain.size(), false);
+        for(size_t i = 0; i < variable_order.size(); ++i) {
+            covered[variable_order[i]] = true;
+        }
+        for(size_t i = 0; i < covered.size(); ++i) {
+            if(!covered[i]) {
+                variable_order.push_back(i);
+            }
+        }
+    }
+    assert(variable_order.size() == g_variable_domain.size());
+
+    CuddManager::set_variable_order(variable_order);
+    cudd_manager = CuddManager::get_instance();
 
     pair<unique_ptr<MergeAndShrinkRepresentation>, unique_ptr<Distances>>
     final_entry = fts.get_final_entry();
@@ -373,6 +399,40 @@ void MergeAndShrinkHeuristic::handle_shrink_limit_options_defaults(Options &opts
     opts.set<int>("max_states", max_states);
     opts.set<int>("max_states_before_merge", max_states_before_merge);
     opts.set<int>("threshold_before_merge", threshold);
+}
+
+int MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &s) {
+    if(certificate != NULL) {
+        assert(certificate_id != 0);
+        return certificate_id;
+    }
+    certificate = new CuddBDD(cudd_manager, false);
+    certificate_id = s.get_id().hash();
+
+    std::vector<CuddBDD> dummy_vector;
+
+    mas_representation->get_unsolvability_certificate(certificate, dummy_vector, false);
+    return certificate_id;
+}
+
+int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
+    if(certificate != NULL) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void MergeAndShrinkHeuristic::write_subcertificates(std::string cert_file) {
+    if(certificate == NULL) {
+        std::ofstream cert_stream;
+        cert_stream.open(cert_file);
+        cert_stream.close();
+        return;
+    }
+    std::vector<std::pair<int,CuddBDD*>> bdds;
+    bdds.push_back(std::make_pair(certificate_id,certificate));
+    cudd_manager->dumpBDDs(bdds, cert_file);
 }
 
 static Heuristic *_parse(OptionParser &parser) {

@@ -210,6 +210,57 @@ public:
         return registered_states.size();
     }
 
+
+    // TODO: this is a hack to be able to loop over all states
+    class const_iterator : public std::iterator<std::forward_iterator_tag,
+                                                StateID> {
+        friend class StateRegistry;
+        const StateRegistry &owner;
+        StateID pos;
+
+        const_iterator(const StateRegistry &owner_, size_t start)
+            : owner(owner_), pos(start) {}
+public:
+        const_iterator(const const_iterator &other)
+            : owner(other.owner), pos(other.pos) {}
+
+        ~const_iterator() {}
+
+        const_iterator &operator++() {
+            ++pos.value;
+            return *this;
+        }
+
+        const_iterator operator++(int) {
+            const_iterator tmp(*this);
+            operator++();
+            return tmp;
+        }
+
+        bool operator==(const const_iterator &rhs) {
+            return &owner == &rhs.owner && pos == rhs.pos;
+        }
+
+        bool operator!=(const const_iterator &rhs) {
+            return !(*this == rhs);
+        }
+
+        StateID operator*() {
+            return pos;
+        }
+
+        StateID *operator->() {
+            return &pos;
+        }
+    };
+
+    const_iterator begin() const {
+        return const_iterator(*this, 0);
+    }
+    const_iterator end() const {
+        return const_iterator(*this, this->size());
+    }
+
     int get_state_size_in_bytes() const;
 
     /*

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+rm certificate.txt
+rm task.txt
+rm *.bdd
+rm hints.txt
+
+PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob03.pddl
+echo "-------------------------------------------------"
+echo "RUNNING TASK"
+echo "-------------------------------------------------"
+./../../fast-downward.py --build "debug32" $PDDL_FILE --search "astar(merge_and_shrink(merge_strategy=merge_linear(), shrink_strategy=shrink_bisimulation()))" 
+#./../../fast-downward.py --build "debug32" $PDDL_FILE --search "astar(hmax())"
+#./../../fast-downward.py --build "debug32" $PDDL_FILE --search "astar(hm(m=2))" 
+echo ""
+#echo "-------------------------------------------------"
+#echo "RUNNING INSTANTIATE"
+#echo "-------------------------------------------------"
+#./translate/instantiate.py ../../benchmarks/$PDDL_FILE
+#echo ""
+echo "-------------------------------------------------"
+echo "RUN VERIFIER"
+echo "-------------------------------------------------"
+./verify task.txt certificate.txt
