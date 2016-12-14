@@ -24,14 +24,10 @@ Certificate* build_certificate(std::string certificate_file, Task* task) {
     std::getline(stream, line);
     std::vector<std::string> linevec;
     split(line, linevec, ':');
-    assert(linevec.size() == 2 || linevec.size() == 3);
+    assert(linevec.size() == 3);
     assert(linevec[0].compare("certificate-type") == 0);
     std::string type = linevec[1];
-
-    int r = -1;
-    if(linevec.size() == 3) {
-        r = stoi(linevec[2]);
-    }
+    int r = stoi(linevec[2]);
 
     Certificate *certificate = NULL;
 

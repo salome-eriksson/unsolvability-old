@@ -42,6 +42,69 @@ DisjunctiveCertificate::DisjunctiveCertificate(Task *task, std::ifstream &stream
         hint_stream.open(hint_file);
     }
 
+    //initialize lastits (stores the last r map iterators)
+    lastits.resize(r);
+    CertMap::iterator it = certificate.begin();
+    for(int i = 0; i < certificate.size() - r; ++i) {
+        it++;
+    }
+    for(int i = 0; i < r; ++i) {
+        lastits[i] = it++;
+    }
+
+}
+
+void DisjunctiveCertificate::initialize_itvec(std::vector<CertMap::iterator> &itvec) {
+    CertMap::iterator it = certificate.begin();
+    itvec.resize(r, it);
+    for(int i = 0; i < r; ++i) {
+        itvec[i] = it++;
+    }
+}
+
+/*
+ * This function returns the next ordered permutation of itvec. It returns false if there
+ * is no next permutation. One can think of it as "counting up":
+ * It checks starting from the end of itvec if the iterator has the highest possible "value"
+ * (lastit stores this "value" - for the last element it is the last iterator etc).
+ * When it has found a position where this is not the case it increments this iterator by one
+ * and sets all subsequent iterator to one higher than the preceeding one.
+ * Example with numbers instead of iterators:
+ * Input: itvec: 1 5 6 7, lastits: 4 5 6 7 -> itvec changed to 2 3 4 5 and return true
+ *
+ * sidenote: itvec and lastits must have size r!
+ */
+bool DisjunctiveCertificate::next_permutation(std::vector<CertMap::iterator>& itvec, std::vector<CertMap::iterator>& lastits) {
+    int pos = r-1;
+    while(itvec[pos] == lastits[pos]) {
+        pos--;
+        }
+    if(pos < 0) {
+        return false;
+    } else {
+        itvec[pos]++;
+        for(pos = pos+1; pos < r; pos++) {
+            itvec[pos] = itvec[pos-1];
+            itvec[pos]++;
+        }
+    }
+    return true;
+}
+
+bool DisjunctiveCertificate::is_covered_by_r(BDD &successor_bdd) {
+    std::vector<CertMap::iterator> itvec;
+    initialize_itvec(itvec);
+    do {
+        BDD disjunction = manager.bddZero();
+        for(int i = 0; i < itvec.size(); ++i) {
+            disjunction = disjunction + itvec[i]->second.bdd;
+        }
+        disjunction.Permute(&permutation[0]);
+        if(successor_bdd.Leq(disjunction)) {
+            return true;
+        }
+    } while(next_permutation(itvec, lastits));
+    return false;
 }
 
 bool DisjunctiveCertificate::contains_state(const Cube &state) {
@@ -57,12 +120,11 @@ bool DisjunctiveCertificate::contains_state(const Cube &state) {
 
 bool DisjunctiveCertificate::contains_goal() {
     BDD goalbdd = build_bdd_from_cube(task->get_goal());
+    BDD notgoal = !goalbdd;
 
     for(CertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
-        // here we cannot use subset, since we also need to return true if the certificate
-        // contains only some but not all goal states
-        goalbdd = goalbdd.Intersect(it->second.bdd);
-        if(!goalbdd.IsZero()) {
+        //each part of the union must contain no goal states
+        if(!it->second.bdd.Leq(notgoal)) {
             return true;
         }
     }
@@ -70,17 +132,10 @@ bool DisjunctiveCertificate::contains_goal() {
 }
 
 bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
-    // permutation for renaming the certificate to the primed variables
-    int permutation[task->get_number_of_facts()*2];
-    for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
-      permutation[2*i] = (2*i)+1;
-      permutation[(2*i)+1] = 2*i;
-    }
-
     // oftenly used variables
     std::string line;
     int hint_amount = -1;
-    int tmp = -1;
+    int action = -1;
     int index = -1;
     std::vector<int> hints = std::vector<int>(task->get_number_of_actions(), -1);
 
@@ -93,17 +148,17 @@ bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
         ss >> hint_amount;
         assert(hint_amount >= 0);
         for(int i = 0; i < hint_amount; ++i) {
-            ss >> tmp;
-            assert(tmp >=0);
-            ss >> hints[tmp];
-            assert(hints[tmp] >= 0);
-            tmp = -1;
+            ss >> action;
+            assert(action >=0);
+            ss >> hints[action];
+            assert(hints[action] >= 0);
+            action = -1;
         }
         hint_amount = -1;
 
         // check inductivity for the bdd with given index
         BDD cert_i = certificate[index].bdd;
-        BDD cert_i_perm = cert_i.Permute(permutation);
+        BDD cert_i_perm = cert_i.Permute(&permutation[0]);
         // loop over actions
         for(size_t i = 0; i < action_bdds.size(); ++i) {
             BDD succ = cert_i * action_bdds[i];
@@ -114,17 +169,17 @@ bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
             // index given by then hint
             if(hints[i] >= 0) {
                 BDD tmp = certificate[index].bdd;
-                tmp.Permute(permutation);
+                tmp.Permute(&permutation[0]);
                 if(!succ.Leq(tmp)) {
                     return false;
                 }
                 // reset hint vector
                 hints[i] = -1;
-            // if no hint is given, the bdd must be self-inductive in this action
-            } else {
-                if(!succ.Leq(cert_i_perm)) {
-                    return false;
-                }
+            // if no hint is given, check if the bdd is self- or r-inductive
+            // if not, the certificate is not valid
+            // TODO: ask if it is guaranteed that the first part will get evaluated first!
+            } else if (!(succ.Leq(cert_i_perm)) && !(is_covered_by_r(succ))) {
+                return false;
             }
         }
         // set bdd as covered
@@ -153,13 +208,6 @@ bool DisjunctiveCertificate::is_inductive() {
         }
     }
 
-    // permutation for renaming the certificate to the primed variables
-    int permutation[task->get_number_of_facts()*2];
-    for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
-      permutation[2*i] = (2*i)+1;
-      permutation[(2*i)+1] = 2*i;
-    }
-
     // check over all bdds that are not covered yet
     for (CertMap::iterator it = certificate.begin(); it != certificate.end(); ++it) {
         // bdd is covered
@@ -167,12 +215,12 @@ bool DisjunctiveCertificate::is_inductive() {
             continue;
         }
 
-        // bdd is not covered -> loop over all actions and check if its self-inductive
+        // bdd is not covered -> loop over all actions and check if its self- or r-inductive
         BDD cert_i = it->second.bdd;
-        BDD cert_i_perm = cert_i.Permute(permutation);
+        BDD cert_i_perm = cert_i.Permute(&permutation[0]);
         for(size_t i = 0; i < action_bdds.size(); ++i) {
             BDD succ = cert_i * action_bdds[i];
-            if(!succ.Leq(cert_i_perm)) {
+            if(!(succ.Leq(cert_i_perm)) && !(is_covered_by_r(succ))) {
                 return false;
             }
         }

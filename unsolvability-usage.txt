@@ -72,7 +72,7 @@ ________________________________________________________________________________
 
 The "master" certificate "certificate.txt" contains the following information:
 ________________________________________________________________________________
-certificate-type:simple|disjunctive(:r)|conjunctive(:r)
+certificate-type:simple|disjunctive:r|conjunctive:r
 bdd-files:<# of bdd files>
 <list of bdd files>
 (hints:<name of hints file>)

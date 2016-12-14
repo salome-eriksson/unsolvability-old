@@ -24,6 +24,8 @@ protected:
   Task* task;
   Cudd manager;
   CertMap certificate;
+  // array needed for permuting bdds to primed version
+  std::vector<int> permutation;
   void parse_bdd_file(std::string bddfile);
   BDD build_bdd_for_action(const Action &a);
   BDD build_bdd_from_cube(const Cube &cube);
