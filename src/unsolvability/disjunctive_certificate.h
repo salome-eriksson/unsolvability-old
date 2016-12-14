@@ -14,10 +14,15 @@ private:
    int r;
    std::ifstream hint_stream;
    bool has_hints;
+   std::vector<CertMap::iterator> lastits;
 
-   void store_state_bdds(std::string file);
-   void store_hcert_bdds(std::string file);
    bool check_hints(std::vector<BDD> &action_bdds);
+
+   void initialize_itvec(std::vector<CertMap::iterator>& itvec);
+   bool next_permutation(std::vector<CertMap::iterator>& itvec, std::vector<CertMap::iterator>& lastits);
+
+   //checks if any disjunction over r BDDs coveres the successor_bdd
+   bool is_covered_by_r(BDD &successor_bdd);
 public:
   DisjunctiveCertificate(Task *task, std::ifstream &stream, int r);
   bool contains_state(const Cube &state);

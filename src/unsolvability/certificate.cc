@@ -14,6 +14,12 @@ Certificate::Certificate(Task *task)
         manager.SetTimeLimit(g_timeout*1000 - timer());
     }
     manager.setTimeoutHandler(exit_timeout);
+
+    permutation.resize(task->get_number_of_facts()*2, -1);
+    for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
+      permutation[2*i] = (2*i)+1;
+      permutation[(2*i)+1] = 2*i;
+    }
 }
 
 Certificate::~Certificate() {
