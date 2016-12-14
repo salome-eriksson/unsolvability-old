@@ -171,7 +171,6 @@ bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
                 BDD tmp = certificate[hints[i]].bdd;
                 tmp = tmp.Permute(&permutation[0]);
                 if(!succ.Leq(tmp)) {
-                    std::cout << "bla" << std::endl;
                     return false;
                 }
                 // reset hint vector
