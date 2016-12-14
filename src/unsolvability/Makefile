@@ -14,6 +14,7 @@ HEADERS = \
           global_funcs.h \
           task.h \
           certificate.h \
+	  conjunctive_certificate.h \
           disjunctive_certificate.h \
           simple_certificate.h \
 	  timer.h \
