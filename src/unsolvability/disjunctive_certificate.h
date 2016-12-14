@@ -21,12 +21,13 @@ private:
    void initialize_itvec(std::vector<CertMap::iterator>& itvec);
    bool next_permutation(std::vector<CertMap::iterator>& itvec, std::vector<CertMap::iterator>& lastits);
 
-   //checks if any disjunction over r BDDs coveres the successor_bdd
+   // checks if any disjunction over r BDDs coveres the successor_bdd
    bool is_covered_by_r(BDD &successor_bdd);
 public:
   DisjunctiveCertificate(Task *task, std::ifstream &stream, int r);
   bool contains_state(const Cube &state);
   bool contains_goal();
+  // WARNING: this returns false if it is not r-inductive for the specified r
   bool is_inductive();
 };
 
