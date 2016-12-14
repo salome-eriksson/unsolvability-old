@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "certificate.h"
+#include "conjunctive_certificate.h"
 #include "disjunctive_certificate.h"
 #include "global_funcs.h"
 #include "simple_certificate.h"
@@ -35,19 +36,11 @@ Certificate* build_certificate(std::string certificate_file, Task* task) {
         std::cout << "reading in simple certificate" << std::endl;
         certificate = new SimpleCertificate(task, stream);
     } else if(type.compare("disjunctive") == 0) {
-        if(r >= 0) {
-            std::cout << "(bound: << " << r << ")";
-        }
-        std::cout << std::endl;
-        std::cout << "reading in disjunctive certificate" << std::endl;
+        std::cout << "reading in disjunctive certificate (bound:" << r << ")" << std::endl;
         certificate = new DisjunctiveCertificate(task, stream, r);
-    /*} else if(type.compare("conjunctive") == 0) {
-            std::cout << "reading in conjunctive certificate";
-            if(r >= 0) {
-                std::cout << "(bound: << " << r << ")";
-            }
-            std::cout << std::endl;
-            certificate = new ConjunctiveCertificate(task, stream, r);*/
+    } else if(type.compare("conjunctive") == 0) {
+        std::cout << "reading in conjunctive certificate";
+        certificate = new ConjunctiveCertificate(task, stream, r);
     } else {
         exit_with(ExitCode::PARSING_ERROR);
     }
