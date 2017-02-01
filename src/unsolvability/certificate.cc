@@ -20,6 +20,7 @@ Certificate::Certificate(Task *task)
       permutation[2*i] = (2*i)+1;
       permutation[(2*i)+1] = 2*i;
     }
+    manager.InstallOutOfMemoryHandler(exit_oom);
 }
 
 Certificate::~Certificate() {

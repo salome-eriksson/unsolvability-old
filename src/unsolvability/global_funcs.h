@@ -28,9 +28,9 @@ void initialize_timer();
 void set_timeout(int x);
 int get_peak_memory_in_kb(bool use_buffered_input = true);
 void exit_with(ExitCode code);
-void exit_oom(long size);
+void exit_oom(size_t size);
 void exit_timeout(std::string);
-
+void register_event_handlers();
 
 
 #endif /* GLOBAL_FUNCS_H */
