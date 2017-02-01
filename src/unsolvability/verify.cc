@@ -56,9 +56,8 @@ int main(int argc, char** argv) {
         std::cout << "timeout is an optional parameter in seconds" << std::endl;
         exit(0);
     }
+    register_event_handlers();
     initialize_timer();
-    //extern DD_OOMFP MMoutOfMemory;
-    //MMoutOfMemory = exit_oom;
     std::string task_file = argv[1];
     std::string certificate_file = argv[2];
     int x = 0;
