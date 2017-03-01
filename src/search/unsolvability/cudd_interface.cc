@@ -13,7 +13,7 @@ using utils::ExitCode;
 std::vector<int> CuddManager::var_order = std::vector<int>();
 CuddManager* CuddManager::instance = NULL;
 
-void exit_oom(long size) {
+void exit_oom(size_t size) {
     utils::exit_with(ExitCode::OUT_OF_MEMORY);
 }
 
@@ -180,6 +180,7 @@ CuddManager::CuddManager(std::vector<int> &var_order) {
         }
     }
     ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
+    Cudd_InstallOutOfMemoryHandler(exit_oom);
     //extern DD_OOMFP MMoutOfMemory;
     //MMoutOfMemory = exit_oom;
 }
