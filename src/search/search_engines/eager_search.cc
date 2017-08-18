@@ -86,9 +86,9 @@ void EagerSearch::initialize() {
     manager = CuddManager::get_instance();
     // for the maia grid, use a directory of another file system
     directory = "";
-    char *sge_env = std::getenv("SGE_TASK_ID");
+    char *sge_env = std::getenv("SLURM_JOBID");
     if(sge_env != NULL) {
-        directory = "/tmp/eriksson-unsolv-" + std::string(sge_env) + "/";
+        directory = std::string(std::getenv("TMPDIR")) + "/";
     }
     std::ofstream cert_file;
     cert_file.open("certificate.txt");
