@@ -31,17 +31,31 @@ KnowledgeBase::is_dead_state(const Cube &state) {
     return state_bdd.Leq(dead_states);
 }
 KnowledgeBase::is_progression(const std::string &set1, const std::string &set2) {
-    return progression.find(set1 + set2);
+    return progression.find(set1 + set2) != progression.end();
 }
 KnowledgeBase::is_regression(const std::string &set1, const std::string &set2) {
-    return regression.find(set1 + set2);
+    return regression.find(set1 + set2) != regression.end();
 }
 KnowledgeBase::is_subset(const std::string &set1, const std::string &set2) {
-    return subsets.find(set1 + set2);
+    return subsets.find(set1 + set2) != subsets.end();
 }
 KnowledgeBase::contains_initial(const std::string &set) {
-    return has_initial.find(set);
+    return has_initial.find(set) != has_initial.end();
 }
+KnowledgeBase::not_contains_initial(const std::string &set) {
+    return has_not_initial.find(set) != has_not_initial.end();
+}
+
+KnowledgeBase::is_contained_in(const Cube &state, const std::string &set) {
+    auto states_contained_in_set = contained_in.find(set);
+    if(states_contained_in_set == contained_in.end()) {
+        return false;
+    } else {
+        BDD state_bdd = build_bdd_from_cube(state);
+        return state_bdd.Leq((*states_contained_in_set)->second);
+    }
+}
+
 KnowledgeBase::is_unsolvability_proven() {
     return unsolvability_proven;
 }
@@ -69,6 +83,15 @@ KnowledgeBase::insert_contains_initial(const std::string &set) {
 }
 KnowledgeBase::insert_not_contains_initial(const std::string &set) {
     has_not_initial.insert(set);
+}
+KnowledgeBase::insert_contained_in(const Cube &state, const std::string &set) {
+    BDD state_bdd = build_bdd_from_cube(state);
+    auto states_contained_in_set = contained_in.find(set);
+    if(states_contained_in_set == contained_in.end()) {
+        contained_in.insert(set, state_bdd);
+    } else {
+        (*states_contained_in_set)->second = (*states_contained_in_set)->second + state_bdd;
+    }
 }
 
 KnowledgeBase::set_unsolvability_proven() {
