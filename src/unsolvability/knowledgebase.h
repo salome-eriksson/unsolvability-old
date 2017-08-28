@@ -8,6 +8,7 @@
 class KnowledgeBase
 {
 private:
+    Cudd manager;
     bool unsolvability_proven;
     std::unordered_set<std::string> dead_sets;
     BDD dead_states;
@@ -21,6 +22,8 @@ private:
     std::unordered_set<std::string>has_initial;
     // represents sets not containing the initial state
     std::unordered_set<std::string>has_not_initial;
+    // represents states that are contained in sets
+    std::unordered_map<std::string,BDD> contained_in;
 public:
     //TODO: move to more appropriate place
     static std::string EMPTYSET;
@@ -39,6 +42,7 @@ public:
     bool contains_initial(const std::string &set);
     // returns true if this relation is in the kb, false otherwise
     bool not_contains_initial(const std::string &set);
+    bool is_contained_in(const Cube &state, const std::string &set);
     bool is_unsolvability_proven();
 
     void insert_dead_set(const std::string &set);
@@ -48,6 +52,7 @@ public:
     void insert_subset(const std::string &set1, const std::string &set2);
     void insert_contains_initial(const std::string &set);
     void insert_not_contains_initial(const std::string &set);
+    void insert_contained_in(const Cube &state, const std::string &set);
 
     void set_unsolvable_proven();
 };
