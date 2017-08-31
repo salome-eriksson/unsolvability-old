@@ -1,7 +1,7 @@
 #include "statementcheckerbdd.h"
 
 StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, const std::vector<int> &variable_permutation)
-    : StatementChecker(kb, task), variable_permutation(variable_permutation) {
+    : StatementChecker(kb, task), manager(Cudd(task->get_number_of_facts()*2,0)), variable_permutation(variable_permutation) {
 
     assert(this->variable_permutation.size() == task->get_number_of_facts());
 
@@ -60,7 +60,7 @@ BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
     return ret;
 }
 
-bool StatementCheckerBDD::check_initial_contained(std::string set) {
+bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
     if(!(*initial_state_bdd).Leq(set_bdd)) {
@@ -71,7 +71,7 @@ bool StatementCheckerBDD::check_initial_contained(std::string set) {
     }
 }
 
-bool StatementCheckerBDD::check_is_contained(Cube state, std::string set) {
+bool StatementCheckerBDD::check_is_contained(const Cube &state, const std::string &set) {
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
     BDD state_bdd = build_bdd_from_cube(state);
@@ -83,7 +83,7 @@ bool StatementCheckerBDD::check_is_contained(Cube state, std::string set) {
     }
 }
 
-bool StatementCheckerBDD::check_progression(std::string set1, std::string set2) {
+bool StatementCheckerBDD::check_progression(const std::string &set1, const std::string &set2) {
     assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
     BDD &set1_bdd = bdds.find(set1)->second;
     BDD &set2_bdd = bdds.find(set2)->second;
@@ -106,7 +106,7 @@ bool StatementCheckerBDD::check_progression(std::string set1, std::string set2) 
     return true;
 }
 
-bool StatementCheckerBDD::check_regression(std::string set1, std::string set2) {
+bool StatementCheckerBDD::check_regression(const std::string &set1, const std::string &set2) {
     assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
     BDD &set1_bdd = bdds.find(set1)->second;
     BDD &set2_bdd = bdds.find(set2)->second;
@@ -129,7 +129,7 @@ bool StatementCheckerBDD::check_regression(std::string set1, std::string set2) {
     return true;
 }
 
-bool StatementCheckerBDD::check_subset(std::string set1, std::string set2) {
+bool StatementCheckerBDD::check_subset(const std::string &set1, const std::string &set2) {
     assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
     if(!bdds.find(set1)->second.Leq(bdds.find(set2)->second)) {
         return false;
@@ -137,6 +137,27 @@ bool StatementCheckerBDD::check_subset(std::string set1, std::string set2) {
         kb->insert_subset(set1,set2);
         return true;
     }
+}
+
+bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
+    assert(bdds.find(set) != bdds.end());
+    BDD &set_bdd = bdds.find(set)->second;
+    if(set_bdd.isZero()) {
+        return true;
+    }
+    std::vector<int> statecube(task->get_number_of_facts(),0);
+    int model[task->get_number_of_facts()*2];
+    DdGen *iterator = set_bdd.FirstCube(model);
+    do {
+        for(int i = 0; i < statecube.size(); ++i) {
+            statecube[i] = model[2*i];
+        }
+        if(!stateset.contains(statecube)) {
+            return false;
+        }
+    } while(NextCube(iterator,model) != 0);
+    kb->insert_subset(set, stateset.getName());
+    return true;
 }
 
 void StatementCheckerBDD::read_in_sets(std::string filename) {

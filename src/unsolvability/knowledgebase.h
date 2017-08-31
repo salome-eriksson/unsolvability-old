@@ -8,6 +8,7 @@
 class KnowledgeBase
 {
 private:
+    Task *task;
     Cudd manager;
     bool unsolvability_proven;
     std::unordered_set<std::string> dead_sets;
@@ -24,6 +25,10 @@ private:
     std::unordered_set<std::string>has_not_initial;
     // represents states that are contained in sets
     std::unordered_map<std::string,BDD> contained_in;
+    // each BDD represents a set of states with its abstract name as key
+    std::unordered_map<std::string,BDD> state_sets;
+    // represents an abstract set S and a state set S' (=list of states), denotes S \subseteq
+    //std::unordered_set<std::string> set_contained_in_state_set;
 public:
     //TODO: move to more appropriate place
     static std::string EMPTYSET;
@@ -32,9 +37,10 @@ public:
     static std::string NEGATION;
     static std::string GOAL;
     static std::string INIT_SET;
-    KnowledgeBase();
+    KnowledgeBase(Task *task);
     bool is_dead_set(const std::string &set);
     bool is_dead_state(const Cube &state);
+    bool is_dead_state_set(const std::string &stateset);
     bool is_progression(const std::string &set1, const std::string &set2);
     bool is_regression(const std::string &set1, const std::string &set2);
     bool is_subset(const std::string &set1, const std::string &set2);
