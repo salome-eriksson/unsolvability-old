@@ -1,16 +1,29 @@
 #include "statementcheckerbdd.h"
 
-StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, const std::vector<int> &variable_permutation)
-    : StatementChecker(kb, task), manager(Cudd(task->get_number_of_facts()*2,0)), variable_permutation(variable_permutation) {
+#include <stack>
 
+StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifstream &in)
+    : StatementChecker(kb, task), manager(Cudd(task->get_number_of_facts()*2,0)) {
+
+    std::string line;
+
+    //first line contains variable permutation
+    std::getline(in, line);
+    std::istringstream iss(line);
+    int n;
+    while (iss >> n){
+        variable_permutation.push_back(n);
+    }
     assert(this->variable_permutation.size() == task->get_number_of_facts());
 
+    //used for changing bdd to primed variables
     prime_permutation.resize(task->get_number_of_facts()*2, -1);
     for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
       prime_permutation[2*i] = (2*i)+1;
       prime_permutation[(2*i)+1] = 2*i;
     }
 
+    //insert BDDs for initial state, goal and empty set
     bdds.insert("S_I", build_bdd_from_cube(task->get_initial_state()));
     bdds.insert("S_G", build_bdd_from_cube(task->get_goal()));
     // the BDD representing the empty set should still be indifferent about primed variables
@@ -23,6 +36,21 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, const st
     initial_state_bdd = &(bdds.find("S_I")->second);
     goal_bdd = &(bdds.find("S_G")->second);
     empty_bdd = &(bdds.find("empty")->second);
+
+    //second line contains file name for bdds
+    std::getline(in, line);
+    read_in_bdds(line);
+
+    std::getline(in, line);
+    if(line.compare("composite formulas begin") == 0) {
+        read_in_composite_formulas(in);
+        std::getline(in, line);
+    }
+    if(line.compare("statements begin") == 0) {
+        read_in_statements(in);
+        std::getline(in, line);
+    }
+    assert(line.compare("Statements:BDD end") == 0);
 }
 
 BDD StatementCheckerBDD::build_bdd_from_cube(const Cube &cube) {
@@ -59,6 +87,84 @@ BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
     }
     return ret;
 }
+
+void StatementCheckerBDD::read_in_bdds(std::string filename) {
+
+}
+
+// composite formulas are denoted in POSTFIX notation
+void StatementCheckerBDD::read_in_composite_formulas(std::ifstream &in) {
+    std::string line;
+    std::getline(in, line);
+
+    std::stack<std::pair<std::string,BDD>> elements;
+    while(line.compare("composite formulas end") != 0) {
+        std::stringstream ss;
+        ss.str(line);
+        std::string item;
+        while(std::getline(ss, item, " ")) {
+            switch(item) {
+            case KnowledgeBase::INTERSECTION:
+                assert(elements.size() >=2);
+                std::pair<std::string,BDD> left = elements.top();
+                elements.pop();
+                std::pair<std::string,BDD> right = elements.top();
+                elements.pop();
+                elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::INTERSECTION, left.second * right.second));
+                break;
+            case KnowledgeBase::UNION:
+                assert(elements.size() >=2);
+                std::pair<std::string,BDD> left = elements.top();
+                elements.pop();
+                std::pair<std::string,BDD> right = elements.top();
+                elements.pop();
+                elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::UNION, left.second + right.second));
+                break;
+            case KnowledgeBase::NEGATION:
+                assert(elements.size() >= 1);
+                std::pair<std::string,BDD> elem = elements.top();
+                elements.pop();
+                elements.push(make_pair(elem.first + " " + KnowledgeBase::NEGATION, !elem.second));
+                break;
+            default:
+                assert(bdds.find(item) != bdds.end);
+                elements.push(make_pair(item,bdds.find(item)->second));
+                break;
+            }
+        }
+        assert(elements.size() == 1);
+        std::pair<std::string,BDD> result = elements.top;
+        bdds.insert(result.first, result.second);
+        std::getline(in, line);
+    }
+}
+
+void StatementCheckerBDD::read_in_statements(std::ifstream &in) {
+    std::string line;
+    std::getline(in, line);
+    while(line.compare("statements end") != 0) {
+        int pos_colon = s.find(":");
+        Statement statement = Statement(line.substr(0, pos_colon));
+        switch(statement) {
+        case Statement::SUBSET:
+            break;
+        case Statement::EXPLICIT_SUBSET:
+            break;
+        case Statement::PROGRESSION:
+            break;
+        case Statement::REGRESSION:
+            break;
+        case Statement::CONTAINED:
+            break;
+        case Statement::INITIAL_CONTAINED:
+            break;
+        default:
+            std::err << "unkown statement: " << statement;
+            break;
+        }
+    }
+}
+
 
 bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
     assert(bdds.find(set) != bdds.end());
@@ -158,8 +264,4 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
     } while(NextCube(iterator,model) != 0);
     kb->insert_subset(set, stateset.getName());
     return true;
-}
-
-void StatementCheckerBDD::read_in_sets(std::string filename) {
-
 }

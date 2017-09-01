@@ -11,10 +11,12 @@ private:
     static Cudd manager;
     std::string name;
     BDD states;
+    int size;
 public:
-    StateSet(std::string name, BDD states);
+    StateSet(std::string name, BDD states, int size);
     bool contains(const Cube &state);
     std::string getName();
+    int getSize();
 };
 
 #endif // STATESET_H

@@ -5,6 +5,15 @@
 #include "stateset.h"
 #include "task.h"
 
+enum Statement {
+    SUBSET = "sub",
+    EXPLICIT_SUBSET = "exsub",
+    PROGRESSION = "prog",
+    REGRESSION = "reg",
+    CONTAINED = "in",
+    INITIAL_CONTAINED = "init"
+};
+
 class StatementChecker
 {
 private:
@@ -18,8 +27,6 @@ public:
     bool check_is_contained(const Cube &state, const std::string &set) = 0;
     bool check_initial_contained(const std::string &set) = 0;
     bool check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) = 0;
-
-    void read_in_sets(std::string filename) = 0;
 };
 
 #endif // STATEMENTCHECKER_H
