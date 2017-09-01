@@ -78,7 +78,7 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
         assert(param.size() == 2);
         if(!kb->is_progression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
-                !kb->is_dead_set(KnowledgeBase::INTERSECTION + " " + param[0] + " " + KnowledgeBase::GOAL)) {
+                !kb->is_dead_set(param[0] + " " + KnowledgeBase::GOAL + " " + KnowledgeBase::INTERSECTION)) {
             return false;
         } else {
             kb->insert_dead_set(param[0]);
@@ -92,7 +92,7 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
                 !kb->contains_initial(param[0])) {
             return false;
         } else {
-            kb->insert_dead_set(KnowledgeBase::NEGATION + " " + param[0]);
+            kb->insert_dead_set(param[0] + " " + KnowledgeBase::NEGATION);
             return true;
         }
 
@@ -111,10 +111,10 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
         assert(param.size() == 2);
         if(!kb->is_regression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
-                !kb->is_dead_set(KnowledgeBase::INTERSECTION + " " + KnowledgeBase::NEGATION + " " + param[0] + " " + KnowledgeBase::GOAL)) {
+                !kb->is_dead_set(param[0] + " " + KnowledgeBase::NEGATION + " " + KnowledgeBase::GOAL + " " + KnowledgeBase::INTERSECTION)) {
             return false;
         } else {
-            kb->insert_dead_set(KnowledgeBase::NEGATION + " " + param[0]);
+            kb->insert_dead_set(param[0] + " " + KnowledgeBase::NEGATION);
             return true;
         }
 

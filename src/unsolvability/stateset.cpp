@@ -1,6 +1,7 @@
 #include "stateset.h"
 
-StateSet::StateSet(std::string name, BDD states) : name(name), states(states){
+StateSet::StateSet(std::string name, BDD states, int size)
+    : name(name), states(states), size(size){
 
 }
 
@@ -11,4 +12,8 @@ bool StateSet::contains(const Cube &state) {
 
 std::string StateSet::getName() {
     return name;
+}
+
+int StateSet::getSize() {
+    return size;
 }

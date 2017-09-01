@@ -31,6 +31,7 @@ private:
     //std::unordered_set<std::string> set_contained_in_state_set;
 public:
     //TODO: move to more appropriate place
+    // we use POSTFIX notation
     static std::string EMPTYSET;
     static std::string UNION;
     static std::string INTERSECTION;
