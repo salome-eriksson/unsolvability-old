@@ -5,9 +5,16 @@ RuleChecker::RuleChecker()
 
 }
 
-// TOOD: implement
 Cube RuleChecker::parseCube(const std::string &param) {
-    return Cube();
+    Cube cube;
+    cube.reserve(task->get_number_of_facts());
+    std::istringstream iss(line);
+    int n;
+    while (iss >> n){
+        cube.push_back(n);
+    }
+    assert(cube.size() == task->get_number_of_facts());
+    return cube;
 }
 
 std::vector<std::string> RuleChecker::determine_parameters(const std::string &parameter_line) {

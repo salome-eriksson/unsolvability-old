@@ -89,7 +89,44 @@ BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
 }
 
 void StatementCheckerBDD::read_in_bdds(std::string filename) {
+    print_info("reading in bdd file " + filename);
 
+    // move variables so the primed versions are in between
+    int compose[task->get_number_of_facts()];
+    for(int i = 0; i < task->get_number_of_facts(); ++i) {
+        compose[i] = 2*i;
+    }
+
+    FILE *fp;
+    fp = fopen(filename.c_str(), "r");
+    if(!fp) {
+        std::cout << "could not open bdd file" << std::endl;
+    }
+
+    int amount = -1;
+    while(fscanf(fp, "%d", &amount) == 1) {
+        assert(amount > 0);
+        std::vector<int> indices = std::vector<int>(amount, -1);
+        for(int i = 0; i < amount; ++i) {
+            int res = fscanf(fp, "%d", &indices[i]);
+            assert(res == 1);
+            assert(indices[i] >= 0 && certificate.find(indices[i]) == certificate.end());
+        }
+        DdNode **tmpArray;
+        int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
+            DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
+        assert(nRoots == amount);
+
+        for (int i=0; i<nRoots; i++) {
+            // TODO: check how names could be saved in the bdd file and replace dummy names
+            bdds.insert("BDD " + i, BDD(manager,tmpArray[i]));
+            Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
+        }
+        FREE(tmpArray);
+        amount = -1;
+    }
+
+    print_info("finished reading in bdd file " + filename);
 }
 
 // composite formulas are denoted in POSTFIX notation
@@ -143,24 +180,41 @@ void StatementCheckerBDD::read_in_statements(std::ifstream &in) {
     std::string line;
     std::getline(in, line);
     while(line.compare("statements end") != 0) {
+        bool statement_correct = false;
         int pos_colon = s.find(":");
         Statement statement = Statement(line.substr(0, pos_colon));
+        std::vector<std::string> params = determine_parameters(line.substr(pos_colon+1));
         switch(statement) {
         case Statement::SUBSET:
+            assert(params.size() == 2);
+            statement_correct = check_subset(params[0], params[1]);
             break;
         case Statement::EXPLICIT_SUBSET:
+            assert(params.size() == 2);
+            statement_correct = check_subset(parse_cube(param[0]), param[1]);
             break;
         case Statement::PROGRESSION:
+            assert(params.size() == 2);
+            statement_correct = check_progression(params[0],params[1]);
             break;
         case Statement::REGRESSION:
+            assert(params.size() == 2);
+            statement_correct = check_regression(params[0],params[1]);
             break;
         case Statement::CONTAINED:
+            assert(params.size() == 2);
+            statement_correct = check_is_contained(parse_cube(param[0]), params[1]);
             break;
         case Statement::INITIAL_CONTAINED:
+            assert(params.size() == 1);
+            statement_correct = check_initial_contained(params[0]);
             break;
         default:
             std::err << "unkown statement: " << statement;
             break;
+        }
+        if(!statement_correct) {
+            std::err << "statement not correct: " << line;
         }
     }
 }
