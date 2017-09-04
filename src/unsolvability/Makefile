@@ -18,6 +18,11 @@ HEADERS = \
           disjunctive_certificate.h \
           simple_certificate.h \
 	  timer.h \
+	  knowledgebase.h \
+	  rulechecker.h \
+	  statementchecker.h \
+	  statementcheckerbdd.h \
+	  stateset.h \
 
 SOURCES = verify.cc $(HEADERS:%.h=%.cc)
 OBJ = $(SOURCES:%.cc=%.o)
