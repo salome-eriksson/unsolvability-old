@@ -1,6 +1,11 @@
 #include "statementcheckerbdd.h"
 
+#include "dddmp.h"
+
 #include <stack>
+#include <cassert>
+#include <sstream>
+#include <iostream>
 
 StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifstream &in)
     : StatementChecker(kb, task), manager(Cudd(task->get_number_of_facts()*2,0)) {
@@ -24,14 +29,14 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
     }
 
     //insert BDDs for initial state, goal and empty set
-    bdds.insert("S_I", build_bdd_from_cube(task->get_initial_state()));
-    bdds.insert("S_G", build_bdd_from_cube(task->get_goal()));
+    bdds.insert(std::make_pair("S_I", build_bdd_from_cube(task->get_initial_state())));
+    bdds.insert(std::make_pair("S_G", build_bdd_from_cube(task->get_goal())));
     // the BDD representing the empty set should still be indifferent about primed variables
     Cube empty_cube(task->get_number_of_facts()*2,2);
     for(int i = 0; i < task->get_number_of_facts(); ++i) {
         empty_cube[2*i] = 0;
     }
-    bdds.insert("empty",build_bdd_from_cube(empty_cube));
+    bdds.insert(std::make_pair("empty",build_bdd_from_cube(empty_cube)));
 
     initial_state_bdd = &(bdds.find("S_I")->second);
     goal_bdd = &(bdds.find("S_G")->second);
@@ -89,7 +94,6 @@ BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
 }
 
 void StatementCheckerBDD::read_in_bdds(std::string filename) {
-    print_info("reading in bdd file " + filename);
 
     // move variables so the primed versions are in between
     int compose[task->get_number_of_facts()];
@@ -100,18 +104,19 @@ void StatementCheckerBDD::read_in_bdds(std::string filename) {
     FILE *fp;
     fp = fopen(filename.c_str(), "r");
     if(!fp) {
-        std::cout << "could not open bdd file" << std::endl;
+        std::cerr << "could not open bdd file" << std::endl;
     }
 
     int amount = -1;
     while(fscanf(fp, "%d", &amount) == 1) {
+        // TODO: currently only a copy, check what needs to be adjusted
         assert(amount > 0);
         std::vector<int> indices = std::vector<int>(amount, -1);
-        for(int i = 0; i < amount; ++i) {
+        /*for(int i = 0; i < amount; ++i) {
             int res = fscanf(fp, "%d", &indices[i]);
             assert(res == 1);
             assert(indices[i] >= 0 && certificate.find(indices[i]) == certificate.end());
-        }
+        }*/
         DdNode **tmpArray;
         int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
             DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
@@ -119,14 +124,12 @@ void StatementCheckerBDD::read_in_bdds(std::string filename) {
 
         for (int i=0; i<nRoots; i++) {
             // TODO: check how names could be saved in the bdd file and replace dummy names
-            bdds.insert("BDD " + i, BDD(manager,tmpArray[i]));
+            bdds.insert(std::make_pair("BDD " + i, BDD(manager,tmpArray[i])));
             Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
         }
         FREE(tmpArray);
         amount = -1;
     }
-
-    print_info("finished reading in bdd file " + filename);
 }
 
 // composite formulas are denoted in POSTFIX notation
@@ -139,86 +142,37 @@ void StatementCheckerBDD::read_in_composite_formulas(std::ifstream &in) {
         std::stringstream ss;
         ss.str(line);
         std::string item;
-        while(std::getline(ss, item, " ")) {
-            switch(item) {
-            case KnowledgeBase::INTERSECTION:
+        while(std::getline(ss, item, ' ')) {
+            if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
                 assert(elements.size() >=2);
                 std::pair<std::string,BDD> left = elements.top();
                 elements.pop();
                 std::pair<std::string,BDD> right = elements.top();
                 elements.pop();
                 elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::INTERSECTION, left.second * right.second));
-                break;
-            case KnowledgeBase::UNION:
+            } else if(item.compare(KnowledgeBase::UNION) == 0) {
                 assert(elements.size() >=2);
                 std::pair<std::string,BDD> left = elements.top();
                 elements.pop();
                 std::pair<std::string,BDD> right = elements.top();
                 elements.pop();
                 elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::UNION, left.second + right.second));
-                break;
-            case KnowledgeBase::NEGATION:
+            } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
                 assert(elements.size() >= 1);
                 std::pair<std::string,BDD> elem = elements.top();
                 elements.pop();
                 elements.push(make_pair(elem.first + " " + KnowledgeBase::NEGATION, !elem.second));
-                break;
-            default:
-                assert(bdds.find(item) != bdds.end);
+            } else {
+                assert(bdds.find(item) != bdds.end());
                 elements.push(make_pair(item,bdds.find(item)->second));
-                break;
             }
         }
         assert(elements.size() == 1);
-        std::pair<std::string,BDD> result = elements.top;
-        bdds.insert(result.first, result.second);
+        std::pair<std::string,BDD> result = elements.top();
+        bdds.insert(std::make_pair(result.first, result.second));
         std::getline(in, line);
     }
 }
-
-void StatementCheckerBDD::read_in_statements(std::ifstream &in) {
-    std::string line;
-    std::getline(in, line);
-    while(line.compare("statements end") != 0) {
-        bool statement_correct = false;
-        int pos_colon = s.find(":");
-        Statement statement = Statement(line.substr(0, pos_colon));
-        std::vector<std::string> params = determine_parameters(line.substr(pos_colon+1));
-        switch(statement) {
-        case Statement::SUBSET:
-            assert(params.size() == 2);
-            statement_correct = check_subset(params[0], params[1]);
-            break;
-        case Statement::EXPLICIT_SUBSET:
-            assert(params.size() == 2);
-            statement_correct = check_subset(parse_cube(param[0]), param[1]);
-            break;
-        case Statement::PROGRESSION:
-            assert(params.size() == 2);
-            statement_correct = check_progression(params[0],params[1]);
-            break;
-        case Statement::REGRESSION:
-            assert(params.size() == 2);
-            statement_correct = check_regression(params[0],params[1]);
-            break;
-        case Statement::CONTAINED:
-            assert(params.size() == 2);
-            statement_correct = check_is_contained(parse_cube(param[0]), params[1]);
-            break;
-        case Statement::INITIAL_CONTAINED:
-            assert(params.size() == 1);
-            statement_correct = check_initial_contained(params[0]);
-            break;
-        default:
-            std::err << "unkown statement: " << statement;
-            break;
-        }
-        if(!statement_correct) {
-            std::err << "statement not correct: " << line;
-        }
-    }
-}
-
 
 bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
     assert(bdds.find(set) != bdds.end());
@@ -231,7 +185,7 @@ bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
     }
 }
 
-bool StatementCheckerBDD::check_is_contained(const Cube &state, const std::string &set) {
+bool StatementCheckerBDD::check_is_contained(Cube &state, const std::string &set) {
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
     BDD state_bdd = build_bdd_from_cube(state);
@@ -302,20 +256,29 @@ bool StatementCheckerBDD::check_subset(const std::string &set1, const std::strin
 bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
-    if(set_bdd.isZero()) {
+    if(set_bdd.IsZero()) {
         return true;
+    // if the BDD contains more models than the stateset, it cannot be a subset
+    // TODO: check if the calculation is right!
+    } else if(set_bdd.CountMinterm(task->get_number_of_facts()*2)/(1<<task->get_number_of_facts()) > stateset.getSize()) {
+        return false;
     }
-    std::vector<int> statecube(task->get_number_of_facts(),0);
-    int model[task->get_number_of_facts()*2];
-    DdGen *iterator = set_bdd.FirstCube(model);
-    do {
+
+    int* bdd_model;
+    Cube statecube(task->get_number_of_facts(),0);
+    CUDD_VALUE_TYPE value_type;
+    DdManager *ddmgr = manager.getManager();
+    DdNode *ddnode = set_bdd.getNode();
+    DdGen * cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
+    // the models gotten with FirstCube and NextCube can contain don't cares, but this doesn't matter since stateset.contains() can deal with this
+    do{
         for(int i = 0; i < statecube.size(); ++i) {
-            statecube[i] = model[2*i];
+            statecube[i] = bdd_model[2*i];
         }
         if(!stateset.contains(statecube)) {
             return false;
         }
-    } while(NextCube(iterator,model) != 0);
+    } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
     kb->insert_subset(set, stateset.getName());
     return true;
 }
