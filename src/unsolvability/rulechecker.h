@@ -2,30 +2,35 @@
 #define RULECHECKER_H
 
 #include "knowledgebase.h"
+#include "task.h"
+
+#include <unordered_map>
 
 
 enum Rules {
-    UNION_DEAD = "UD",
-    SUBSET_DEAD = "SD",
-    STATE_DEAD = "sD",
-    PROGRESSION_DEAD ="PD",
-    PROGRESSION_NEGATED_DEAD ="Pd",
-    REGRESSION_DEAD = "RD",
-    REGRESION_NEGATED_DEAD = "Rd",
-    PROGRESSION_TO_REGRESSION = "PR",
-    REGRESSION_TO_PROGRESSION = "RP",
-    UNSOLVABLE_INIT_DEAD = "UI",
-    UNSOLVABLE_GOAL_DEAD = "UG",
+    UNION_DEAD,
+    SUBSET_DEAD,
+    STATE_DEAD,
+    PROGRESSION_DEAD,
+    PROGRESSION_NEGATED_DEAD,
+    REGRESSION_DEAD,
+    REGRESION_NEGATED_DEAD,
+    PROGRESSION_TO_REGRESSION,
+    REGRESSION_TO_PROGRESSION,
+    UNSOLVABLE_INIT_DEAD,
+    UNSOLVABLE_GOAL_DEAD,
 };
 
 class RuleChecker
 {
 private:
+    std::unordered_map<std::string,Rules> string_to_rule;
     KnowledgeBase *kb;
-    std::vector<std::string> determine_parameters(const std::string &parameter_line);
+    Task *task;
+    std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
     Cube parseCube(const std::string &param);
 public:
-    RuleChecker();
+    RuleChecker(KnowledgeBase *kb, Task *task);
     bool check_rule_and_insert_into_kb(const std::string &line);
 };
 

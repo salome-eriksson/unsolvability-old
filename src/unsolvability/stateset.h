@@ -8,15 +8,16 @@
 class StateSet
 {
 private:
-    static Cudd manager;
+    Cudd manager;
     std::string name;
     BDD states;
     int size;
 public:
-    StateSet(std::string name, BDD states, int size);
-    bool contains(const Cube &state);
-    std::string getName();
-    int getSize();
+    StateSet(Cudd manager, std::string name, BDD states, int size);
+    bool contains(Cube &state) const;
+    std::string getName() const;
+    int getSize() const;
+    const BDD & getBDD() const;
 };
 
 #endif // STATESET_H

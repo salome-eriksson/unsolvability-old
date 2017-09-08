@@ -1,18 +1,14 @@
-/**CFile***********************************************************************
+/**
+  @file
 
-  FileName    [testobj.cc]
+  @ingroup cplusplus
 
-  PackageName [cuddObj]
+  @brief Test program for the C++ object-oriented encapsulation of CUDD.
 
-  Synopsis    [Test program for the C++ object-oriented encapsulation of CUDD.]
+  @author Fabio Somenzi
 
-  Description []
-
-  SeeAlso     []
-
-  Author      [Fabio Somenzi]
-
-  Copyright   [Copyright (c) 1995-2012, Regents of the University of Colorado
+  @copyright@parblock
+  Copyright (c) 1995-2015, Regents of the University of Colorado
 
   All rights reserved.
 
@@ -42,23 +38,23 @@
   CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-  POSSIBILITY OF SUCH DAMAGE.]
+  POSSIBILITY OF SUCH DAMAGE.
+  @endparblock
 
-******************************************************************************/
-#include "dddmp.h"
+*/
+
 #include "cuddObj.hh"
 #include <math.h>
 #include <iostream>
+#include <sstream>
 #include <cassert>
-#include <stdio.h>
-
+#include <stdexcept>
 
 using namespace std;
 
 /*---------------------------------------------------------------------------*/
 /* Variable declarations                                                     */
 /*---------------------------------------------------------------------------*/
-
 
 /*---------------------------------------------------------------------------*/
 /* Static function prototypes                                                */
@@ -73,268 +69,61 @@ static void testBdd3(Cudd& mgr, int verbosity);
 static void testZdd2(Cudd& mgr, int verbosity);
 static void testBdd4(Cudd& mgr, int verbosity);
 static void testBdd5(Cudd& mgr, int verbosity);
-
+static void testInterpolation(Cudd& mgr, int verbosity);
+static void testErrorHandling(Cudd& mgr, int verbosity);
 
 /*---------------------------------------------------------------------------*/
 /* Definition of exported functions                                          */
 /*---------------------------------------------------------------------------*/
 
-/**Function********************************************************************
-
-  Synopsis    [Main program for testobj.]
-
-  Description []
-
-  SideEffects [None]
-
-  SeeAlso     []
-
-******************************************************************************/
+/**
+  @brief Main program for testobj.
+*/
 int
 main(int argc, char **argv)
 {
-    /*FILE *fp;
-    fp=fopen("states.bdd", "r");
-    int numvars = 42;
-    int compose[numvars];
-    for(int i = 0; i < numvars; ++i) {
-        compose[i] = 2*i;
-    }*/
-    Cudd mgr(42*2,0);
-    std::cout << "created manager" << std::endl;
-/*    BDD x = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
-      DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, NULL, fp));
-    std::cout << "Read in first bdd" << std::endl;*/
-      
-    BDD y = mgr.bddOne();
-    y = y - mgr.bddVar(0);
-    y = y - mgr.bddVar(2);
-    y = y - mgr.bddVar(4);
-    y = y - mgr.bddVar(6);
-    y = y - mgr.bddVar(8);
-    y = y * mgr.bddVar(10);
-    y = y * mgr.bddVar(12);
-    y = y - mgr.bddVar(14);
-    y = y - mgr.bddVar(16);
-    y = y * mgr.bddVar(18);
-    y = y * mgr.bddVar(20);
-    y = y - mgr.bddVar(22);
-    y = y * mgr.bddVar(24);
-    y = y - mgr.bddVar(26);
-    y = y - mgr.bddVar(28);
-    y = y * mgr.bddVar(30);
-    y = y * mgr.bddVar(32);
-    y = y - mgr.bddVar(34);
-    y = y - mgr.bddVar(36);
-    y = y - mgr.bddVar(38);
-    y = y - mgr.bddVar(40);
-    y = y * mgr.bddVar(42);
-    y = y - mgr.bddVar(44);
-    y = y - mgr.bddVar(46);
-    y = y - mgr.bddVar(48);
-    y = y * mgr.bddVar(50);
-    y = y - mgr.bddVar(52);
-    y = y - mgr.bddVar(54);
-    y = y - mgr.bddVar(56);
-    y = y - mgr.bddVar(58);
-    y = y - mgr.bddVar(60);
-    y = y - mgr.bddVar(62);
-    y = y - mgr.bddVar(64);
-    y = y - mgr.bddVar(66);
-    y = y - mgr.bddVar(68);
-    y = y * mgr.bddVar(70);
-    y = y - mgr.bddVar(72);
-    y = y - mgr.bddVar(74);
-    y = y - mgr.bddVar(76);
-    y = y - mgr.bddVar(78);
-    y = y - mgr.bddVar(80);
-    y = y * mgr.bddVar(82);
-    
-    /*if(x.Leq(y)) {
-        std::cout << "x leq y" << std::endl;
-    }
-    if(y.Leq(x)) {
-        std::cout << "y leq x" << std::endl;
-    }
-    if(x == y) {
-        std::cout << "IT WORKED!!!" << std::endl;
-    }*/
-    /*BDD a = BDD(mgr, Dddmp_cuddBddLoad(mgr.getManager(), 
-      DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, NULL, fp));
-    std::cout << "Read in second bdd" << std::endl;
-    BDD b = mgr.bddVar(0);
-    b = b - mgr.bddVar(2);
-    b = b - mgr.bddVar(4);
-    b = b * mgr.bddVar(6);
-    b = b - mgr.bddVar(8);
-    b = b * mgr.bddVar(10);
-    b = b - mgr.bddVar(12);
-    b = b - mgr.bddVar(14);
-    b = b * mgr.bddVar(16);
-    b = b - mgr.bddVar(18);
-    if(a.Leq(b)) {
-        std::cout << "x leq y" << std::endl;
-    }
-    if(b.Leq(a)) {
-        std::cout << "y leq x" << std::endl;
-    }
-    if(a == b) {
-        std::cout << "IT WORKED!!!" << std::endl;
-    }*/
-    /*int verbosity = 1;
+    int verbosity = 1;
 
     if (argc == 2) {
-        int retval = sscanf(argv[1], "%d", &verbosity);
-        if (retval != 1)
+        int cnt;
+        int retval = sscanf(argv[1], "%d %n", &verbosity, &cnt);
+        if (retval != 1 || argv[1][cnt])
             return 1;
     } else if (argc != 1) {
         return 1;
     }
-    
-    Cudd mgr(3,0);
-    BDD v1 = mgr.bddVar(0);
-    BDD v2= mgr.bddVar(1);
-    BDD v3 = mgr.bddVar(2);
-    
-    BDD x = (v1 + v2) - v3;
-    BDD y = x + (!v2 * v3);
-    
-    if(x.Leq(y)) {
-      std::cout << "x leq y" << std::endl;
-    } else {
-      std::cout << "?????" << std::endl;
-    }
-    
-    if(y.Leq(x)) {
-      std::cout << "y leq x???" << std::endl;
-    }
-    
-    BDD z = !x;
-    z = z * !v1;
-    
-    if(x.Leq(!z)) {
-      std::cout << "they are disjunct!" << std::endl;
-    } else {
-      std::cout << "not disjunct??" << std::endl;
-    }
-    
-    BDD x1 = x * z;
-    if(x1.IsZero()) {
-      std::cout << "intersect is empty" << std::endl;
-    }
-    
-    BDD x2 = x - z;
-    if(x2 == x) {
-      std::cout << "they are equal" << std::endl;
-    } else {
-      std::cout << "why not equal??" << std::endl;
-    }
-    
-    BDD t1 = v1*v2*v3;
-    BDD t2 = t1 + (v1-v2-v3);
-    BDD t3 = t1 + (v1*v2-v3);
-    
-    if(t2.Leq(t3) || t3.Leq(t2)) {
-      std::cout << "hmmmmmm...." << std::endl;
-    }
-    
-    x = v1 + (!v1 * v2);
-    y = (!v1 * v3) + !v2;
-    
-    if(y.Leq(x)) {
-       std::cout << "yay" << std::endl;
-    } else {
-       std::cout << "nejjj!" << std::endl;
-    }
-    BDD intersect = x.Intersect(y);
-    if(!intersect.IsZero()) {
-       std::cout << "they intersect" << std::endl;
-       std::cout << intersect.FactoredFormString() << std::endl;
-    }
-    BDD res = x*y;
-    if(!res.IsZero()) {
-       std::cout << "yup, they intersect alright" << std::endl;
-       std::cout << res.FactoredFormString() << std::endl;
-    }*/
-    
-    
-    /*BDD a = (v1+!v2)*v3;
-    std::vector<std::string> names;
-    names.push_back("a");
-    names.push_back("b");
-    names.push_back("c");
-    
-    char ** nameschar = new char*[names.size()];
-    for(size_t i = 0; i < names.size(); i++){
-        nameschar[i] = new char[names[i].size() + 1];
-        strcpy(nameschar[i], names[i].c_str());
-    }
-    
-    std::string bddname = "testbdd";
-    std::string outfile = "bdd.txt";
-    
-    std::cout << "storing 1" << std::endl;
-    
-    Dddmp_cuddBddStore(mgr.getManager(),&bddname[0], a.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], NULL);
-    Cudd mgr2(6,0);
-    
-    int compose[3];
-    compose[0]=3;
-    compose[1]=5;
-    compose[2]=1;
 
-    names.clear();
-    names.push_back("b");
-    names.push_back("b'");
-    names.push_back("c");
-    names.push_back("c'");
-    names.push_back("a");
-    names.push_back("a'");
-
-    nameschar = new char*[names.size()];
-        for(size_t i = 0; i < names.size(); i++){
-            nameschar[i] = new char[names[i].size() + 1];
-            strcpy(nameschar[i], names[i].c_str());
-        }
-    
-    std::cout << "loading 1" << std::endl;
-    BDD x = BDD(mgr2, Dddmp_cuddBddLoad(mgr2.getManager(), 
-      DDDMP_VAR_COMPOSEIDS, NULL, NULL, &compose[0], DDDMP_MODE_TEXT, &outfile[0], NULL));
-      
-    outfile = "bdd2.txt";
-    
-    std::cout << "storing 2" << std::endl;
-    Dddmp_cuddBddStore(mgr2.getManager(),&bddname[0], x.getNode(), nameschar, NULL, DDDMP_MODE_TEXT, DDDMP_VARNAMES, &outfile[0], NULL);
-    
-    std::cout << "end" << std::endl;*/
-    
-    
-    //Cudd mgr(0,2);
-    // mgr.makeVerbose();		// trace constructors and destructors
-    //testBdd(mgr,verbosity);
-    //testBdd2(mgr,verbosity);
-    //testBdd3(mgr,verbosity);
-    //testBdd4(mgr,verbosity);
-    //testBdd5(mgr,verbosity);
-    //if (verbosity) mgr.info();
+    Cudd mgr(0,2);
+    if (verbosity > 2) mgr.makeVerbose(); // trace constructors and destructors
+    testBdd(mgr,verbosity);
+    //testAdd(mgr,verbosity);
+    //testAdd2(mgr,verbosity);
+    //testZdd(mgr,verbosity);
+    testBdd2(mgr,verbosity);
+    testBdd3(mgr,verbosity);
+    //testZdd2(mgr,verbosity);
+    testBdd4(mgr,verbosity);
+    testBdd5(mgr,verbosity);
+    testInterpolation(mgr,verbosity);
+    testErrorHandling(mgr,verbosity);
+    if (verbosity) mgr.info();
     return 0;
 
 } // main
 
 
-/**Function********************************************************************
+/**
+  @brief Test basic operators on BDDs.
 
-  Synopsis    [Test basic operators on BDDs.]
-
-  Description [Test basic operators on BDDs. The function returns void
+  @details The function returns void
   because it relies on the error handling done by the interface. The
-  default error handler causes program termination.]
+  default error handler causes program termination.
 
-  SideEffects [Creates BDD variables in the manager.]
+  @sideeffect Creates BDD variables in the manager.
 
-  SeeAlso     [testBdd2 testBdd3 testBdd4 testBdd5]
+  @see testBdd2 testBdd3 testBdd4 testBdd5
 
-******************************************************************************/
+*/
 static void
 testBdd(
   Cudd& mgr,
@@ -371,19 +160,142 @@ testBdd(
 } // testBdd
 
 
-/**Function********************************************************************
+/**
+  @brief Test basic operators on ADDs.
 
-  Synopsis    [Test vector operators on BDDs.]
+  @details The function returns void because it relies on the error
+  handling done by the interface. The default error handler causes
+  program termination.
 
-  Description [Test vector operators on BDDs. The function returns void
-  because it relies on the error handling done by the interface. The
-  default error handler causes program termination.]
+  @sideeffect May create ADD variables in the manager.
 
-  SideEffects [May create BDD variables in the manager.]
+  @see testAdd2
 
-  SeeAlso     [testBdd testBdd3 testBdd4 testBdd5]
+*/
+static void
+testAdd(
+  Cudd& mgr,
+  int verbosity)
+{
+    if (verbosity) cout << "Entering testAdd\n";
+    // Create two ADD variables. If we called method addVar without an
+    // argument, we would get two new indices. If testAdd is indeed called
+    // after testBdd, then those indices would be 2 and 3. By specifying the
+    // arguments, on the other hand, we avoid creating new unnecessary BDD
+    // variables.
+    ADD p = mgr.addVar(0);
+    ADD q = mgr.addVar(1);
 
-******************************************************************************/
+    // Test arithmetic operators.
+    ADD r = p + q;
+    if (verbosity) cout << "r"; r.print(2,verbosity);
+
+    // CUDD_VALUE_TYPE is double.
+    ADD s = mgr.constant(3.0);
+    s *= p * q;
+    if (verbosity) cout << "s"; s.print(2,verbosity);
+
+    s += mgr.plusInfinity();
+    if (verbosity) cout << "s"; s.print(2,verbosity);
+
+    // Test relational operators.
+    if (verbosity) 
+        cout << "p is" << (p <= r ? "" : " not") << " less than or equal to r\n";
+
+    // Test logical operators.
+    r = p | q;
+    if (verbosity) cout << "r"; r.print(2,verbosity);
+
+} // testAdd
+
+
+/**
+  @brief Test some more operators on ADDs.
+
+  @details The function returns void because it relies on the error
+  handling done by the interface. The default error handler causes
+  program termination.
+
+  @sideeffect May create ADD variables in the manager.
+
+  @see testAdd
+
+*/
+static void
+testAdd2(
+  Cudd& mgr,
+  int verbosity)
+{
+    if (verbosity) cout << "Entering testAdd2\n";
+    // Create two ADD variables. If we called method addVar without an
+    // argument, we would get two new indices.
+    vector<ADD> x(2);
+    for (size_t i = 0; i < 2; ++i) {
+      x[i] = mgr.addVar((int) i);
+    }
+
+    // Build a probability density function: [0.1, 0.2, 0.3, 0.4].
+    ADD f0 = x[1].Ite(mgr.constant(0.2), mgr.constant(0.1));
+    ADD f1 = x[1].Ite(mgr.constant(0.4), mgr.constant(0.3));
+    ADD f  = x[0].Ite(f1, f0);
+    if (verbosity) cout << "f"; f.print(2,verbosity);
+
+    // Compute the entropy.
+    ADD l = f.Log();
+    if (verbosity) cout << "l"; l.print(2,verbosity);
+    ADD r = f * l;
+    if (verbosity) cout << "r"; r.print(2,verbosity);
+
+    ADD e = r.MatrixMultiply(mgr.constant(-1.0/log(2.0)),x);
+    if (verbosity) cout << "e"; e.print(2,verbosity);
+
+} // testAdd2
+
+
+/**
+  @brief Test basic operators on ZDDs.
+
+  @details The function returns void because it relies on the error
+  handling done by the interface. The default error handler causes
+  program termination.
+
+  @sideeffect May create ZDD variables in the manager.
+
+  @see testZdd2
+
+*/
+static void
+testZdd(
+  Cudd& mgr,
+  int verbosity)
+{
+    if (verbosity) cout << "Entering testZdd\n";
+    ZDD v = mgr.zddVar(0);
+    ZDD w = mgr.zddVar(1);
+
+    ZDD s = v + w;
+    if (verbosity) cout << "s"; s.print(2,verbosity);
+
+    if (verbosity) cout << "v is" << (v < s ? "" : " not") << " less than s\n";
+
+    s -= v;
+    if (verbosity) cout << "s"; s.print(2,verbosity);
+
+} // testZdd
+
+
+/**
+  @brief Test vector operators on BDDs.
+
+  @details The function returns void because it relies on the error
+  handling done by the interface. The default error handler causes
+  program termination.
+
+  @sideeffect May create BDD variables in the manager.
+
+  @see testBdd testBdd3 testBdd4 testBdd5
+
+*/
 static void
 testBdd2(
   Cudd& mgr,
@@ -391,8 +303,8 @@ testBdd2(
 {
     if (verbosity) cout << "Entering testBdd2\n";
     vector<BDD> x(4);
-    for (int i = 0; i < 4; i++) {
-	x[i] = mgr.bddVar(i);
+    for (size_t i = 0; i < 4; ++i) {
+      x[i] = mgr.bddVar((int) i);
     }
 
     // Create the BDD for the Achilles' Heel function.
@@ -407,6 +319,19 @@ testBdd2(
         cout << "Number of minterms (extended precision):  "; f.EpdPrintMinterm(4);
         cout << "Two-literal clauses of f:" << endl;
         f.PrintTwoLiteralClauses((char **)inames); cout << endl;
+        f.PrintMinterm();
+        
+        int* cube;
+        CUDD_VALUE_TYPE value_type;
+        DdManager *ddmgr = mgr.getManager();
+        DdNode *ddnode = f.getNode();
+        DdGen * cubegen = Cudd_FirstCube(ddmgr,ddnode,&cube, &value_type);
+        do{
+          for(int i = 0; i < 4; ++i) {
+            cout << cube[i] << " ";
+          }
+          cout << endl;
+        }while(Cudd_NextCube(cubegen,&cube,&value_type) != 0);
     }
 
     vector<BDD> vect = f.CharToVect();
@@ -425,19 +350,18 @@ testBdd2(
 } // testBdd2
 
 
-/**Function********************************************************************
+/**
+  @brief Test additional operators on BDDs.
 
-  Synopsis    [Test additional operators on BDDs.]
+  @details The function returns void because it relies on the error
+  handling done by the interface. The default error handler causes
+  program termination.
 
-  Description [Test additional operators on BDDs. The function returns
-  void because it relies on the error handling done by the
-  interface. The default error handler causes program termination.]
+  @sideeffect May create BDD variables in the manager.
 
-  SideEffects [May create BDD variables in the manager.]
+  @see testBdd testBdd2 testBdd4 testBdd5
 
-  SeeAlso     [testBdd testBdd2 testBdd4 testBdd5]
-
-******************************************************************************/
+*/
 static void
 testBdd3(
   Cudd& mgr,
@@ -445,8 +369,8 @@ testBdd3(
 {
     if (verbosity) cout << "Entering testBdd3\n";
     vector<BDD> x(6);
-    for (int i = 0; i < 6; i++) {
-	x[i] = mgr.bddVar(i);
+    for (size_t i = 0; i < 6; ++i) {
+      x[i] = mgr.bddVar((int) i);
     }
 
     BDD G = x[4] + !x[5];
@@ -476,20 +400,129 @@ testBdd3(
 
 } // testBdd3
 
-/**Function********************************************************************
 
-  Synopsis    [Test transfer between BDD managers.]
+/**
+  @brief Test cover manipulation with BDDs and ZDDs.
 
-  Description [Test transfer between BDD managers.  The
-  function returns void because it relies on the error handling done by
-  the interface.  The default error handler causes program
-  termination.]
+  @details The function returns void because it relies on the error
+  handling done by the interface.  The default error handler causes
+  program termination.  This function builds the BDDs for a
+  transformed adder: one in which the inputs are transformations of
+  the original inputs. It then creates ZDDs for the covers from the
+  BDDs.
 
-  SideEffects [May create BDD variables in the manager.]
+  @sideeffect May create BDD and ZDD variables in the manager.
 
-  SeeAlso     [testBdd testBdd2 testBdd3 testBdd5]
+  @see testZdd
 
-******************************************************************************/
+*/
+static void
+testZdd2(
+  Cudd& mgr,
+  int verbosity)
+{
+    if (verbosity) cout << "Entering testZdd2\n";
+    size_t N = 3;			// number of bits
+    // Create variables.
+    vector<BDD> a(N);
+    vector<BDD> b(N);
+    vector<BDD> c(N+1);
+    for (size_t i = 0; i < N; ++i) {
+      a[N-1-i] = mgr.bddVar(2*(int)i);
+      b[N-1-i] = mgr.bddVar(2*(int)i+1);
+    }
+    c[0] = mgr.bddVar(2*(int)N);
+    // Build functions.
+    vector<BDD> s(N);
+    for (size_t i = 0; i < N; ++i) {
+	s[i] = a[i].Xnor(c[i]);
+	c[i+1] = a[i].Ite(b[i],c[i]);
+    }
+
+    // Create array of outputs and print it.
+    vector<BDD> p(N+1);
+    for (size_t i = 0; i < N; ++i) {
+	p[i] = s[i];
+    }
+    p[N] = c[N];
+    if (verbosity) {
+        for (size_t i = 0; i < p.size(); ++i) {
+          cout << "p[" << i << "]"; p[i].print(2*(int)N+1,verbosity);
+        }
+    }
+    const char* onames[] = {"s0", "s1", "s2", "c3"};
+    if (verbosity) {
+        const char* inames[] = {"a2", "b2", "a1", "b1", "a0", "b0", "c0"};
+        mgr.DumpDot(p, (char **)inames,(char **)onames);
+    }
+
+    // Create ZDD variables and build ZDD covers from BDDs.
+    mgr.zddVarsFromBddVars(2);
+    vector<ZDD> z(N+1);
+    for (size_t i = 0; i < N+1; ++i) {
+	ZDD temp;
+	BDD dummy = p[i].zddIsop(p[i],&temp);
+	z[i] = temp;
+    }
+
+    // Print out covers.
+    if (verbosity) {
+        DdGen *gen;
+        int *path;
+        for (size_t i = 0; i < z.size(); i++) {
+          cout << "z[" << i << "]"; z[i].print(4*(int)N+2,verbosity);
+        }
+        // Print cover in two different ways: with PrintCover and with
+        // enumeration over the paths.  The only difference should be
+        // a reversal in the order of the cubes.
+        for (size_t i = 0; i < z.size(); i++) {
+            cout << "z[" << i << "]\n"; z[i].PrintCover();
+            cout << "z[" << i << "]\n";
+            DdNode *f = Cudd_Not(z[i].getNode());
+            Cudd_zddForeachPath(z[i].manager(), f, gen, path) {
+                for (size_t q = 0; q < 4*N+2; q += 2) {
+                    int v = path[q] * 4 + path[q+1];
+                    switch (v) {
+                    case 0:
+                    case 2:
+                    case 8:
+                    case 10:
+                        cout << "-";
+                        break;
+                    case 1:
+                    case 9:
+                        cout << "0";
+                        break;
+                    case 6:
+                        cout << "1";
+                        break;
+                    default:
+                        cout << "?";
+                    }
+                }
+                cout << " 1\n";
+            }
+        }
+        const char* znames[] = {"a2+", "a2-", "b2+", "b2-", "a1+", "a1-", "b1+",
+                                "b1-", "a0+", "a0-", "b0+", "b0-", "c0+", "c0-"};
+        mgr.DumpDot(z, (char **)znames,(char **)onames);
+    }
+
+} // testZdd2
+
+
+/**
+  @brief Test transfer between BDD managers.
+
+  @details The function returns void because it relies on the error
+  handling done by the interface.  The default error handler causes
+  program termination.
+
+  @sideeffect May create BDD variables in the manager.
+
+  @see testBdd testBdd2 testBdd3 testBdd5
+
+*/
 static void
 testBdd4(
   Cudd& mgr,
@@ -500,7 +533,7 @@ testBdd4(
     BDD y = mgr.bddVar(1);
     BDD z = mgr.bddVar(2);
 
-    BDD f = !x * !y * !z + x * y;
+    BDD f = (~x & ~y & ~z) | (x & y);
     if (verbosity) cout << "f"; f.print(3,verbosity);
 
     Cudd otherMgr(0,0);
@@ -514,20 +547,18 @@ testBdd4(
 } // testBdd4
 
 
+/**
+  @brief Test maximal expansion of cubes.
 
-/**Function********************************************************************
+  @details The function returns void because it relies on the error
+  handling done by the interface.  The default error handler causes
+  program termination.
 
-  Synopsis    [Test maximal expansion of cubes.]
+  @sideeffect May create BDD variables in the manager.
 
-  Description [Test maximal expansion of cubes.  The function returns
-  void because it relies on the error handling done by the interface.
-  The default error handler causes program termination.]
+  @see testBdd testBdd2 testBdd3 testBdd4
 
-  SideEffects [May create BDD variables in the manager.]
-
-  SeeAlso     [testBdd testBdd2 testBdd3 testBdd4]
-
-******************************************************************************/
+*/
 static void
 testBdd5(
   Cudd& mgr,
@@ -540,8 +571,8 @@ testBdd5(
 	x.push_back(mgr.bddVar(i));
     }
     const char* inames[] = {"a", "b", "c", "d"};
-    BDD f = (x[1] & x[3]) | (x[0] & !x[2] & x[3]) | (!x[0] & x[1] & !x[2]);
-    BDD lb = x[1] & !x[2] & x[3];
+    BDD f = (x[1] & x[3]) | (x[0] & ~x[2] & x[3]) | (~x[0] & x[1] & ~x[2]);
+    BDD lb = x[1] & ~x[2] & x[3];
     BDD ub = x[3];
     BDD primes = lb.MaximallyExpand(ub,f);
     assert(primes == (x[1] & x[3]));
@@ -556,18 +587,18 @@ testBdd5(
         z.push_back(f);
         z.push_back(primes);
         z.push_back(lprime);
-        mgr.DumpBlif(z, (char **)inames, (char **)onames);
+        mgr.DumpDot(z, (char **)inames, (char **)onames);
         cout << "primes(1)"; primes.print(4,verbosity);
     }
 
-    lb = !x[0] & x[2] & x[3];
+    lb = ~x[0] & x[2] & x[3];
     primes = lb.MaximallyExpand(ub,f);
     assert(primes == mgr.bddZero());
     if (verbosity) {
         cout << "primes(2)"; primes.print(4,verbosity);
     }
 
-    lb = x[0] & !x[2] & x[3];
+    lb = x[0] & ~x[2] & x[3];
     primes = lb.MaximallyExpand(ub,f);
     assert(primes == lb);
     lprime = primes.LargestPrimeUnate(lb);
@@ -576,19 +607,19 @@ testBdd5(
         cout << "primes(3)"; primes.print(4,verbosity);
     }
 
-    lb = !x[0] & x[1] & !x[2] & x[3];
+    lb = ~x[0] & x[1] & ~x[2] & x[3];
     ub = mgr.bddOne();
     primes = lb.MaximallyExpand(ub,f);
-    assert(primes == ((x[1] & x[3]) | (!x[0] & x[1] & !x[2])));
+    assert(primes == ((x[1] & x[3]) | (~x[0] & x[1] & ~x[2])));
     lprime = primes.LargestPrimeUnate(lb);
     assert(lprime == (x[1] & x[3]));
     if (verbosity) {
         cout << "primes(4)"; primes.print(4,1); primes.PrintCover();
     }
 
-    ub = !x[0] & x[3];
+    ub = ~x[0] & x[3];
     primes = lb.MaximallyExpand(ub,f);
-    assert(primes == (!x[0] & x[1] & x[3]));
+    assert(primes == (~x[0] & x[1] & x[3]));
     lprime = primes.LargestPrimeUnate(lb);
     assert(lprime == primes);
     if (verbosity) {
@@ -596,3 +627,219 @@ testBdd5(
     }
 
 } // testBdd5
+
+
+/**
+  @brief Test BDD interpolation.
+*/
+static void
+testInterpolation(
+  Cudd& mgr,
+  int verbosity)
+{
+    BDD a = mgr.bddVar(0);
+    BDD b = mgr.bddVar(1);
+    BDD c = mgr.bddVar(2);
+    BDD d = mgr.bddVar(3);
+
+    BDD l1 = (a | d) & b & c;
+    BDD u1 = (~a & ~b & ~c) | ((a | b) & c);
+    BDD ip1 = l1.Interpolate(u1);
+    if (verbosity) {
+        cout << "l1"; l1.print(4,verbosity);
+        cout << "u1"; u1.print(4,verbosity);
+        cout << "interpolant1"; ip1.print(4,verbosity);
+    }
+
+    BDD l2 = (~a | ~b) & (a | c) & (b | c) & (a | ~b | ~d);
+    BDD u2 = (~b & ~d) | (~b & c & d) | (b & c & ~d);
+    BDD ip2 = l2.Interpolate(u2);
+    if (verbosity) {
+        cout << "l2"; l2.print(4,verbosity);
+        cout << "u2"; u2.print(4,verbosity);
+        cout << "interpolant2"; ip2.print(4,verbosity);
+    }
+
+    BDD l3 = ~a & ~b & d;
+    BDD u3 = ~b & d;
+    BDD ip3 = l3.Interpolate(u3);
+    if (verbosity) {
+        cout << "l3"; l3.print(4,verbosity);
+        cout << "u3"; u3.print(4,verbosity);
+        cout << "interpolant3"; ip3.print(4,verbosity);
+    }
+
+} // testInterpolation
+
+
+/**
+  @brief Basic test of error handling.
+
+  @details This function also illustrates the use of the overloading of the
+  stream insertion operator (operator<<) for BDDs.
+*/
+static void
+testErrorHandling(
+  Cudd& mgr,
+  int verbosity)
+{
+    // Setup.
+
+    if (verbosity) cout << "Entering testErrorHandling\n";
+
+    FILE *savefp = 0;
+    if (verbosity == 0) {
+        // Suppress error messages coming from CUDD.
+        savefp = mgr.ReadStderr();
+#ifndef _WIN32
+        FILE * devnull = fopen("/dev/null", "w");
+#else
+        FILE * devnull = fopen("NUL", "w");
+#endif
+        if (devnull)
+            mgr.SetStderr(devnull);
+    }
+
+    size_t const N = 60;
+    vector<BDD> vars;
+    vars.reserve(N);
+    for (size_t i = 0; i < N; ++i) {
+        vars.push_back(mgr.bddVar((int) i));
+    }
+
+    // It is necessary to give names to all the BDD variables in the manager
+    // for the names to be used by operator<<.
+    for (int i = 0; i < mgr.ReadSize(); ++i) {
+        ostringstream os;
+        os << "var[" << i << "]";
+        mgr.pushVariableName(os.str());
+    }
+
+    // Tests.
+
+    // Trying to print the expression of an empty BDD.
+    try {
+        BDD empty;
+        if (verbosity > 0)
+            cout << "Oops! ";
+        cout << empty << endl;
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+    }
+
+    // Trying to extract a minterm from the zero BDD.
+    try {
+        BDD zero = mgr.bddZero();
+        BDD minterm = zero.PickOneMinterm(vars);
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+        mgr.ClearErrorCode();
+    }
+
+    // Passing a non-cube second argument to Cofactor.
+    try {
+        BDD f = vars.at(1) | (vars.at(2) & vars.at(3));
+        if (verbosity > 0)
+            cout << "f = " << f << endl;
+        BDD notAcube = vars.at(0) | vars.at(1);
+        if (verbosity > 0)
+            cout << notAcube << " is not a cube" << endl;
+        BDD fc = f.Cofactor(notAcube);
+        if (verbosity > 0) {
+            cout << "The cofactor is: "; fc.summary(3);
+        }
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+        mgr.ClearErrorCode();
+    }
+
+#if 0
+    // This attempt to allocate over 100 GB may succeed on machines with
+    // enough memory; hence we exclude it from "make check."
+    // Failing malloc.
+    // Don't let the memory manager kill the program if malloc fails.
+    DD_OOMFP saveHandler = mgr.InstallOutOfMemoryHandler(Cudd_OutOfMemSilent);
+    try {
+        mgr.Reserve(2000000000);
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+        mgr.ClearErrorCode();
+    }
+    (void) mgr.InstallOutOfMemoryHandler(saveHandler);
+#endif
+
+    // Forgetting to check for empty result when setting a limit on
+    // the number of new nodes.
+    try {
+        BDD f = mgr.bddOne();
+        BDD g = f;
+        for (size_t i = 0; i < N/2; i += 4) {
+            f &= vars.at(i) | vars.at(i+N/2);
+            g &= vars.at(i+1) | vars.at(i+N/2+1);
+        }
+        if (verbosity > 0) {
+            cout << "f "; f.summary(N);
+            cout << "g "; g.summary(N);
+        }
+        BDD h = f.And(g, /* max new nodes */ 1);
+        if (verbosity > 0) {
+            cout << "h "; h.summary(N);
+        }
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+        mgr.ClearErrorCode();
+    }
+
+    // Using more memory than the set limit.
+    size_t saveLimit = mgr.SetMaxMemory((size_t) 1);
+    try {
+        // The limit is ridiculously low (1 byte), but CUDD is resourceful.
+        // Therefore we can still create a few BDDs.
+        BDD f = mgr.Interval(vars, 122346345U, 348353453U);
+        if (verbosity > 0) {
+            cout << "f "; f.summary(N);
+        }
+        BDD g = mgr.Interval(vars, 34234U, 3143534534U);
+        if (verbosity > 0) {
+            cout << "g "; g.summary(N);
+        }
+        BDD h = f ^ g;
+        if (verbosity > 0) {
+            cout << "h "; h.summary(N);
+        }
+        // But if we really insist...
+        BDD extra = mgr.bddVar(60000);
+        // Here we would have to fix the variable names.
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+        mgr.ClearErrorCode();
+    }
+    (void) mgr.SetMaxMemory(saveLimit);
+
+    // Timing out.
+    unsigned long saveTl = mgr.SetTimeLimit(1UL); // 1 ms
+    try {
+        BDD f = mgr.bddOne();
+        for (size_t i = 0; i < N/2; ++i) {
+            f &= vars.at(i) | vars.at(i+N/2);
+        }
+    } catch (logic_error const & e) {
+        if (verbosity > 0)
+            cerr << "Caught: " << e.what() << endl;
+        mgr.ClearErrorCode();
+    }
+    (void) mgr.SetTimeLimit(saveTl);
+
+    // Let's clean up after ourselves.
+    mgr.clearVariableNames();
+    if (verbosity == 0) {
+        mgr.SetStderr(savefp);
+    }
+
+} // testErrorHandling

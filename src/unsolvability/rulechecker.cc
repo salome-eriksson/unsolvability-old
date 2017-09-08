@@ -1,14 +1,26 @@
 #include "rulechecker.h"
 
-RuleChecker::RuleChecker()
-{
+#include <cassert>
+#include <iostream>
+#include <sstream>
 
+RuleChecker::RuleChecker(KnowledgeBase *kb, Task *task)
+    : kb(kb), task(task) {
+    string_to_rule.insert(std::make_pair("UD",Rules::UNION_DEAD));
+    string_to_rule.insert(std::make_pair("SD",Rules::SUBSET_DEAD));
+    string_to_rule.insert(std::make_pair("sD",Rules::STATE_DEAD));
+    string_to_rule.insert(std::make_pair("PD",Rules::PROGRESSION_DEAD));
+    string_to_rule.insert(std::make_pair("Pd",Rules::PROGRESSION_NEGATED_DEAD));
+    string_to_rule.insert(std::make_pair("RD",Rules::REGRESSION_DEAD));
+    string_to_rule.insert(std::make_pair("Rd",Rules::REGRESION_NEGATED_DEAD));
+    string_to_rule.insert(std::make_pair("UI",Rules::UNSOLVABLE_INIT_DEAD));
+    string_to_rule.insert(std::make_pair("UG",Rules::UNSOLVABLE_GOAL_DEAD));
 }
 
 Cube RuleChecker::parseCube(const std::string &param) {
     Cube cube;
     cube.reserve(task->get_number_of_facts());
-    std::istringstream iss(line);
+    std::istringstream iss(param);
     int n;
     while (iss >> n){
         cube.push_back(n);
@@ -17,25 +29,26 @@ Cube RuleChecker::parseCube(const std::string &param) {
     return cube;
 }
 
-std::vector<std::string> RuleChecker::determine_parameters(const std::string &parameter_line) {
+std::vector<std::string> RuleChecker::determine_parameters(const std::string &parameter_line, char delim) {
     std::vector<std::string> tokens;
     size_t prev = 0, pos = 0;
     do
     {
-        pos = parameter_line.find(";", prev);
+        pos = parameter_line.find(delim, prev);
         if (pos == std::string::npos) {
             pos = parameter_line.length();
         }
         std::string token = parameter_line.substr(prev, pos-prev);
         if (!token.empty()) tokens.push_back(token);
-        prev = pos + delim.length();
+        prev = pos + 1;
     }
     while (pos < parameter_line.length() && prev < parameter_line.length());
     return tokens;
 }
 
 
-/*
+/* TODO: how to get from string to enum?
+ *
  * Rules in the proof system will look the following:
  * UD:S;S' (means: if S and S' are dead, S \cup S' is dead
  * SD:S;S' (means: if S' is dead and S \subseteq S', then S is dead)
@@ -47,22 +60,23 @@ std::vector<std::string> RuleChecker::determine_parameters(const std::string &pa
  * UI: (means: if {I} is dead or I is dead, then the task is unsolvable)
  * UG: (means: if S_G is dead, then the task is unsolvable)
  */
-bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
-    int pos_colon = s.find(":");
-    Rules rule = Rules(line.substr(0, pos_colon));
-    std::vector<std::string> param = determine_parameters(line.substr(pos_colon+1));
+bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
+    int pos_colon = line.find(":");
+    assert(string_to_rule.find(line.substr(0,pos_colon)) != string_to_rule.end());
+    Rules rule = string_to_rule.find(line.substr(0,pos_colon))->second;
+    std::vector<std::string> param = determine_parameters(line.substr(pos_colon+1),';');
 
     switch(rule) {
-    case Rules::UNION_DEAD:
+    case Rules::UNION_DEAD: {
         assert(param.size() == 2);
         if(!kb->is_dead_set(param[0]) || !kb->is_dead_set(param[1])) {
             return false;
         } else {
-            kb->insert_dead_set(UNION + " " + param[0] + " " + param[1]);
+            kb->insert_dead_set(KnowledgeBase::UNION + " " + param[0] + " " + param[1]);
             return true;
         }
-
-    case Rules::SUBSET_DEAD:
+    }
+    case Rules::SUBSET_DEAD: {
         assert(param.size() == 2);
         if(!kb->is_dead_set(param[1]) || !kb->is_subset(param[0], param[1])) {
             return false;
@@ -70,18 +84,18 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
             kb->insert_dead_set(param[0]);
             return true;
         }
-
-    case Rules::STATE_DEAD:
+    }
+    case Rules::STATE_DEAD: {
         assert(param.size() == 2);
-        Cube state = parse_cube(param[0]);
+        Cube state = parseCube(param[0]);
         if(!kb->is_contained_in(state,param[1]) || !kb->is_dead_set(param[1])) {
             return false;
         } else {
             kb->insert_dead_state(state);
             return true;
         }
-
-    case Rules::PROGRESSION_DEAD:
+    }
+    case Rules::PROGRESSION_DEAD: {
         assert(param.size() == 2);
         if(!kb->is_progression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
@@ -91,8 +105,8 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
             kb->insert_dead_set(param[0]);
             return true;
         }
-
-    case Rules::PROGRESSION_NEGATED_DEAD:
+    }
+    case Rules::PROGRESSION_NEGATED_DEAD: {
         assert(param.size() == 2);
         if(!kb->is_progression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
@@ -102,8 +116,8 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
             kb->insert_dead_set(param[0] + " " + KnowledgeBase::NEGATION);
             return true;
         }
-
-    case Rules::REGRESSION_DEAD:
+    }
+    case Rules::REGRESSION_DEAD: {
         assert(param.size() == 2);
         if(!kb->is_regression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
@@ -113,8 +127,8 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
             kb->insert_dead_set(param[0]);
             return true;
         }
-
-    case Rules::REGRESION_NEGATED_DEAD:
+    }
+    case Rules::REGRESION_NEGATED_DEAD: {
         assert(param.size() == 2);
         if(!kb->is_regression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
@@ -124,26 +138,28 @@ bool RuleChecker::check_rule_and_insert_into_kb(std::string line) {
             kb->insert_dead_set(param[0] + " " + KnowledgeBase::NEGATION);
             return true;
         }
-
-    case Rules::UNSOLVABLE_INIT_DEAD:
-        //TODO: define initial state somewhere
-        if(!kb->is_dead_state(INITIAL_STATE)) {
+    }
+    case Rules::UNSOLVABLE_INIT_DEAD: {
+        //TODO: copying the initial state cube here is ugly but task->get_initial_state returns a const
+        Cube initial_cube = task->get_initial_state();
+        if(!kb->is_dead_state(initial_cube)) {
             return false;
         } else {
-            kb->set_unsolvable_proven();
+            kb->set_unsolvability_proven();
             return true;
         }
-
-    case Rules::UNSOLVABLE_GOAL_DEAD:
+    }
+    case Rules::UNSOLVABLE_GOAL_DEAD: {
         if(!kb->is_dead_set(KnowledgeBase::GOAL)) {
             return false;
         } else {
-            kb->set_unsolvable_proven();
+            kb->set_unsolvability_proven();
             return true;
         }
-
-    default:
+    }
+    default: {
         std::cout << "unknown rule";
         return false;
+    }
     }
 }
