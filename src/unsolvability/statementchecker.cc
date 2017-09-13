@@ -93,7 +93,7 @@ void StatementChecker::check_statements() {
         }
         }
         if(!statement_correct) {
-            std::cerr << "ERROR: statement not correct: " << line << std::endl;
+            std::cerr << "statement NOT correct: " << line << std::endl;
         }
         std::getline(in,line);
     }
