@@ -2,7 +2,7 @@
 CUDD_DIR=$(DOWNWARD_CUDD_ROOT)
 
 CXX = g++
-CXXFLAGS = -g -O3 -m32 -std=c++11 -D_FILE_OFFSET_BITS=64
+CXXFLAGS = --debug -m32 -std=c++11
 CUDD_CXXFLAGS = -I$(CUDD_DIR)/include
 CUDD_LDFLAGS = -static -L$(CUDD_DIR)/lib -lcudd
 
@@ -13,10 +13,6 @@ DEPEND = $(CXX) -MM
 HEADERS = \
           global_funcs.h \
           task.h \
-          certificate.h \
-	  conjunctive_certificate.h \
-          disjunctive_certificate.h \
-          simple_certificate.h \
 	  timer.h \
 	  knowledgebase.h \
 	  rulechecker.h \
@@ -24,15 +20,15 @@ HEADERS = \
 	  statementcheckerbdd.h \
 	  stateset.h \
 
-SOURCES = verify.cc $(HEADERS:%.h=%.cc)
+SOURCES = testverify.cc $(HEADERS:%.h=%.cc)
 OBJ = $(SOURCES:%.cc=%.o)
 
-all: verify
+all: testverify
 
 $(OBJ): %.o: %.cc
 	$(CXX) $(CXXFLAGS)  -c $< -o $@
 
-verify: $(OBJ)
+testverify: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CUDD_LDFLAGS)
 
 test: testobj.cc

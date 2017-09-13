@@ -22,12 +22,12 @@ class StatementChecker
 protected:
     KnowledgeBase *kb;
     Task *task;
+    std::string statementfile;
     std::unordered_map<std::string,Statement> string_to_statement;
     // TODO: this is a duplicate from RuleChecker::determine_parameters
     std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
     // TOOD: this is a duplicate from RuleChecker::parseCube)
     Cube parseCube(const std::string &param);
-    void read_in_statements(std::ifstream &in);
 
 public:
     StatementChecker(KnowledgeBase *kb, Task *task);
@@ -37,6 +37,7 @@ public:
     virtual bool check_is_contained(Cube &state, const std::string &set) = 0;
     virtual bool check_initial_contained(const std::string &set) = 0;
     virtual bool check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) = 0;
+    void check_statements();
 };
 
 #endif // STATEMENTCHECKER_H

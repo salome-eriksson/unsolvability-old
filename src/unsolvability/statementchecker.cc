@@ -20,18 +20,11 @@ StatementChecker::StatementChecker(KnowledgeBase *kb, Task *task)
 // TODO: this is a duplicate from RuleChecker::determine_parameters
 std::vector<std::string> StatementChecker::determine_parameters(const std::string &parameter_line, char delim) {
     std::vector<std::string> tokens;
-    size_t prev = 0, pos = 0;
-    do
-    {
-        pos = parameter_line.find(";", delim);
-        if (pos == std::string::npos) {
-            pos = parameter_line.length();
-        }
-        std::string token = parameter_line.substr(prev, pos-prev);
-        if (!token.empty()) tokens.push_back(token);
-        prev = pos + 1;
+    std::stringstream ss(parameter_line);
+    std::string token;
+    while (getline(ss, token, ';')) {
+        tokens.push_back(token);
     }
-    while (pos < parameter_line.length() && prev < parameter_line.length());
     return tokens;
 }
 
@@ -48,10 +41,15 @@ Cube StatementChecker::parseCube(const std::string &param) {
     return cube;
 }
 
-void StatementChecker::read_in_statements(std::ifstream &in) {
+void StatementChecker::check_statements() {
+    assert(statementfile.compare("") != 0);
+    std::ifstream in;
+    in.open(statementfile);
+
     std::string line;
     std::getline(in, line);
     while(line.compare("statements end") != 0) {
+        std::cout << "checking " << line << std::endl;
         bool statement_correct = false;
         int pos_colon = line.find(":");
         assert(string_to_statement.find(line.substr(0, pos_colon)) != string_to_statement.end());
@@ -95,7 +93,8 @@ void StatementChecker::read_in_statements(std::ifstream &in) {
         }
         }
         if(!statement_correct) {
-            std::cerr << "statement not correct: " << line;
+            std::cerr << "ERROR: statement not correct: " << line << std::endl;
         }
+        std::getline(in,line);
     }
 }
