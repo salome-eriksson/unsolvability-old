@@ -1,7 +1,8 @@
 #ifndef STATEMENTCHECKERBDD_H
 #define STATEMENTCHECKERBDD_H
 
-#include "unordered_map"
+#include <unordered_map>
+#include "cuddObj.hh"
 
 #include "statementchecker.h"
 
@@ -17,7 +18,7 @@ private:
     BDD* empty_bdd;
     BDD build_bdd_from_cube(const Cube &cube);
     BDD build_bdd_for_action(const Action &a);
-    void read_in_bdds(std::string filename);
+    void read_in_bdds(std::string filename, std::vector<std::string> &bdd_names);
     void read_in_composite_formulas(std::ifstream &in);
 public:
     StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifstream &in);

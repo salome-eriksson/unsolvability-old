@@ -31,31 +31,33 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
     //insert BDDs for initial state, goal and empty set
     bdds.insert(std::make_pair("S_I", build_bdd_from_cube(task->get_initial_state())));
     bdds.insert(std::make_pair("S_G", build_bdd_from_cube(task->get_goal())));
-    // the BDD representing the empty set should still be indifferent about primed variables
-    Cube empty_cube(task->get_number_of_facts()*2,2);
-    for(int i = 0; i < task->get_number_of_facts(); ++i) {
-        empty_cube[2*i] = 0;
-    }
-    bdds.insert(std::make_pair("empty",build_bdd_from_cube(empty_cube)));
+    bdds.insert(std::make_pair("empty",manager.bddZero()));
 
     initial_state_bdd = &(bdds.find("S_I")->second);
     goal_bdd = &(bdds.find("S_G")->second);
     empty_bdd = &(bdds.find("empty")->second);
 
-    //second line contains file name for bdds
+    //second line contains bdd names separated by semicolons
+    std::vector<std::string> bdd_names;
+    std::getline(in,line);
+    std::stringstream ss(line);
+    while(std::getline(ss,line,';')) {
+        bdd_names.push_back(line);
+    }
+    //third line contains file name for bdds
     std::getline(in, line);
-    read_in_bdds(line);
+    read_in_bdds(line,bdd_names);
 
     std::getline(in, line);
     if(line.compare("composite formulas begin") == 0) {
         read_in_composite_formulas(in);
         std::getline(in, line);
     }
-    if(line.compare("statements begin") == 0) {
-        read_in_statements(in);
-        std::getline(in, line);
+    std::cout << "saved bdds:" << std::endl;
+    statementfile = line;
+    for(auto it=bdds.begin(); it!=bdds.end(); ++it) {
+        std::cout << it->first << std::endl;
     }
-    assert(line.compare("Statements:BDD end") == 0);
 }
 
 BDD StatementCheckerBDD::build_bdd_from_cube(const Cube &cube) {
@@ -93,7 +95,7 @@ BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
     return ret;
 }
 
-void StatementCheckerBDD::read_in_bdds(std::string filename) {
+void StatementCheckerBDD::read_in_bdds(std::string filename, std::vector<std::__cxx11::string> &bdd_names) {
 
     // move variables so the primed versions are in between
     int compose[task->get_number_of_facts()];
@@ -107,29 +109,17 @@ void StatementCheckerBDD::read_in_bdds(std::string filename) {
         std::cerr << "could not open bdd file" << std::endl;
     }
 
-    int amount = -1;
-    while(fscanf(fp, "%d", &amount) == 1) {
-        // TODO: currently only a copy, check what needs to be adjusted
-        assert(amount > 0);
-        std::vector<int> indices = std::vector<int>(amount, -1);
-        /*for(int i = 0; i < amount; ++i) {
-            int res = fscanf(fp, "%d", &indices[i]);
-            assert(res == 1);
-            assert(indices[i] >= 0 && certificate.find(indices[i]) == certificate.end());
-        }*/
-        DdNode **tmpArray;
-        int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-            DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
-        assert(nRoots == amount);
+    DdNode **tmpArray;
+    int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
+        DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
+    assert(nRoots == bdd_names.size());
 
-        for (int i=0; i<nRoots; i++) {
-            // TODO: check how names could be saved in the bdd file and replace dummy names
-            bdds.insert(std::make_pair("BDD " + i, BDD(manager,tmpArray[i])));
-            Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
-        }
-        FREE(tmpArray);
-        amount = -1;
+    for (int i=0; i<nRoots; i++) {
+        // TODO: check how names could be saved in the bdd file and replace dummy names
+        bdds.insert(std::make_pair(bdd_names[i], BDD(manager,tmpArray[i])));
+        Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
     }
+    FREE(tmpArray);
 }
 
 // composite formulas are denoted in POSTFIX notation
@@ -145,16 +135,16 @@ void StatementCheckerBDD::read_in_composite_formulas(std::ifstream &in) {
         while(std::getline(ss, item, ' ')) {
             if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
                 assert(elements.size() >=2);
-                std::pair<std::string,BDD> left = elements.top();
-                elements.pop();
                 std::pair<std::string,BDD> right = elements.top();
+                elements.pop();
+                std::pair<std::string,BDD> left = elements.top();
                 elements.pop();
                 elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::INTERSECTION, left.second * right.second));
             } else if(item.compare(KnowledgeBase::UNION) == 0) {
                 assert(elements.size() >=2);
-                std::pair<std::string,BDD> left = elements.top();
-                elements.pop();
                 std::pair<std::string,BDD> right = elements.top();
+                elements.pop();
+                std::pair<std::string,BDD> left = elements.top();
                 elements.pop();
                 elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::UNION, left.second + right.second));
             } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
@@ -265,7 +255,7 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
     }
 
     int* bdd_model;
-    Cube statecube(task->get_number_of_facts(),0);
+    Cube statecube(task->get_number_of_facts(),-1);
     CUDD_VALUE_TYPE value_type;
     DdManager *ddmgr = manager.getManager();
     DdNode *ddnode = set_bdd.getNode();
@@ -276,6 +266,10 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
             statecube[i] = bdd_model[2*i];
         }
         if(!stateset.contains(statecube)) {
+            std::cout << "stateset does not contain the following cube:";
+            for(int i = 0; i < statecube.size(); ++i) {
+                std::cout << statecube[i] << " ";
+            } std::cout << std::endl;
             return false;
         }
     } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);

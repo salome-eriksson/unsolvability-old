@@ -41,7 +41,7 @@ public:
     static std::string NEGATION;
     static std::string GOAL;
     static std::string INIT_SET;
-    KnowledgeBase(Task *task);
+    KnowledgeBase(Task *task, std::string filename);
     bool is_dead_set(const std::string &set);
     bool is_dead_state(Cube &state);
     bool is_dead_state_set(const std::string &stateset);
