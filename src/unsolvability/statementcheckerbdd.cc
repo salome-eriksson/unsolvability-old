@@ -247,6 +247,7 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
     if(set_bdd.IsZero()) {
+        kb->insert_subset(set,stateset.getName());
         return true;
     // if the BDD contains more models than the stateset, it cannot be a subset
     // TODO: check if the calculation is right!
