@@ -164,25 +164,12 @@ void StatementCheckerBDD::read_in_composite_formulas(std::ifstream &in) {
     }
 }
 
-bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
-    assert(bdds.find(set) != bdds.end());
-    BDD &set_bdd = bdds.find(set)->second;
-    if(!(*initial_state_bdd).Leq(set_bdd)) {
+bool StatementCheckerBDD::check_subset(const std::string &set1, const std::string &set2) {
+    assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
+    if(!bdds.find(set1)->second.Leq(bdds.find(set2)->second)) {
         return false;
     } else {
-        kb->insert_contains_initial(set);
-        return true;
-    }
-}
-
-bool StatementCheckerBDD::check_is_contained(Cube &state, const std::string &set) {
-    assert(bdds.find(set) != bdds.end());
-    BDD &set_bdd = bdds.find(set)->second;
-    BDD state_bdd = build_bdd_from_cube(state);
-    if(!state_bdd.Leq(set_bdd)) {
-        return false;
-    } else {
-        kb->insert_contained_in(state,set);
+        kb->insert_subset(set1,set2);
         return true;
     }
 }
@@ -233,15 +220,29 @@ bool StatementCheckerBDD::check_regression(const std::string &set1, const std::s
     return true;
 }
 
-bool StatementCheckerBDD::check_subset(const std::string &set1, const std::string &set2) {
-    assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
-    if(!bdds.find(set1)->second.Leq(bdds.find(set2)->second)) {
+bool StatementCheckerBDD::check_is_contained(Cube &state, const std::string &set) {
+    assert(bdds.find(set) != bdds.end());
+    BDD &set_bdd = bdds.find(set)->second;
+    BDD state_bdd = build_bdd_from_cube(state);
+    if(!state_bdd.Leq(set_bdd)) {
         return false;
     } else {
-        kb->insert_subset(set1,set2);
+        kb->insert_contained_in(state,set);
         return true;
     }
 }
+
+bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
+    assert(bdds.find(set) != bdds.end());
+    BDD &set_bdd = bdds.find(set)->second;
+    if(!(*initial_state_bdd).Leq(set_bdd)) {
+        return false;
+    } else {
+        kb->insert_contains_initial(set);
+        return true;
+    }
+}
+
 
 bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
     assert(bdds.find(set) != bdds.end());

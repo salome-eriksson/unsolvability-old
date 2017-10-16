@@ -34,6 +34,7 @@ public:
     virtual bool check_subset(const std::string &set1, const std::string &set2) = 0;
     virtual bool check_progression(const std::string &set1, const std::string &set2) = 0;
     virtual bool check_regression(const std::string &set1, const std::string &set2) = 0;
+    // TODO: cannot be const because kb->insert_is_contained cannot have const Cube (FIXME!)
     virtual bool check_is_contained(Cube &state, const std::string &set) = 0;
     virtual bool check_initial_contained(const std::string &set) = 0;
     virtual bool check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) = 0;
