@@ -18,6 +18,7 @@ HEADERS = \
 	  rulechecker.h \
 	  statementchecker.h \
 	  statementcheckerbdd.h \
+	  statementcheckerhorn.h \
 	  stateset.h \
 
 SOURCES = testverify.cc $(HEADERS:%.h=%.cc)
