@@ -41,7 +41,7 @@ Cube StatementChecker::parseCube(const std::string &param) {
     return cube;
 }
 
-void StatementChecker::check_statements() {
+void StatementChecker::check_statements_and_insert_into_kb() {
     assert(statementfile.compare("") != 0);
     std::ifstream in;
     in.open(statementfile);
@@ -59,32 +59,50 @@ void StatementChecker::check_statements() {
         case Statement::SUBSET: {
             assert(params.size() == 2);
             statement_correct = check_subset(params[0], params[1]);
+            if(statement_correct) {
+                kb->insert_subset(params[0],params[1]);
+            }
             break;
         }
         case Statement::EXPLICIT_SUBSET: {
             assert(params.size() == 2);
             statement_correct = check_set_subset_to_stateset(params[0],kb->get_state_set(params[1]));
+            if(statement_correct) {
+                kb->insert_subset(params[0],kb->get_state_set(params1).getName());
+            }
             break;
         }
         case Statement::PROGRESSION: {
             assert(params.size() == 2);
             statement_correct = check_progression(params[0],params[1]);
+            if(statement_correct) {
+                kb->insert_progression(params[0],params[1]);
+            }
             break;
         }
         case Statement::REGRESSION: {
             assert(params.size() == 2);
             statement_correct = check_regression(params[0],params[1]);
+            if(statement_correct) {
+                kb->insert_regression(params[0],params[1]);
+            }
             break;
         }
         case Statement::CONTAINED: {
             assert(params.size() == 2);
             Cube state_cube = parseCube(params[0]);
             statement_correct = check_is_contained(state_cube, params[1]);
+            if(statement_correct) {
+                kb->insert_contained_in(state_cube,params[1]);
+            }
             break;
         }
         case Statement::INITIAL_CONTAINED: {
             assert(params.size() == 1);
             statement_correct = check_initial_contained(params[0]);
+            if(statement_correct) {
+                kb->insert_contains_initial(params[0]);
+            }
             break;
         }
         default: {

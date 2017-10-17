@@ -168,10 +168,9 @@ bool StatementCheckerBDD::check_subset(const std::string &set1, const std::strin
     assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
     if(!bdds.find(set1)->second.Leq(bdds.find(set2)->second)) {
         return false;
-    } else {
-        kb->insert_subset(set1,set2);
-        return true;
     }
+    return true;
+
 }
 
 bool StatementCheckerBDD::check_progression(const std::string &set1, const std::string &set2) {
@@ -193,7 +192,6 @@ bool StatementCheckerBDD::check_progression(const std::string &set1, const std::
             return false;
         }
     }
-    kb->insert_progression(set1,set2);
     return true;
 }
 
@@ -216,7 +214,6 @@ bool StatementCheckerBDD::check_regression(const std::string &set1, const std::s
             return false;
         }
     }
-    kb->insert_regression(set1,set2);
     return true;
 }
 
@@ -226,10 +223,8 @@ bool StatementCheckerBDD::check_is_contained(Cube &state, const std::string &set
     BDD state_bdd = build_bdd_from_cube(state);
     if(!state_bdd.Leq(set_bdd)) {
         return false;
-    } else {
-        kb->insert_contained_in(state,set);
-        return true;
     }
+    return true;
 }
 
 bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
@@ -237,10 +232,8 @@ bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
     BDD &set_bdd = bdds.find(set)->second;
     if(!(*initial_state_bdd).Leq(set_bdd)) {
         return false;
-    } else {
-        kb->insert_contains_initial(set);
-        return true;
     }
+    return true;
 }
 
 
@@ -248,7 +241,6 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
     if(set_bdd.IsZero()) {
-        kb->insert_subset(set,stateset.getName());
         return true;
     // if the BDD contains more models than the stateset, it cannot be a subset
     // TODO: check if the calculation is right!
@@ -275,6 +267,5 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
             return false;
         }
     } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
-    kb->insert_subset(set, stateset.getName());
     return true;
 }
