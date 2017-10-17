@@ -38,7 +38,7 @@ public:
     virtual bool check_is_contained(Cube &state, const std::string &set) = 0;
     virtual bool check_initial_contained(const std::string &set) = 0;
     virtual bool check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) = 0;
-    void check_statements();
+    void check_statements_and_insert_into_kb();
 };
 
 #endif // STATEMENTCHECKER_H

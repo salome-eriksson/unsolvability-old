@@ -111,6 +111,7 @@ const Implication &HornFormula::get_implication(int index) const {
 StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task)
     : StatementChecker(kb,task) {
 
+
 }
 
 bool StatementCheckerHorn::is_satisfiable(const HornFormula &formula) {
@@ -215,7 +216,6 @@ bool StatementCheckerHorn::check_subset(const std::string &set1, const std::stri
     HornFormula &formula1 = formulas.find(set1)->second;
     HornFormula &formula2 = formulas.find(set2)->second;
     if(implies(formula1, formula2)) {
-        kb->insert_subset(set1,set2);
         return true;
     }
     return false;
@@ -257,7 +257,6 @@ bool StatementCheckerHorn::check_progression(const std::string &set1, const std:
             return false;
         }
     }
-    kb->insert_progression(set1,set2);
     return true;
 }
 
@@ -293,7 +292,6 @@ bool StatementCheckerHorn::check_regression(const std::string &set1, const std::
             return false;
         }
     }
-    kb->insert_regression(set1,set2);
     return true;
 }
 
@@ -301,7 +299,6 @@ bool StatementCheckerHorn::check_is_contained(Cube &state, const std::string &se
     assert(formulas.find(set) != formulas.end());
     HornFormula &formula = formulas.find(set)->second;
     if(is_satisfiable(formula, state)) {
-        kb->insert_contained_in(state,set);
         return true;
     }
     return false;
@@ -312,7 +309,6 @@ bool StatementCheckerHorn::check_initial_contained(const std::string &set) {
     assert(formulas.find(set) != formulas.end());
     HornFormula &formula = formulas.find(set)->second;
     if(is_satisfiable(formula, task->get_initial_state())) {
-        kb->insert_contains_initial(set);
         return true;
     }
     return false;
@@ -329,7 +325,6 @@ bool StatementCheckerHorn::check_set_subset_to_stateset(const std::string &set, 
     Cube *new_solution = &y;
 
     if(!is_satisfiable(formula,*old_solution)) {
-        kb->insert_subset(set, stateset.getName());
         return true;
     }
     std::vector<int> mapping;
@@ -369,9 +364,7 @@ bool StatementCheckerHorn::check_set_subset_to_stateset(const std::string &set, 
         }
         new_solution_found = false;
     }
-    kb->insert_subset(set, stateset.getName());
     return true;
-
 }
 
 
