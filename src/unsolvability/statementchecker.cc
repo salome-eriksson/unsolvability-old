@@ -68,7 +68,7 @@ void StatementChecker::check_statements_and_insert_into_kb() {
             assert(params.size() == 2);
             statement_correct = check_set_subset_to_stateset(params[0],kb->get_state_set(params[1]));
             if(statement_correct) {
-                kb->insert_subset(params[0],kb->get_state_set(params1).getName());
+                kb->insert_subset(params[0],kb->get_state_set(params[1]).getName());
             }
             break;
         }

@@ -47,15 +47,15 @@ private:
     bool is_satisfiable(const HornFormula &formula, const Cube &restrictions, Cube &solution);
     bool implies(const HornFormula &formula1, const HornFormula &formula2);
 public:
-    StatementCheckerHorn(KnowledgeBase *kb, Task *task);
-    virtual bool check_subset(const std::string &set1, const std::string &set2) = 0;
+    StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in);
+    virtual bool check_subset(const std::string &set1, const std::string &set2);
     // supported only if set1 is a Horn formula and set2 is the negation of a Horn formula
-    virtual bool check_progression(const std::string &set1, const std::string &set2) = 0;
+    virtual bool check_progression(const std::string &set1, const std::string &set2);
     // supported only if set1 is a Horn formula and set2 is the negation of a Horn formula
-    virtual bool check_regression(const std::string &set1, const std::string &set2) = 0;
-    virtual bool check_is_contained(Cube &state, const std::string &set) = 0;
-    virtual bool check_initial_contained(const std::string &set) = 0;
-    virtual bool check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) = 0;
+    virtual bool check_regression(const std::string &set1, const std::string &set2);
+    virtual bool check_is_contained(Cube &state, const std::string &set);
+    virtual bool check_initial_contained(const std::string &set);
+    virtual bool check_set_subset_to_stateset(const std::string &set, const StateSet &stateset);
 };
 
 #endif // STATEMENTCHECKERHORN_H

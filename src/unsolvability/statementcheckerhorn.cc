@@ -108,8 +108,46 @@ const Implication &HornFormula::get_implication(int index) const {
 }
 
 
-StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task)
+StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in)
     : StatementChecker(kb,task) {
+    /*
+    std::cout << "creating info file" << std::endl;
+    std::ofstream file; // out file stream
+    file.open("info_testStatementCheckerHorn.txt");
+    file << "horn_testStatementChecker.txt" << std::endl;
+    file << "composite formulas begin" << std::endl;
+    file << "S7 S5' ^" << std::endl;
+    file << "composite formulas end" << std::endl;
+    file << "stmt_testStatementCheckerHorn.txt" << std::endl;
+    file.close();*/
+
+    std::string line;
+    //first line contains file location for horn formulas
+    std::getline(in,line);
+    stdd:ifstream formulas_file;
+    formulas_file.open(line);
+    while(std::getline(formulas_file,line)) {
+        std::vector<Implication> implications;
+        int delim = line.find(":");
+        assert(delim != std::string::npos);
+        std::string name = line.substr(0,delim);
+        std::vector<std::string> clauses = determine_parameters(line.substr(delim),"|");
+        for(int i = 0; i < clauses.size(); ++i) {
+            delim = clauses[i].find(",");
+            std::stringstream ss(clauses[i].substr(0,delim));
+            std::vector<int> left;
+            int tmp;
+            while(ss) {
+                ss >> tmp;
+                left.push_back(tmp);
+            }
+            int right;
+            ss(clauses[i].substr(delim));
+            ss >> right;
+            implications.push_back(Implication(left,right));
+        }
+        formulas.insert(name,HornFormula(implications,task->get_number_of_facts()));
+    }
 
 
 }
@@ -366,8 +404,3 @@ bool StatementCheckerHorn::check_set_subset_to_stateset(const std::string &set, 
     }
     return true;
 }
-
-
-
-
-
