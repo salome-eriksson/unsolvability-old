@@ -38,6 +38,7 @@ class StatementCheckerHorn : public StatementChecker
 private:
     std::vector<HornFormula> action_formulas;
     std::unordered_map<std::string,HornFormula> formulas;
+    void read_in_composite_formulas(std::ifstream &in);
     bool is_satisfiable(const HornFormula &formula);
     bool is_satisfiable(const HornFormula &formula, Cube &solution);
     bool is_satisfiable(const HornFormula &formula, const Cube &restrictions);

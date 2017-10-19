@@ -49,12 +49,14 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
     read_in_bdds(line,bdd_names);
 
     std::getline(in, line);
+    //read in composite formulas
     if(line.compare("composite formulas begin") == 0) {
         read_in_composite_formulas(in);
         std::getline(in, line);
     }
-    std::cout << "saved bdds:" << std::endl;
+    //last line contains loctaion of statement file
     statementfile = line;
+    std::cout << "saved bdds:" << std::endl;
     for(auto it=bdds.begin(); it!=bdds.end(); ++it) {
         std::cout << it->first << std::endl;
     }

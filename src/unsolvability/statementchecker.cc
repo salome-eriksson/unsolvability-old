@@ -22,7 +22,7 @@ std::vector<std::string> StatementChecker::determine_parameters(const std::strin
     std::vector<std::string> tokens;
     std::stringstream ss(parameter_line);
     std::string token;
-    while (getline(ss, token, ';')) {
+    while (getline(ss, token, delim)) {
         tokens.push_back(token);
     }
     return tokens;

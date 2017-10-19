@@ -1,8 +1,11 @@
 #include "statementcheckerhorn.h"
+#include "global_funcs.h"
 
 #include <cassert>
 #include <iostream>
 #include <stack>
+#include <sstream>
+#include <fstream>
 
 
 Implication::Implication(std::vector<int> left, int right)
@@ -124,32 +127,77 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
     std::string line;
     //first line contains file location for horn formulas
     std::getline(in,line);
-    stdd:ifstream formulas_file;
+    std::ifstream formulas_file;
     formulas_file.open(line);
+    if(!formulas_file.is_open()) {
+        std::cout << "could not formula file \"" << line << "\" for Horn Statementchecker" << std::endl;
+        exit_with(ExitCode::NO_CERTIFICATE_FILE);
+    }
     while(std::getline(formulas_file,line)) {
         std::vector<Implication> implications;
         int delim = line.find(":");
         assert(delim != std::string::npos);
         std::string name = line.substr(0,delim);
-        std::vector<std::string> clauses = determine_parameters(line.substr(delim),"|");
+        std::vector<std::string> clauses = determine_parameters(line.substr(delim+1),'|');
         for(int i = 0; i < clauses.size(); ++i) {
             delim = clauses[i].find(",");
-            std::stringstream ss(clauses[i].substr(0,delim));
+            assert(delim != std::string::npos);
+            std::istringstream iss(clauses[i].substr(0,delim));
             std::vector<int> left;
             int tmp;
-            while(ss) {
-                ss >> tmp;
+            while(iss >> tmp) {
                 left.push_back(tmp);
             }
             int right;
-            ss(clauses[i].substr(delim));
-            ss >> right;
+            iss = std::istringstream(clauses[i].substr(delim+1));
+            iss >> right;
             implications.push_back(Implication(left,right));
         }
-        formulas.insert(name,HornFormula(implications,task->get_number_of_facts()));
+        formulas.insert(std::make_pair(name,HornFormula(implications,task->get_number_of_facts())));
     }
 
+    std::getline(in, line);
+    //read in composite formulas
+    if(line.compare("composite formulas begin") == 0) {
+        read_in_composite_formulas(in);
+        std::getline(in, line);
+    }
+    //last line contains loctaion of statement file
+    statementfile = line;
 
+}
+
+void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
+    std::string line;
+    std::getline(in, line);
+
+    std::vector<std::pair<HornFormula *,bool>> elements;
+    //count asserts that the composite formula is syntactically correct
+    int count = 0;
+    while(line.compare("composite formulas end") != 0) {
+        std::stringstream ss;
+        ss.str(line);
+        std::string item;
+        while(std::getline(ss, item, ' ')) {
+            if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
+                assert(count >=2);
+                count--;
+            } else if(item.compare(KnowledgeBase::UNION) == 0) {
+                std::cout << "UNION not supported for Horn composite formulas" << std::endl;
+                exit_with(ExitCode::CRITICAL_ERROR);
+            } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
+                std::cout << "UNION not supported for Horn composite formulas" << std::endl;
+                exit_with(ExitCode::CRITICAL_ERROR);
+            } else {
+                assert(formulas.find(item) != formulas.end());
+                elements.push_back(std::make_pair(&(formulas.find(item)->second),false));
+                count++;
+            }
+        }
+        assert(count == 1);
+        formulas.insert(std::make_pair(line, HornFormula(elements)));
+        std::getline(in, line);
+    }
 }
 
 bool StatementCheckerHorn::is_satisfiable(const HornFormula &formula) {
@@ -234,6 +282,7 @@ bool StatementCheckerHorn::implies(const HornFormula &formula1, const HornFormul
     // unit clauses we can test for each disjunction separately if
     // formula1 \land disjunction is unsatisfiable.
     for(int i = 0; i < formula2.get_size(); ++i) {
+        std::cout << i << std::endl;
         const Implication &impl = formula2.get_implication(i);
         for(int j = 0; j < impl.get_left().size(); ++j) {
             restrictions[impl.get_left().at(j)] = 1;
