@@ -41,11 +41,11 @@ private:
     void read_in_composite_formulas(std::ifstream &in);
     bool is_satisfiable(const HornFormula &formula);
     bool is_satisfiable(const HornFormula &formula, Cube &solution);
-    bool is_satisfiable(const HornFormula &formula, const Cube &restrictions);
+    bool is_restricted_satisfiable(const HornFormula &formula, const Cube &restrictions);
     // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care),
     // which needs to be the same length as the formula.
     // any content in solution will get overwritten (even if the formula is not satisfiable)
-    bool is_satisfiable(const HornFormula &formula, const Cube &restrictions, Cube &solution);
+    bool is_restricted_satisfiable(const HornFormula &formula, const Cube &restrictions, Cube &solution);
     bool implies(const HornFormula &formula1, const HornFormula &formula2);
 public:
     StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in);
