@@ -195,6 +195,7 @@ void assertKBBDD(KnowledgeBase &kb) {
 void createHornFormulas() {
     std::cout << "creating horn formulas" << std::endl;
     std::ofstream file; // out file stream
+    file.open("horn_testStatementChecker.txt");
     file << "S1:0 1,-1|0 3,-1|1 2,-1|2 3,-1|1 3,-1|3,-1|"<< std::endl;
     file << "S2:,3|" << std::endl;
     file << "S2':3,-1|" << std::endl;
@@ -202,7 +203,7 @@ void createHornFormulas() {
     file << "S4:,2|" << std::endl;
     file << "S4':2,-1|" << std::endl;
     file << "S5:,2|,3|" << std::endl;
-    file << "S5':2 3|-1|" << std::endl;
+    file << "S5':2 3,-1|" << std::endl;
     file << "S6:0,-1|,2|" << std::endl;
     file << "S6':2,0|" << std::endl;
     file << "S7:,0|,1|4,-1|" << std::endl;
