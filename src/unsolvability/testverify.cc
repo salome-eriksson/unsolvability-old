@@ -140,7 +140,7 @@ void createInfoFileBDD() {
     file.open("info_testStatementCheckerBDD.txt");
     file << "0 1 2 3 4" << std::endl;
     file << "S1;S2;S3;S4;S5;S6;S7" << std::endl;
-    file << "bdds_testStatementCheckerBDD.txt" << std::endl;
+    file << "bdds_testStatementChecker.txt" << std::endl;
     file << "composite formulas begin" << std::endl;
     file << "S7 S5 not ^" << std::endl;
     file << "composite formulas end" << std::endl;
