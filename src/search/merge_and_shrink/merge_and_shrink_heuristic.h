@@ -38,8 +38,8 @@ class MergeAndShrinkHeuristic : public Heuristic {
     const Verbosity verbosity;
     long starting_peak_memory;
 
+    // TODO: change vars as needed
     std::vector<int> variable_order;
-
     CuddManager* cudd_manager;
     CuddBDD* certificate;
     int certificate_id;
@@ -61,9 +61,6 @@ public:
     virtual ~MergeAndShrinkHeuristic() override = default;
     static void add_shrink_limit_options_to_parser(options::OptionParser &parser);
     static void handle_shrink_limit_options_defaults(options::Options &opts);
-    virtual int build_unsolvability_certificate(const GlobalState &s);
-    virtual int get_number_of_unsolvability_certificates();
-    virtual void write_subcertificates(std::string cert_file);
 };
 }
 

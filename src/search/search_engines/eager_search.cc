@@ -79,33 +79,17 @@ void EagerSearch::initialize() {
 
     statistics.inc_evaluated_states();
 
-    // initial_dead is introduced because we need to make sure that
-    // the heuristics are initialized before getting the manager
-    // (because the heuristics set the variable order)
-    bool initial_dead = open_list->is_dead_end(eval_context);
-    manager = CuddManager::get_instance();
+
+    /* TODO: remove when not needed anymore
     // for the maia grid, use a directory of another file system
     directory = "";
     char *sge_env = std::getenv("SLURM_JOBID");
     if(sge_env != NULL) {
         directory = std::string(std::getenv("TMPDIR")) + "/";
-    }
-    std::ofstream cert_file;
-    cert_file.open("certificate.txt");
-    hint_file.open(directory + "hints.txt");
-    amount_vars = manager->get_amount_vars();
-    fact_to_var = manager->get_fact_to_var();
-    // there is currently no safeguard that these are the actual names used
-    cert_file << "certificate-type:disjunctive:1\n";
-    cert_file << "bdd-files:2\n";
-    cert_file << directory << "states.bdd\n";
-    cert_file << directory << "h_cert.bdd\n";
-    cert_file << "hints:" << directory << "hints.txt\n";
-    cert_file.close();
-
-    if (initial_dead) {
-        heuristics[0]->build_unsolvability_certificate(initial_state);
+    } */
+    if(open_list->is_dead_end(eval_context)) {
         cout << "Initial state is a dead end." << endl;
+        // TODO: implement special case of dead initial state
     } else {
         if (search_progress.check_progress(eval_context))
             print_checkpoint_line(0);
@@ -135,12 +119,7 @@ SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
         double writing_start = utils::g_timer();
-        std::string hcerts_filename = directory + "h_cert.bdd";
-        heuristics[0]->write_subcertificates(hcerts_filename);
-        write_statebdds();
-        manager->writeTaskFile();
-        hint_file << "end hints";
-        hint_file.close();
+        // TODO: implement
         double writing_end = utils::g_timer();
         std::cout << "Time for writing unsolvability certificate: " << writing_end - writing_start << std::endl;
         return FAILED;
@@ -165,13 +144,9 @@ SearchStatus EagerSearch::step() {
     algorithms::OrderedSet<const GlobalOperator *> preferred_operators =
         collect_preferred_operators(eval_context, preferred_operator_heuristics);
 
-    // TODO: it is very distributed atm where in the code the hints are actually written
-    hint_file << s.get_id().hash() << " " << applicable_ops.size();
     for (const GlobalOperator *op : applicable_ops) {
-        if ((node.get_real_g() + op->get_cost()) >= bound) {
-            hint_file << " " << get_op_index(op) << " -1";
+        if ((node.get_real_g() + op->get_cost()) >= bound)
             continue;
-        }
 
         GlobalState succ_state = state_registry.get_successor_state(s, *op);
         statistics.inc_generated();
@@ -180,11 +155,8 @@ SearchStatus EagerSearch::step() {
         SearchNode succ_node = search_space.get_node(succ_state);
 
         // Previously encountered dead end. Don't re-evaluate.
-        if (succ_node.is_dead_end()) {
-            int hint = heuristics[0]->build_unsolvability_certificate(succ_state);
-            hint_file << " " << get_op_index(op) << " " << hint;
+        if (succ_node.is_dead_end())
             continue;
-        }
 
         // update new path
         if (use_multi_path_dependence || succ_node.is_new()) {
@@ -211,8 +183,6 @@ SearchStatus EagerSearch::step() {
             statistics.inc_evaluated_states();
 
             if (open_list->is_dead_end(eval_context)) {
-                int hint = heuristics[0]->build_unsolvability_certificate(succ_state);
-                hint_file << " " << get_op_index(op) << " " << hint;
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
@@ -267,9 +237,7 @@ SearchStatus EagerSearch::step() {
                 succ_node.update_parent(node, op);
             }
         }
-        hint_file << " " << get_op_index(op) << " " << succ_state.get_id().hash();
     }
-    hint_file << "\n";
 
     return IN_PROGRESS;
 }
@@ -377,11 +345,8 @@ void add_pruning_option(OptionParser &parser) {
         "null()");
 }
 
-void EagerSearch::write_statebdds() {
-    std::string statebdd_file = directory + "states.bdd";
-    std::ofstream stream;
-    stream.open(statebdd_file);
-
+// loop over all states (TODO: remove when not needed anymore)
+/*
     // loop over all states and insert closed states in statebdd_file
     for(const StateID id : state_registry) {
         const GlobalState &state = state_registry.lookup_state(id);
@@ -389,73 +354,7 @@ void EagerSearch::write_statebdds() {
             dump_state_bdd(state, stream);
         }
     }
-
-    stream.close();
-}
-
-void EagerSearch::dump_state_bdd(const GlobalState &s, std::ofstream &statebdd_file) {
-    // first dump amount of bdds (=1) and index
-    statebdd_file << "1 " << s.get_id().hash() << "\n";
-
-    // header
-    statebdd_file << ".ver DDDMP-2.0\n";
-    statebdd_file << ".mode A\n";
-    statebdd_file << ".varinfo 0\n";
-    statebdd_file << ".nnodes " << amount_vars+1 << "\n";
-    statebdd_file << ".nvars " << amount_vars << "\n";
-    statebdd_file << ".nsuppvars " << amount_vars << "\n";
-    statebdd_file << ".ids";
-    for(int i = 0; i < amount_vars; ++i) {
-        statebdd_file << " " << i;
-    }
-    statebdd_file << "\n";
-    statebdd_file << ".permids";
-    for(int i = 0; i < amount_vars; ++i) {
-        statebdd_file << " " << i;
-    }
-    statebdd_file << "\n";
-    statebdd_file << ".nroots 1\n";
-    statebdd_file << ".rootids -" << amount_vars+1 << "\n";
-    statebdd_file << ".nodes\n";
-
-    // nodes
-    // TODO: this is a huge mess because only "false" arcs can be minus
-    // We start with a negative root, and if the last var is false, we can
-    // put a minus in the last arc and reach true in this way.
-    // if the last var is true, we assume that the second last is false (because FDR)
-    // and thus put a minus on the second last arc which means the last node is "positive"
-    std::vector<bool> state_vars(amount_vars, false);
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        state_vars[(*fact_to_var)[i][s[i]]] = true;
-    }
-    assert(!state_vars[amount_vars-1] || !state_vars[amount_vars-2]);
-    bool last_true = state_vars[amount_vars-1];
-    int var = amount_vars-1;
-
-    statebdd_file << "1 T 1 0 0\n";
-    statebdd_file << "2 " << var << " " << var << " 1 -1\n";
-    var--;
-    statebdd_file << "3 " << var << " " << var << " ";
-    if(last_true) {
-        statebdd_file << "1 -2\n";
-    } else if(state_vars[var]) {
-        statebdd_file << "2 1\n";
-    } else {
-        statebdd_file << "1 2\n";
-    }
-    var--;
-
-    for(int i = 4; i <= amount_vars+1; ++i) {
-        statebdd_file << i << " " << var << " " << var << " ";
-        if(state_vars[var]) {
-            statebdd_file << i-1 << " 1\n";
-        } else {
-            statebdd_file << "1 " << i-1 << "\n";
-        }
-        var--;
-    }
-    statebdd_file << ".end\n";
-}
+*/
 
 static SearchEngine *_parse(OptionParser &parser) {
     parser.document_synopsis("Eager best-first search", "");
