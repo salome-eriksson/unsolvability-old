@@ -401,39 +401,13 @@ void MergeAndShrinkHeuristic::handle_shrink_limit_options_defaults(Options &opts
     opts.set<int>("threshold_before_merge", threshold);
 }
 
-int MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &s) {
-    if(certificate != NULL) {
-        assert(certificate_id != 0);
-        return certificate_id;
-    }
+// Code for building M&S certificate (TODO: remove)
+/*
     certificate = new CuddBDD(cudd_manager, false);
-    certificate_id = s.get_id().hash();
-
     std::vector<CuddBDD> dummy_vector;
-
     mas_representation->get_unsolvability_certificate(certificate, dummy_vector, false);
-    return certificate_id;
-}
+    */
 
-int MergeAndShrinkHeuristic::get_number_of_unsolvability_certificates() {
-    if(certificate != NULL) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-void MergeAndShrinkHeuristic::write_subcertificates(std::string cert_file) {
-    if(certificate == NULL) {
-        std::ofstream cert_stream;
-        cert_stream.open(cert_file);
-        cert_stream.close();
-        return;
-    }
-    std::vector<std::pair<int,CuddBDD*>> bdds;
-    bdds.push_back(std::make_pair(certificate_id,certificate));
-    cudd_manager->dumpBDDs(bdds, cert_file);
-}
 
 static Heuristic *_parse(OptionParser &parser) {
     parser.document_synopsis(

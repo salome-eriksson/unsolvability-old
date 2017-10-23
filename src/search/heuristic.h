@@ -6,7 +6,6 @@
 #include "task_proxy.h"
 
 #include "algorithms/ordered_set.h"
-#include "unsolvability/cudd_interface.h"
 
 #include <memory>
 #include <vector>
@@ -100,11 +99,6 @@ public:
     bool is_h_dirty(GlobalState &state) {
         return heuristic_cache[state].dirty;
     }
-
-    //TODO: abstract methods?
-    virtual int build_unsolvability_certificate(const GlobalState &) { return -1; }
-    virtual int get_number_of_unsolvability_certificates() { return -1; }
-    virtual void write_subcertificates(std::string) {}
 };
 
 #endif

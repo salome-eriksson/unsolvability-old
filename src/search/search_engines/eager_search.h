@@ -32,10 +32,9 @@ class EagerSearch : public SearchEngine {
     std::shared_ptr<PruningMethod> pruning_method;
 
     CuddManager *manager;
-    std::ofstream hint_file;
     int amount_vars;
     const std::vector<std::vector<int>> *fact_to_var;
-    // state bdds, h certificate bdds and hints are written in this directory
+    // certificate files are written in this directory
     std::string directory;
 
     std::pair<SearchNode, bool> fetch_next_node();
@@ -43,9 +42,6 @@ class EagerSearch : public SearchEngine {
     void update_f_value_statistics(const SearchNode &node);
     void reward_progress();
     void print_checkpoint_line(int g) const;
-
-    void write_statebdds();
-    void dump_state_bdd(const GlobalState &s, std::ofstream &statebdd_file);
 
 protected:
     virtual void initialize() override;
