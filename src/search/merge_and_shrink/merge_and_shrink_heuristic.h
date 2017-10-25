@@ -61,6 +61,10 @@ public:
     virtual ~MergeAndShrinkHeuristic() override = default;
     static void add_shrink_limit_options_to_parser(options::OptionParser &parser);
     static void handle_shrink_limit_options_defaults(options::Options &opts);
+
+    virtual void setup_unsolvability_proof(std::string directory);
+    virtual void prove_state_dead(const GlobalState &state, std::ofstream &rules);
+    virtual void dump_certificate_info(std::ofstream &infofile);
 };
 }
 

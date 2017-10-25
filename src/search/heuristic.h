@@ -57,6 +57,10 @@ protected:
     // Use task_proxy to access task information.
     TaskProxy task_proxy;
 
+    std::string certificate_directory;
+    std::ofstream certificate_stmtfile;
+    std::ofstream certificate_formulafile;
+
     enum {DEAD_END = -1, NO_VALUE = -2};
 
     // TODO: Call with State directly once all heuristics support it.
@@ -101,8 +105,9 @@ public:
         return heuristic_cache[state].dirty;
     }
 
-    void prove_state_dead(const GlobalState &, std::ofstream &) {}
-    void dump_certificate_info(std::ofstream &) {}
+    virtual void setup_unsolvability_proof(std::string) {}
+    virtual void prove_state_dead(const GlobalState &, std::ofstream &) {}
+    virtual void dump_certificate_info(std::ofstream &) {}
 };
 
 #endif
