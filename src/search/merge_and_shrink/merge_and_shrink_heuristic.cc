@@ -399,12 +399,55 @@ void MergeAndShrinkHeuristic::handle_shrink_limit_options_defaults(Options &opts
     opts.set<int>("threshold_before_merge", threshold);
 }
 
-// Code for building M&S certificate (TODO: remove)
-/*
-    certificate = new CuddBDD(cudd_manager, false);
-    std::vector<CuddBDD> dummy_vector;
-    mas_representation->get_unsolvability_certificate(certificate, dummy_vector, false);
-    */
+void MergeAndShrinkHeuristic::setup_unsolvability_proof(std::string directory) {
+    certificate_directory = directory;
+    certificate_stmtfile.open(certificate_directory + "stmt_mas.txt");
+    std::cout << "done setting up unsolvability proof" << std::endl;
+}
+
+void MergeAndShrinkHeuristic::prove_state_dead(const GlobalState &state, std::ofstream &rules) {
+    std::stringstream statess;
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        for(int j = 0; j < g_variable_domain[i]; ++j) {
+            statess << (int)(state[i] == j) << " ";
+        }
+    }
+    statess << "\b";
+
+    if(certificate == nullptr) {
+        certificate = new CuddBDD(cudd_manager, false);
+        std::vector<CuddBDD> dummy_vector;
+        mas_representation->get_unsolvability_certificate(certificate, dummy_vector, false);
+        std::vector<CuddBDD *>bdds(1,certificate);
+
+        cudd_manager->dumpBDDs(bdds,certificate_directory + "bdds_mas.txt");
+
+        certificate_stmtfile << "sub:S_mas S_G ^;empty\n";
+        certificate_stmtfile << "prog:S_mas;empty\n";
+        rules << "SD:S_mas S_G ^;empty\n";
+        rules << "PD:S_mas;empty\n";
+    }
+    certificate_stmtfile << "in:" << statess.str() << ";S_mas\n";
+    rules << "sD:" << statess.str() << ";S_mas\n";
+
+}
+
+void MergeAndShrinkHeuristic::dump_certificate_info(std::ofstream &infofile) {
+    infofile << "Statements:BDD\n";
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        infofile << variable_order[i] << " ";
+    }
+    infofile << "\b\n";
+    infofile << "S_mas";
+    infofile << certificate_directory << "bdds_mas.txt\n";
+    infofile << "composite formulas begin\n";
+    infofile << "S_mas S_G ^\n";
+    infofile << "composite formulas end\n";
+    infofile << certificate_directory << "stmt_mas.txt\n";
+    infofile << "Statemends:BDD end\n";
+
+    certificate_stmtfile.close();
+}
 
 
 static Heuristic *_parse(OptionParser &parser) {

@@ -333,21 +333,11 @@ void add_pruning_option(OptionParser &parser) {
         "null()");
 }
 
-// TODO: move to more appropriate place
-void dump_state(std::ofstream &stream, const GlobalState &state) {
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
-            stream << (int)(state[i] == j) << " ";
-        }
-    }
-    stream << "\b\n";
-}
-
 void EagerSearch::write_unsolvability_certificate() {
     double writing_start = utils::g_timer();
 
     // for the maia grid, use a directory of another file system
-    directory = "";
+    std::string directory = "";
     char *sge_env = std::getenv("SLURM_JOBID");
     if(sge_env != NULL) {
         directory = std::string(std::getenv("TMPDIR")) + "/";
@@ -364,6 +354,14 @@ void EagerSearch::write_unsolvability_certificate() {
     statefile.open(directory + "statesets.txt");
     rulefile.open(directory + "rules.txt");
 
+
+    // TODO: workaround for a non-found bug in CuddManager()
+    std::vector<int> var_order(g_variable_domain.size());
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        var_order[i] = i;
+    }
+    CuddManager manager(var_order);
+
     CuddBDD dead = CuddBDD(&manager, false);
     CuddBDD expanded = CuddBDD(&manager, false);
     statefile << "stateset_dead\n";
@@ -371,41 +369,42 @@ void EagerSearch::write_unsolvability_certificate() {
 
     for(const StateID id : state_registry) {
         const GlobalState &state = state_registry.lookup_state(id);
+        CuddBDD statebdd = CuddBDD(&manager, state);
         if (search_space.get_node(state).is_dead_end()) {
             // find the heuristic that evaluated the state to be a dead end
             EvaluationContext eval_context(state,nullptr,false);
-            Heuristic *h;
+            Heuristic *h = nullptr;
             for(size_t i = 0; i < heuristics.size(); ++i) {
                 if(eval_context.is_heuristic_infinite(heuristics[i])) {
                     h = heuristics[i];
-                    heuristic_used[i] = true;
+                    if(!heuristic_used[i]) {
+                        heuristics[i]->setup_unsolvability_proof(directory);
+                        heuristic_used[i] = true;
+                    }
                     break;
                 }
             }
             assert(h != nullptr);
-            h->proof_state_dead(state, rulefile);
-            // this currently assumes that all heuristics will prove that s is dead
-            // by building a set S_i such that S_i[O] \subseteq S_i, S_i \cap G empty
-            // and s \in S_i
-            /*rulefile << "SD:" << setname << " ^ S_G;empty\n";
-            rulefile << "PD:" << setname << ";empty\n";
-            rulefile << "sD:";
-            dump_state(rulefile,state);
-            rulefile << ";" << setname << "\n";
-            rulefile << "\n";*/
-            dump_state(statefile,state);
-            dead.lor(CuddBDD(&manager, state));
+            h->prove_state_dead(state, rulefile);
+            // dump dead state in statefile
+            for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+                for(int j = 0; j < g_variable_domain[i]; ++j) {
+                    statefile << (int)(state[i] == j) << " ";
+                }
+            }
+            statefile << "\b\n";
+            dead.lor(statebdd);
         } else if(search_space.get_node(state).is_closed()) {
-            expanded.lor(CuddBDD(&manager, state));
+            expanded.lor(statebdd);
         }
     }
     statefile << "set end";
     statefile.close();
 
-    bddstmtfile.open(directory + "bdds_search_stmt.txt");
+    bddstmtfile.open(directory + "stmt_search.txt");
     bddstmtfile << "exsub:S_d;stateset_dead\n";
     bddstmtfile << "sub:S_exp S_G ^;empty\n";
-    bddstmtfile << "prog:S_exp,S_d\n";
+    bddstmtfile << "prog:S_exp;S_d\n";
     bddstmtfile << "init:S_exp\n";
     bddstmtfile.close();
 
@@ -414,7 +413,12 @@ void EagerSearch::write_unsolvability_certificate() {
     rulefile << "SD:S_exp S_G ^;empty";
     rulefile << "PD:S_exp;S_d\n";
     rulefile << "sD:";
-    dump_state(rulefile,state_registry.get_initial_state());
+    const GlobalState &state = state_registry.get_initial_state();
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        for(int j = 0; j < g_variable_domain[i]; ++j) {
+            rulefile<< (int)(state[i] == j) << " ";
+        }
+    }
     rulefile << ";S_exp\n";
     rulefile << "ID\n";
     rulefile.close();
@@ -433,7 +437,7 @@ void EagerSearch::write_unsolvability_certificate() {
     infofile << "composite formulas begin\n";
     infofile << "S_exp S_G ^\n";
     infofile << "composite formulas end\n";
-    infofile << directory << "bdds_search_stmt.txt\n";
+    infofile << directory << "stmt_search.txt\n";
     infofile << "Statemends:BDD end\n";
 
     for(size_t i = 0; i < heuristics.size(); ++i) {
@@ -446,7 +450,7 @@ void EagerSearch::write_unsolvability_certificate() {
     std::vector<CuddBDD *> bdds;
     bdds.push_back(&expanded);
     bdds.push_back(&dead);
-    manager.dumpBDDs(bdds, directory + "\bdds_search.txt");
+    manager.dumpBDDs(bdds, directory + "bdds_search.txt");
 
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability certificate: "

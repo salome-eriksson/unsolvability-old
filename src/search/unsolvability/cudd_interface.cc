@@ -165,6 +165,7 @@ void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
     fclose(f);
 }
 
+// FIXME: this constructor is bugged
 CuddManager::CuddManager() {
     fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
     amount_vars = 0;
