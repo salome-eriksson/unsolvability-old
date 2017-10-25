@@ -10,9 +10,6 @@
 
 using utils::ExitCode;
 
-std::vector<int> CuddManager::var_order = std::vector<int>();
-CuddManager* CuddManager::instance = NULL;
-
 void exit_oom(size_t size) {
     utils::exit_with(ExitCode::OUT_OF_MEMORY);
 }
@@ -168,6 +165,21 @@ void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
     fclose(f);
 }
 
+CuddManager::CuddManager() {
+    fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
+    amount_vars = 0;
+    for(size_t i = 0; i < var_order.size(); ++i) {
+        fact_to_var[i].resize(g_variable_domain[i]);
+        for(int j = 0; j < g_variable_domain[i]; ++j) {
+            fact_to_var[i][j] = amount_vars++;
+        }
+    }
+    ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
+    Cudd_InstallOutOfMemoryHandler(exit_oom);
+}
+
+
+
 CuddManager::CuddManager(std::vector<int> &var_order) {
     assert(var_order.size() == g_variable_domain.size());
     fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
@@ -183,26 +195,6 @@ CuddManager::CuddManager(std::vector<int> &var_order) {
     Cudd_InstallOutOfMemoryHandler(exit_oom);
     //extern DD_OOMFP MMoutOfMemory;
     //MMoutOfMemory = exit_oom;
-}
-
-void CuddManager::set_variable_order(std::vector<int> &_var_order) {
-    if(!var_order.empty()) {
-        std::cerr << "Tried to set variable order twice" << std::endl;
-        utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
-    }
-    assert(_var_order.size() == g_variable_domain.size());
-    var_order = _var_order;
-}
-
-CuddManager* CuddManager::get_instance() {
-    if(var_order.empty()) {
-        std::cerr << "Tried to create manager without setting variable order" << std::endl;
-        utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
-    }
-    if(!instance) {
-        instance = new CuddManager(var_order);
-    }
-    return instance;
 }
 
 int CuddManager::get_amount_vars() const {
@@ -277,18 +269,12 @@ void CuddManager::writeTaskFile() const{
     task_file.close();
 }
 
-void CuddManager::dumpBDDs(std::vector<std::pair<int,CuddBDD*>> &bdds, std::string filename) const {
+void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::string filename) const {
     int size = bdds.size();
-    std::ofstream filestream;
-    filestream.open(filename);
-    filestream << size;
     DdNode** bdd_arr = new DdNode*[size];
     for(int i = 0; i < size; ++i) {
-        bdd_arr[i] = bdds[i].second->bdd;
-        filestream << " " << bdds[i].first;
+        bdd_arr[i] = bdds[i]->bdd;
     }
-    filestream << "\n";
-    filestream.close();
     FILE *fp;
     fp = fopen(filename.c_str(), "a");
     Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], NULL,

@@ -7,6 +7,7 @@
 RuleChecker::RuleChecker(KnowledgeBase *kb, Task *task)
     : kb(kb), task(task) {
     string_to_rule.insert(std::make_pair("UD",Rules::UNION_DEAD));
+    string_to_rule.insert(std::make_pair("uD",Rules::STATEUNION_DEAD));
     string_to_rule.insert(std::make_pair("SD",Rules::SUBSET_DEAD));
     string_to_rule.insert(std::make_pair("sD",Rules::STATE_DEAD));
     string_to_rule.insert(std::make_pair("PD",Rules::PROGRESSION_DEAD));
@@ -51,13 +52,14 @@ std::vector<std::string> RuleChecker::determine_parameters(const std::string &pa
  *
  * Rules in the proof system will look the following:
  * UD:S;S' (means: if S and S' are dead, S \cup S' is dead
+ * uD:S (means: if all states in S are dead, then S is dead)
  * SD:S;S' (means: if S' is dead and S \subseteq S', then S is dead)
  * sD:<state>;S (means: if <state> \in S and S is dead, then <state> is dead)
  * PD:S;S' (means: if S[O] \subseteq S \cup S', S' is dead and S \cap S_G is dead, then S is dead)
  * Pd:S;S' (means: if S[O] \subseteq S \cup S', S' is dead and I \in S then not(S) is dead)
  * Rd:S;S' (means: if R(S,O) \subseteq S \cup S', S' is dead and I \not\in S then not(S) is dead)
  * RD:S;S' (means: if R(S,O) \subseteq S \cup S', S' is dead and \cap S_G is dead, then S is dead)
- * UI: (means: if {I} is dead or I is dead, then the task is unsolvable)
+ * UI: (means: if I is dead, then the task is unsolvable)
  * UG: (means: if S_G is dead, then the task is unsolvable)
  */
 bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
@@ -73,6 +75,15 @@ bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
             return false;
         } else {
             kb->insert_dead_set(KnowledgeBase::UNION + " " + param[0] + " " + param[1]);
+            return true;
+        }
+    }
+    case Rules::STATEUNION_DEAD: {
+        assert(param.size() == 1);
+        if(!kb->all_states_in_set_dead(param[0])) {
+            return false;
+        } else {
+            kb->insert_dead_set(param[0]);
             return true;
         }
     }

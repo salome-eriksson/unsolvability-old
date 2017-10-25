@@ -77,23 +77,21 @@ class CuddManager {
     friend class CuddBDD;
 private:
 #ifdef USE_CUDD
-    static CuddManager *instance;
+    CuddManager *instance;
     DdManager* ddmgr;
-    static std::vector<int> var_order;
+    std::vector<int> var_order;
     std::vector<std::vector<int>> fact_to_var;
     int amount_vars;
 #endif
-    CUDD_METHOD(CuddManager(std::vector<int> &var_order))
 public:
-    // This method can only be called once and must be called before
-    // the first manager is requested
-    // TODO: maybe this can be done nicer...
-    CUDD_METHOD(static void set_variable_order(std::vector<int> &_var_order))
-    CUDD_METHOD(static CuddManager *get_instance())
+    // uses default var order
+    CUDD_METHOD(CuddManager())
+    CUDD_METHOD(CuddManager(std::vector<int> &var_order))
     CUDD_METHOD(int get_amount_vars() const)
     CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
+    // TODO: should this method be here?
     CUDD_METHOD(void writeTaskFile() const)
-    CUDD_METHOD(void dumpBDDs(std::vector<std::pair<int,CuddBDD*>> &bdds, std::string filename) const)
+    CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::string filename) const)
 };
 
 #endif

@@ -52,7 +52,7 @@ bool KnowledgeBase::is_dead_state(Cube &state) {
     BDD state_bdd = BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), state.data()));;
     return state_bdd.Leq(dead_states);
 }
-bool KnowledgeBase::is_dead_state_set(const std::string &stateset) {
+bool KnowledgeBase::all_states_in_set_dead(const std::string &stateset) {
     assert(state_sets.find(stateset) != state_sets.end());
     const BDD &stateset_bdd = state_sets.find(stateset)->second.getBDD();
     return stateset_bdd.Leq(dead_states);

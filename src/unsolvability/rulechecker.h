@@ -9,6 +9,7 @@
 
 enum Rules {
     UNION_DEAD,
+    STATEUNION_DEAD,
     SUBSET_DEAD,
     STATE_DEAD,
     PROGRESSION_DEAD,

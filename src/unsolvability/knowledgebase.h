@@ -44,7 +44,7 @@ public:
     KnowledgeBase(Task *task, std::string filename);
     bool is_dead_set(const std::string &set);
     bool is_dead_state(Cube &state);
-    bool is_dead_state_set(const std::string &stateset);
+    bool all_states_in_set_dead(const std::string &stateset);
     bool is_progression(const std::string &set1, const std::string &set2);
     bool is_regression(const std::string &set1, const std::string &set2);
     bool is_subset(const std::string &set1, const std::string &set2);

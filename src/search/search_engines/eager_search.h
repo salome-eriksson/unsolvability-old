@@ -31,9 +31,7 @@ class EagerSearch : public SearchEngine {
 
     std::shared_ptr<PruningMethod> pruning_method;
 
-    CuddManager *manager;
-    int amount_vars;
-    const std::vector<std::vector<int>> *fact_to_var;
+    CuddManager manager;
     // certificate files are written in this directory
     std::string directory;
 
@@ -54,6 +52,8 @@ public:
     virtual void print_statistics() const override;
 
     void dump_search_space() const;
+
+    void write_unsolvability_certificate();
 };
 }
 
