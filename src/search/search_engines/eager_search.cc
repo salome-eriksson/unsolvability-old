@@ -79,17 +79,8 @@ void EagerSearch::initialize() {
 
     statistics.inc_evaluated_states();
 
-
-    /* TODO: remove when not needed anymore
-    // for the maia grid, use a directory of another file system
-    directory = "";
-    char *sge_env = std::getenv("SLURM_JOBID");
-    if(sge_env != NULL) {
-        directory = std::string(std::getenv("TMPDIR")) + "/";
-    } */
-    if(open_list->is_dead_end(eval_context)) {
+    if (open_list->is_dead_end(eval_context)) {
         cout << "Initial state is a dead end." << endl;
-        // TODO: implement special case of dead initial state
     } else {
         if (search_progress.check_progress(eval_context))
             print_checkpoint_line(0);
@@ -118,10 +109,7 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
-        double writing_start = utils::g_timer();
-        // TODO: implement
-        double writing_end = utils::g_timer();
-        std::cout << "Time for writing unsolvability certificate: " << writing_end - writing_start << std::endl;
+        write_unsolvability_certificate();
         return FAILED;
     }
     SearchNode node = n.first;
@@ -345,16 +333,125 @@ void add_pruning_option(OptionParser &parser) {
         "null()");
 }
 
-// loop over all states (TODO: remove when not needed anymore)
-/*
-    // loop over all states and insert closed states in statebdd_file
-    for(const StateID id : state_registry) {
-        const GlobalState &state = state_registry.lookup_state(id);
-        if(search_space.get_node(state).is_closed()) {
-            dump_state_bdd(state, stream);
+// TODO: move to more appropriate place
+void dump_state(std::ofstream &stream, const GlobalState &state) {
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        for(int j = 0; j < g_variable_domain[i]; ++j) {
+            stream << (int)(state[i] == j) << " ";
         }
     }
-*/
+    stream << "\b\n";
+}
+
+void EagerSearch::write_unsolvability_certificate() {
+    double writing_start = utils::g_timer();
+
+    // for the maia grid, use a directory of another file system
+    directory = "";
+    char *sge_env = std::getenv("SLURM_JOBID");
+    if(sge_env != NULL) {
+        directory = std::string(std::getenv("TMPDIR")) + "/";
+    }
+
+
+    // TODO: consider special case where initial state is dead
+
+    std::ofstream statefile;
+    std::ofstream rulefile;
+    std::ofstream bddstmtfile;
+    std::ofstream infofile;
+
+    statefile.open(directory + "statesets.txt");
+    rulefile.open(directory + "rules.txt");
+
+    CuddBDD dead = CuddBDD(&manager, false);
+    CuddBDD expanded = CuddBDD(&manager, false);
+    statefile << "stateset_dead\n";
+    std::vector<bool> heuristic_used(heuristics.size(), false);
+
+    for(const StateID id : state_registry) {
+        const GlobalState &state = state_registry.lookup_state(id);
+        if (search_space.get_node(state).is_dead_end()) {
+            // find the heuristic that evaluated the state to be a dead end
+            EvaluationContext eval_context(state,nullptr,false);
+            Heuristic *h;
+            for(size_t i = 0; i < heuristics.size(); ++i) {
+                if(eval_context.is_heuristic_infinite(heuristics[i])) {
+                    h = heuristics[i];
+                    heuristic_used[i] = true;
+                    break;
+                }
+            }
+            assert(h != nullptr);
+            h->proof_state_dead(state, rulefile);
+            // this currently assumes that all heuristics will prove that s is dead
+            // by building a set S_i such that S_i[O] \subseteq S_i, S_i \cap G empty
+            // and s \in S_i
+            /*rulefile << "SD:" << setname << " ^ S_G;empty\n";
+            rulefile << "PD:" << setname << ";empty\n";
+            rulefile << "sD:";
+            dump_state(rulefile,state);
+            rulefile << ";" << setname << "\n";
+            rulefile << "\n";*/
+            dump_state(statefile,state);
+            dead.lor(CuddBDD(&manager, state));
+        } else if(search_space.get_node(state).is_closed()) {
+            expanded.lor(CuddBDD(&manager, state));
+        }
+    }
+    statefile << "set end";
+    statefile.close();
+
+    bddstmtfile.open(directory + "bdds_search_stmt.txt");
+    bddstmtfile << "exsub:S_d;stateset_dead\n";
+    bddstmtfile << "sub:S_exp S_G ^;empty\n";
+    bddstmtfile << "prog:S_exp,S_d\n";
+    bddstmtfile << "init:S_exp\n";
+    bddstmtfile.close();
+
+    rulefile << "uD:stateset_dead\n";
+    rulefile << "SD:S_d;stateset_dead\n";
+    rulefile << "SD:S_exp S_G ^;empty";
+    rulefile << "PD:S_exp;S_d\n";
+    rulefile << "sD:";
+    dump_state(rulefile,state_registry.get_initial_state());
+    rulefile << ";S_exp\n";
+    rulefile << "ID\n";
+    rulefile.close();
+
+    infofile.open(directory + "certificate.txt");
+    infofile << "statesets:" << directory << "statesets.txt\n";
+    infofile << "rules:" << directory << "rules.txt\n";
+    // info for BDD statements from search
+    infofile << "Statements:BDD\n";
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        infofile << i << " ";
+    }
+    infofile << "\b\n";
+    infofile << "S_exp;S_d\n";
+    infofile << directory << "bdds_search.txt\n";
+    infofile << "composite formulas begin\n";
+    infofile << "S_exp S_G ^\n";
+    infofile << "composite formulas end\n";
+    infofile << directory << "bdds_search_stmt.txt\n";
+    infofile << "Statemends:BDD end\n";
+
+    for(size_t i = 0; i < heuristics.size(); ++i) {
+        if(heuristic_used[i]) {
+            heuristics[i]->dump_certificate_info(infofile);
+        }
+    }
+    infofile.close();
+
+    std::vector<CuddBDD *> bdds;
+    bdds.push_back(&expanded);
+    bdds.push_back(&dead);
+    manager.dumpBDDs(bdds, directory + "\bdds_search.txt");
+
+    double writing_end = utils::g_timer();
+    std::cout << "Time for writing unsolvability certificate: "
+              << writing_end - writing_start << std::endl;
+}
 
 static SearchEngine *_parse(OptionParser &parser) {
     parser.document_synopsis("Eager best-first search", "");

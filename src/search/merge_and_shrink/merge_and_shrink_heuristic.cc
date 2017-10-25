@@ -303,9 +303,7 @@ void MergeAndShrinkHeuristic::build(const utils::Timer &timer) {
         }
     }
     assert(variable_order.size() == g_variable_domain.size());
-
-    CuddManager::set_variable_order(variable_order);
-    cudd_manager = CuddManager::get_instance();
+    cudd_manager = new CuddManager(variable_order);
 
     pair<unique_ptr<MergeAndShrinkRepresentation>, unique_ptr<Distances>>
     final_entry = fts.get_final_entry();

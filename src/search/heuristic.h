@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <fstream>
 
 class GlobalOperator;
 class GlobalState;
@@ -99,6 +100,9 @@ public:
     bool is_h_dirty(GlobalState &state) {
         return heuristic_cache[state].dirty;
     }
+
+    void prove_state_dead(const GlobalState &, std::ofstream &) {}
+    void dump_certificate_info(std::ofstream &) {}
 };
 
 #endif
