@@ -47,9 +47,7 @@ void StatementChecker::check_statements_and_insert_into_kb() {
     in.open(statementfile);
 
     std::string line;
-    std::getline(in, line);
-    while(line.compare("statements end") != 0) {
-        std::cout << "checking " << line << std::endl;
+    while(std::getline(in, line)) {
         bool statement_correct = false;
         int pos_colon = line.find(":");
         assert(string_to_statement.find(line.substr(0, pos_colon)) != string_to_statement.end());
@@ -101,18 +99,19 @@ void StatementChecker::check_statements_and_insert_into_kb() {
             assert(params.size() == 1);
             statement_correct = check_initial_contained(params[0]);
             if(statement_correct) {
+                Cube initcube = task->get_initial_state();
                 kb->insert_contains_initial(params[0]);
+                kb->insert_contained_in(initcube,params[0]);
             }
             break;
         }
         default: {
-            std::cerr << "unkown statement: " << statement;
+            std::cout << "unkown statement: " << statement;
             break;
         }
         }
         if(!statement_correct) {
-            std::cerr << "statement NOT correct: " << line << std::endl;
+            std::cout << "statement NOT correct: " << line << std::endl;
         }
-        std::getline(in,line);
     }
 }

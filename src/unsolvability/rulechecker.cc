@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 RuleChecker::RuleChecker(KnowledgeBase *kb, Task *task)
     : kb(kb), task(task) {
@@ -172,5 +173,16 @@ bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
         std::cout << "unknown rule";
         return false;
     }
+    }
+}
+
+void RuleChecker::check_rules_from_file(std::string filename) {
+    std::ifstream rules;
+    rules.open(filename);
+    std::string line;
+    while(std::getline(rules,line)) {
+        if(!check_rule_and_insert_into_kb(line)) {
+            std::cout << "rule not valid: " << line << std::endl;
+        }
     }
 }

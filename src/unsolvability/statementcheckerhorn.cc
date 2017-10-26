@@ -120,7 +120,7 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
     std::ifstream formulas_file;
     formulas_file.open(line);
     if(!formulas_file.is_open()) {
-        std::cout << "could not formula file \"" << line << "\" for Horn Statementchecker" << std::endl;
+        std::cout << "could not find formula file \"" << line << "\" for Horn Statementchecker" << std::endl;
         exit_with(ExitCode::NO_CERTIFICATE_FILE);
     }
     int varamount = task->get_number_of_facts();
@@ -199,14 +199,17 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
     }
 
     std::getline(in, line);
-    //read in composite formulas
+    // read in composite formulas
     if(line.compare("composite formulas begin") == 0) {
         read_in_composite_formulas(in);
         std::getline(in, line);
     }
-    //last line contains loctaion of statement file
+    // second last line contains location of statement file
     statementfile = line;
 
+    // last line declares end of Statement block
+    std::getline(in, line);
+    assert(line.compare("Statements:Horn end") == 0);
 }
 
 void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {

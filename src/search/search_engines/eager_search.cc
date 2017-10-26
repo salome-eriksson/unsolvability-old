@@ -333,6 +333,8 @@ void add_pruning_option(OptionParser &parser) {
         "null()");
 }
 
+
+// TODO: refactor this method, it looks horrible
 void EagerSearch::write_unsolvability_certificate() {
     double writing_start = utils::g_timer();
 
@@ -343,8 +345,36 @@ void EagerSearch::write_unsolvability_certificate() {
         directory = std::string(std::getenv("TMPDIR")) + "/";
     }
 
+    // TODO: asking if the initial node is new seems wrong, but that is
+    // how the search handles a dead initial state
+    if(search_space.get_node(state_registry.get_initial_state()).is_new()) {
+        const GlobalState &init_state = state_registry.get_initial_state();
+        EvaluationContext eval_context(init_state,nullptr,false);
+        Heuristic *h = nullptr;
+        for(size_t i = 0; i < heuristics.size(); ++i) {
+            if(eval_context.is_heuristic_infinite(heuristics[i])) {
+                h = heuristics[i];
+                heuristics[i]->setup_unsolvability_proof(directory);
+                break;
+            }
+        }
+        assert(h != nullptr);
+        std::ofstream rulefile;
+        std::ofstream infofile;
+        rulefile.open(directory + "rules.txt");
+        h->prove_state_dead(init_state, rulefile);
+        rulefile << "UI\n";
+        rulefile.close();
 
-    // TODO: consider special case where initial state is dead
+        infofile.open(directory + "certificate.txt");
+        infofile << "statesets:" << directory << "statesets.txt\n";
+        infofile << "rules:" << directory << "rules.txt\n";
+        h->dump_certificate_info(infofile);
+        infofile.close();
+        CuddManager manager;
+        manager.writeTaskFile();
+        return;
+    }
 
     std::ofstream statefile;
     std::ofstream rulefile;
@@ -354,14 +384,8 @@ void EagerSearch::write_unsolvability_certificate() {
     statefile.open(directory + "statesets.txt");
     rulefile.open(directory + "rules.txt");
 
-
-    // TODO: workaround for a non-found bug in CuddManager()
-    std::vector<int> var_order(g_variable_domain.size());
-    for(size_t i = 0; i < var_order.size(); ++i) {
-        var_order[i] = i;
-    }
-    CuddManager manager(var_order);
-
+    CuddManager manager;
+    manager.writeTaskFile();
     CuddBDD dead = CuddBDD(&manager, false);
     CuddBDD expanded = CuddBDD(&manager, false);
     statefile << "stateset_dead\n";
@@ -410,7 +434,7 @@ void EagerSearch::write_unsolvability_certificate() {
 
     rulefile << "uD:stateset_dead\n";
     rulefile << "SD:S_d;stateset_dead\n";
-    rulefile << "SD:S_exp S_G ^;empty";
+    rulefile << "SD:S_exp S_G ^;empty\n";
     rulefile << "PD:S_exp;S_d\n";
     rulefile << "sD:";
     const GlobalState &state = state_registry.get_initial_state();
@@ -420,7 +444,7 @@ void EagerSearch::write_unsolvability_certificate() {
         }
     }
     rulefile << ";S_exp\n";
-    rulefile << "ID\n";
+    rulefile << "UI\n";
     rulefile.close();
 
     infofile.open(directory + "certificate.txt");
@@ -428,8 +452,11 @@ void EagerSearch::write_unsolvability_certificate() {
     infofile << "rules:" << directory << "rules.txt\n";
     // info for BDD statements from search
     infofile << "Statements:BDD\n";
+    int count = 0;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        infofile << i << " ";
+        for(int j = 0; j < g_variable_domain[i]; ++j) {
+            infofile << count++ << " ";
+        }
     }
     infofile << "\b\n";
     infofile << "S_exp;S_d\n";
@@ -438,7 +465,7 @@ void EagerSearch::write_unsolvability_certificate() {
     infofile << "S_exp S_G ^\n";
     infofile << "composite formulas end\n";
     infofile << directory << "stmt_search.txt\n";
-    infofile << "Statemends:BDD end\n";
+    infofile << "Statements:BDD end\n";
 
     for(size_t i = 0; i < heuristics.size(); ++i) {
         if(heuristic_used[i]) {

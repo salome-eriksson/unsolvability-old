@@ -165,11 +165,12 @@ void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
     fclose(f);
 }
 
-// FIXME: this constructor is bugged
 CuddManager::CuddManager() {
     fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
+    var_order.resize(g_variable_domain.size());
     amount_vars = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {
+        var_order[i] = i;
         fact_to_var[i].resize(g_variable_domain[i]);
         for(int j = 0; j < g_variable_domain[i]; ++j) {
             fact_to_var[i][j] = amount_vars++;
@@ -181,7 +182,8 @@ CuddManager::CuddManager() {
 
 
 
-CuddManager::CuddManager(std::vector<int> &var_order) {
+CuddManager::CuddManager(std::vector<int> &var_order)
+    : var_order(var_order) {
     assert(var_order.size() == g_variable_domain.size());
     fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
     amount_vars = 0;

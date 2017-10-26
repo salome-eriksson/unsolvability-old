@@ -15,16 +15,16 @@ std::string KnowledgeBase::INIT_SET = "S_I";
 KnowledgeBase::KnowledgeBase(Task *task, std::string filename) : task(task), manager(Cudd(task->get_number_of_facts(),0)) {
     unsolvability_proven = false;
     dead_sets.insert(EMPTYSET);
+    dead_states = manager.bddZero();
     std::ifstream in;
     in.open(filename);
     std::string line;
-    std::getline(in,line);
-    while(line.compare("") != 0) {
+    while(std::getline(in,line)) {
         std::string setname = line;
         BDD bdd = manager.bddZero();
         int size = 0;
         std::getline(in,line);
-        while(line.compare("set end")!=0) {
+        while(line.compare("set end") != 0) {
             std::istringstream iss(line);
             int n;
             Cube cube(task->get_number_of_facts());
@@ -39,8 +39,6 @@ KnowledgeBase::KnowledgeBase(Task *task, std::string filename) : task(task), man
             std::getline(in,line);
         }
         state_sets.insert(std::make_pair(setname,StateSet(manager,setname,bdd,size)));
-        std::cout << "inserted state set named " << setname << "(size: " << size << ")" << std::endl;
-        std::getline(in,line);
     }
 }
 

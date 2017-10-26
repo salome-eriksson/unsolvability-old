@@ -33,6 +33,7 @@ private:
 public:
     RuleChecker(KnowledgeBase *kb, Task *task);
     bool check_rule_and_insert_into_kb(const std::string &line);
+    void check_rules_from_file(std::string filename);
 };
 
 #endif // RULECHECKER_H
