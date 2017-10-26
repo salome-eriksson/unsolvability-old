@@ -263,3 +263,12 @@ void register_event_handlers() {
     sigaction(SIGXCPU, &default_signal_action, 0);
 }
 
+std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim) {
+    std::vector<std::string> tokens;
+    std::stringstream ss(parameter_line);
+    std::string token;
+    while (getline(ss, token, delim)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}

@@ -24,8 +24,6 @@ protected:
     Task *task;
     std::string statementfile;
     std::unordered_map<std::string,Statement> string_to_statement;
-    // TODO: this is a duplicate from RuleChecker::determine_parameters
-    std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
     // TOOD: this is a duplicate from RuleChecker::parseCube)
     Cube parseCube(const std::string &param);
 

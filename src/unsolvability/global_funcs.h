@@ -31,6 +31,7 @@ void exit_with(ExitCode code);
 void exit_oom(size_t size);
 void exit_timeout(std::string);
 void register_event_handlers();
+std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
 
 
 #endif /* GLOBAL_FUNCS_H */
