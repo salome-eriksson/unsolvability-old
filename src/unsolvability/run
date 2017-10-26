@@ -2,12 +2,12 @@
 
 rm *.txt
 
-PDDL_FILE=~/pddls/unsolv-total/pegsol-row5/prob03.pddl
+PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob01.pddl
 echo "-------------------------------------------------"
 echo "RUNNING TASK"
 echo "-------------------------------------------------"
-./../../fast-downward.py --build "release32" $PDDL_FILE --search "astar(merge_and_shrink(merge_strategy=merge_linear(), shrink_strategy=shrink_bisimulation()))" 
-#./../../fast-downward.py --build "release32" $PDDL_FILE --search "astar(hmax())"
+#./../../fast-downward.py --build "release32" $PDDL_FILE --search "astar(merge_and_shrink(merge_strategy=merge_linear(), shrink_strategy=shrink_bisimulation()))" 
+./../../fast-downward.py --build "release32" $PDDL_FILE --search "astar(hmax())"
 echo ""
 echo "-------------------------------------------------"
 echo "RUN VERIFIER"

@@ -161,6 +161,7 @@ void StatementCheckerBDD::read_in_composite_formulas(std::ifstream &in) {
         }
         assert(elements.size() == 1);
         std::pair<std::string,BDD> result = elements.top();
+        elements.pop();
         bdds.insert(std::make_pair(result.first, result.second));
         std::getline(in, line);
     }

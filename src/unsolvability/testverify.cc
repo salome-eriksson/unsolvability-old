@@ -145,6 +145,7 @@ void createInfoFileBDD() {
     file << "S7 S5 not ^" << std::endl;
     file << "composite formulas end" << std::endl;
     file << "stmt_testStatementCheckerBDD.txt" << std::endl;
+    file << "Statements:BDD end" << std::endl;
     file.close();
 }
 
@@ -168,8 +169,6 @@ void createStatementFileBDD() {
     file << "reg:S3;S6" << std::endl;
     file << "in:1 0 0 1 0;S5" << std::endl;
     file << "init:S1" << std::endl;
-    file << "statements end" << std::endl;
-    file << "Statements:BDD end" << std::endl;
     file.close();
 }
 
@@ -207,6 +206,7 @@ void createHornFormulas() {
     file << "S6:0,-1|,2|" << std::endl;
     file << "S6':2,0|" << std::endl;
     file << "S7:,0|,1|4,-1|" << std::endl;
+    file << "S8:0,-1|2,-1|2,-1" << std::endl;
     file.close();
 }
 
@@ -219,6 +219,7 @@ void createInfoFileHorn() {
     file << "S7 S5' ^" << std::endl;
     file << "composite formulas end" << std::endl;
     file << "stmt_testStatementCheckerHorn.txt" << std::endl;
+    file << "Statements:Horn end" << std::endl;
     file.close();
 }
 
@@ -235,6 +236,7 @@ void createStatementFileHorn() {
     file << "reg:S3;S4' not" << std::endl;
     file << "in:0 1 0 0 1;S1" << std::endl;
     file << "init:S7" << std::endl;
+    file << "prog:S8;true not" << std::endl;
     //from here on the statements should be false
     file << "sub:S1;S7" << std::endl;
     file << "exsub:S1;stateset" << std::endl;
@@ -242,8 +244,6 @@ void createStatementFileHorn() {
     file << "reg:S3;S6' not" << std::endl;
     file << "in:1 0 0 1 0;S5" << std::endl;
     file << "init:S1" << std::endl;
-    file << "statements end" << std::endl;
-    file << "Statements:BDD end" << std::endl;
     file.close();
 }
 

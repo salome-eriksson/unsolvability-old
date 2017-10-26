@@ -31,6 +31,7 @@ public:
     std::vector<Implication>::const_iterator begin() const;
     std::vector<Implication>::const_iterator end() const;
     const Implication &get_implication(int index) const;
+    void dump() const;
 };
 
 class StatementCheckerHorn : public StatementChecker

@@ -2,6 +2,7 @@
 #define HEURISTICS_RELAXATION_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
 
 #include <vector>
 
@@ -54,12 +55,21 @@ protected:
     std::vector<std::vector<Proposition>> propositions;
     std::vector<Proposition *> goal_propositions;
 
+    int num_certificate_sets;
+    std::vector<std::vector<int>> fact_to_variable;
+    CuddManager cudd_manager;
+    std::vector<CuddBDD *> bdds;
+
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;
 public:
     RelaxationHeuristic(const options::Options &options);
     virtual ~RelaxationHeuristic();
     virtual bool dead_ends_are_reliable() const;
+
+    virtual void setup_unsolvability_proof(std::string directory);
+    virtual void prove_state_dead(const GlobalState &state, std::ofstream &rules);
+    virtual void dump_certificate_info(std::ofstream &infofile);
 };
 }
 

@@ -98,6 +98,16 @@ int HornFormula::get_varamount() const {
     return varamount;
 }
 
+void HornFormula::dump() const{
+    for(int i = 0; i < implications.size(); ++i) {
+        for(int j = 0; j < implications[i].get_left().size(); ++j) {
+            std::cout << implications[i].get_left().at(j) << ",";
+        }
+        std::cout << ";"<<implications[i].get_right() << "|";
+    }
+    std::cout << std::endl;
+}
+
 std::vector<Implication>::const_iterator HornFormula::begin() const {
     return implications.begin();
 }
@@ -147,6 +157,9 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
         formulas.insert(std::make_pair(name,HornFormula(implications,varamount)));
     }
 
+    // insert true set
+    formulas.insert(std::make_pair("true",HornFormula(std::vector<Implication>(),varamount)));
+
     // insert empty set
     std::vector<Implication> empty_impl;
     empty_impl.push_back(Implication(std::vector<int>(),-1));
@@ -180,7 +193,7 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
         std::vector<Implication> actionimpl;
         const Action & action = task->get_action(actionsize);
         for(int i = 0; i < action.pre.size(); ++i) {
-            actionimpl.push_back(Implication(std::vector<int>(),i));
+            actionimpl.push_back(Implication(std::vector<int>(),action.pre[i]));
         }
         for(int i = 0; i < varamount; ++i) {
             // add effect
@@ -220,6 +233,7 @@ void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
     //count asserts that the composite formula is syntactically correct
     int count = 0;
     while(line.compare("composite formulas end") != 0) {
+        count = 0;
         std::stringstream ss;
         ss.str(line);
         std::string item;
@@ -363,7 +377,7 @@ bool StatementCheckerHorn::check_progression(const std::string &set1, const std:
     HornFormula &formula1 = formulas.find(set1)->second;
     size_t not_pos = set2.find(" " + KnowledgeBase::NEGATION);
     if(not_pos == std::string::npos) {
-        std::cout << set2 << "is not a negation" << std::endl;
+        std::cout << set2 << " is not a negation" << std::endl;
         return false;
     }
     std::string set2_neg = set2.substr(0,set2.size()-4);
@@ -373,6 +387,7 @@ bool StatementCheckerHorn::check_progression(const std::string &set1, const std:
     std::vector<std::pair<HornFormula *,bool>> subformulas;
     subformulas.push_back(std::make_pair(&formula1, false));
     subformulas.push_back(std::make_pair(&formula2, true));
+
     HornFormula f1_and_f2_primed = HornFormula(subformulas);
 
     subformulas.clear();
@@ -401,7 +416,7 @@ bool StatementCheckerHorn::check_regression(const std::string &set1, const std::
     HornFormula &formula1 = formulas.find(set1)->second;
     size_t not_pos = set2.find(" " + KnowledgeBase::NEGATION);
     if(not_pos == std::string::npos) {
-        std::cerr << set2 << "is not a negation" << std::endl;
+        std::cerr << set2 << " is not a negation" << std::endl;
         return false;
     }
     std::string set2_neg = set2.substr(0,set2.size()-4);
