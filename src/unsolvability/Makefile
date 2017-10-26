@@ -21,15 +21,15 @@ HEADERS = \
 	  statementcheckerhorn.h \
 	  stateset.h \
 
-SOURCES = testverify.cc $(HEADERS:%.h=%.cc)
+SOURCES = verify.cc $(HEADERS:%.h=%.cc)
 OBJ = $(SOURCES:%.cc=%.o)
 
-all: testverify
+all: verify
 
 $(OBJ): %.o: %.cc
 	$(CXX) $(CXXFLAGS)  -c $< -o $@
 
-testverify: $(OBJ)
+verify: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CUDD_LDFLAGS)
 
 test: testobj.cc

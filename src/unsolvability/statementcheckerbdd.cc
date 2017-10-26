@@ -12,7 +12,7 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
 
     std::string line;
 
-    //first line contains variable permutation
+    // first line contains variable permutation
     std::getline(in, line);
     std::istringstream iss(line);
     int n;
@@ -21,14 +21,14 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
     }
     assert(this->variable_permutation.size() == task->get_number_of_facts());
 
-    //used for changing bdd to primed variables
+    // used for changing bdd to primed variables
     prime_permutation.resize(task->get_number_of_facts()*2, -1);
     for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
       prime_permutation[2*i] = (2*i)+1;
       prime_permutation[(2*i)+1] = 2*i;
     }
 
-    //insert BDDs for initial state, goal and empty set
+    // insert BDDs for initial state, goal and empty set
     bdds.insert(std::make_pair("S_I", build_bdd_from_cube(task->get_initial_state())));
     bdds.insert(std::make_pair("S_G", build_bdd_from_cube(task->get_goal())));
     bdds.insert(std::make_pair("empty",manager.bddZero()));
@@ -37,14 +37,14 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
     goal_bdd = &(bdds.find("S_G")->second);
     empty_bdd = &(bdds.find("empty")->second);
 
-    //second line contains bdd names separated by semicolons
+    // second line contains bdd names separated by semicolons
     std::vector<std::string> bdd_names;
     std::getline(in,line);
     std::stringstream ss(line);
     while(std::getline(ss,line,';')) {
         bdd_names.push_back(line);
     }
-    //third line contains file name for bdds
+    // third line contains file name for bdds
     std::getline(in, line);
     read_in_bdds(line,bdd_names);
 
@@ -54,12 +54,12 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
         read_in_composite_formulas(in);
         std::getline(in, line);
     }
-    //last line contains loctaion of statement file
+    // second last line contains location of statement file
     statementfile = line;
-    std::cout << "saved bdds:" << std::endl;
-    for(auto it=bdds.begin(); it!=bdds.end(); ++it) {
-        std::cout << it->first << std::endl;
-    }
+
+    // last line declares end of Statement block
+    std::getline(in, line);
+    assert(line.compare("Statements:BDD end") == 0);
 }
 
 BDD StatementCheckerBDD::build_bdd_from_cube(const Cube &cube) {
@@ -75,7 +75,7 @@ BDD StatementCheckerBDD::build_bdd_from_cube(const Cube &cube) {
 BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
     BDD ret = manager.bddOne();
     for(size_t i = 0; i < a.pre.size(); ++i) {
-        ret = ret * manager.bddVar(a.pre[i]*2);
+        ret = ret * manager.bddVar(variable_permutation[a.pre[i]]*2);
     }
 
     //+1 represents primed variable
@@ -238,16 +238,16 @@ bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
     return true;
 }
 
-
+// TODO: check if variable permutation is applied correctly
 bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
     assert(bdds.find(set) != bdds.end());
     BDD &set_bdd = bdds.find(set)->second;
     if(set_bdd.IsZero()) {
         return true;
     // if the BDD contains more models than the stateset, it cannot be a subset
-    // TODO: check if the calculation is right!
-    } else if(set_bdd.CountMinterm(task->get_number_of_facts()*2)/(1<<task->get_number_of_facts()) > stateset.getSize()) {
-        return false;
+    // TODO: the computation is bugged
+    /*} *else if(set_bdd.CountMinterm(task->get_number_of_facts()*2)/(1<<task->get_number_of_facts()) > stateset.getSize()) {
+        return false;*/
     }
 
     int* bdd_model;
@@ -259,7 +259,7 @@ bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, c
     // the models gotten with FirstCube and NextCube can contain don't cares, but this doesn't matter since stateset.contains() can deal with this
     do{
         for(int i = 0; i < statecube.size(); ++i) {
-            statecube[i] = bdd_model[2*i];
+            statecube[i] = bdd_model[2*variable_permutation[i]];
         }
         if(!stateset.contains(statecube)) {
             std::cout << "stateset does not contain the following cube:";

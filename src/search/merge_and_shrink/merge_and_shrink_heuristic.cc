@@ -402,7 +402,6 @@ void MergeAndShrinkHeuristic::handle_shrink_limit_options_defaults(Options &opts
 void MergeAndShrinkHeuristic::setup_unsolvability_proof(std::string directory) {
     certificate_directory = directory;
     certificate_stmtfile.open(certificate_directory + "stmt_mas.txt");
-    std::cout << "done setting up unsolvability proof" << std::endl;
 }
 
 void MergeAndShrinkHeuristic::prove_state_dead(const GlobalState &state, std::ofstream &rules) {
@@ -434,17 +433,20 @@ void MergeAndShrinkHeuristic::prove_state_dead(const GlobalState &state, std::of
 
 void MergeAndShrinkHeuristic::dump_certificate_info(std::ofstream &infofile) {
     infofile << "Statements:BDD\n";
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        infofile << variable_order[i] << " ";
+    const std::vector<std::vector<int>> *fact_to_var = cudd_manager->get_fact_to_var();
+    for(size_t i = 0; i < fact_to_var->size(); ++i) {
+        for(size_t j = 0; j < fact_to_var->at(i).size(); ++j) {
+            infofile << fact_to_var->at(i).at(j) << " ";
+        }
     }
     infofile << "\b\n";
-    infofile << "S_mas";
+    infofile << "S_mas\n";
     infofile << certificate_directory << "bdds_mas.txt\n";
     infofile << "composite formulas begin\n";
     infofile << "S_mas S_G ^\n";
     infofile << "composite formulas end\n";
     infofile << certificate_directory << "stmt_mas.txt\n";
-    infofile << "Statemends:BDD end\n";
+    infofile << "Statements:BDD end\n";
 
     certificate_stmtfile.close();
 }
