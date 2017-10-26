@@ -1,4 +1,5 @@
 #include "statementchecker.h"
+#include "global_funcs.h"
 
 #include <cassert>
 #include <sstream>
@@ -15,17 +16,6 @@ StatementChecker::StatementChecker(KnowledgeBase *kb, Task *task)
     string_to_statement.insert(std::make_pair("in", Statement::CONTAINED));
     string_to_statement.insert(std::make_pair("init", Statement::INITIAL_CONTAINED));
 
-}
-
-// TODO: this is a duplicate from RuleChecker::determine_parameters
-std::vector<std::string> StatementChecker::determine_parameters(const std::string &parameter_line, char delim) {
-    std::vector<std::string> tokens;
-    std::stringstream ss(parameter_line);
-    std::string token;
-    while (getline(ss, token, delim)) {
-        tokens.push_back(token);
-    }
-    return tokens;
 }
 
 // TOOD: this is a duplicate from RuleChecker::parseCube)
