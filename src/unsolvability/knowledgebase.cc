@@ -15,6 +15,7 @@ std::string KnowledgeBase::INIT_SET = "S_I";
 KnowledgeBase::KnowledgeBase(Task *task, std::string filename) : task(task), manager(Cudd(task->get_number_of_facts(),0)) {
     unsolvability_proven = false;
     dead_sets.insert(EMPTYSET);
+    dead_sets.insert("true not");
     dead_states = manager.bddZero();
     std::ifstream in;
     in.open(filename);
