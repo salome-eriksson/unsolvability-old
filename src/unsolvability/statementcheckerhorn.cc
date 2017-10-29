@@ -6,29 +6,23 @@
 #include <stack>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
-
-Implication::Implication(std::vector<int> left, int right)
-    : left(left), right(right) {
-
-}
-
-const std::vector<int> &Implication::get_left() const {
-    return left;
-}
-
-int Implication::get_right() const {
-    return right;
+HornFormula::HornFormula(std::vector<int> &left_size, std::vector<int> &right_side,
+                         std::vector<std::unordered_set<int> > &variable_occurences, int varamount)
+    : left_size(left_size), right_side(right_side),
+      variable_occurences(variable_occurences), varamount(varamount) {
+    simplify();
+    set_left_vars();
 }
 
 HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount) {
     variable_occurences.resize(varamount);
     std::vector<std::string> clauses = determine_parameters(input,'|');
-    left_size.resize(clauses.size(),-1);
-    right_side.resize(clauses.size(),-2);
-    std::stack<int> ft;
-    std::vector<bool> ft_vec(varamount, false);
+    left_size.resize(clauses.size());
+    right_side.resize(clauses.size());
 
+    // parse input
     for(int i = 0; i < clauses.size(); ++i) {
         int delim = clauses[i].find(",");
         assert(delim != std::string::npos);
@@ -40,26 +34,69 @@ HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount
             count++;
         }
         left_size[i] = count;
-        int right;
         iss = std::istringstream(clauses[i].substr(delim+1));
-        iss >> right;
-        right_side[i] = right;
+        iss >> right_side[i];
+    }
+    simplify();
+    set_left_vars();
+}
+
+HornFormula::HornFormula(std::vector<const HornFormula *> &subformulas) {
+    assert(subformulas.size() > 1);
+    varamount = subformulas[0]->get_varamount();
+    variable_occurences = std::vector<std::unordered_set<int>>(varamount);
+    int impl_count = 0;
+    int size = 0;
+    for(size_t i = 0; i < subformulas.size(); ++i) {
+        assert(subformulas[i]->get_varamount() == varamount);
+        left_size.insert(left_size.end(), subformulas[i]->left_size.begin(), subformulas[i]->left_size.end());
+        right_side.insert(right_side.end(), subformulas[i]->right_side.begin(), subformulas[i]->right_side.end());
+        forced_true.insert(forced_true.end(), subformulas[i]->forced_true.begin(), subformulas[i]->forced_true.end());
+        for(size_t j = 0; j < varamount; ++j) {
+            for(int elem : subformulas[i]->get_variable_occurence(j)) {
+                variable_occurences[j].insert(elem+impl_count);
+            }
+        }
+        size += subformulas[i]->get_size();
+        impl_count = left_size.size();
+    }
+
+    simplify();
+    set_left_vars();
+}
+
+void HornFormula::simplify() {
+    std::stack<int> ft;
+    int ft_amount = 0;
+    std::vector<bool> ft_vec(varamount, false);
+    for(size_t i = 0; i < forced_true.size(); ++i) {
+        if(!ft_vec[forced_true[i]]) {
+            ft_vec[forced_true[i]] = true;
+            ft_amount++;
+        }
+    }
+    std::vector<int> removed_impl;
+    int amount_implications = left_size.size();
+
+    // find trivially forced true variable
+    for(int i = 0; i < amount_implications; ++i) {
         if(left_size[i] == 0) {
             // formula is (trivially) unsatisfiable
             if(right_side[i] == -1) {
-                left_size.clear;
+                left_size.clear();
                 left_size.push_back(0);
                 right_side.clear();
                 right_side.push_back(-1);
+                variable_occurences.clear();
+                variable_occurences.resize(varamount);
                 return;
             }
-            ft.push(right);
+            ft.push(right_side[i]);
+            removed_impl.push_back(i);
         }
     }
 
-    std::vector<std::pair<int,int>> removed_mapping;
-    int clauses_size = clauses.size();
-
+    // generalized dikstra
     while(!ft.empty()) {
         int var = ft.top();
         ft.pop();
@@ -67,6 +104,7 @@ HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount
             continue;
         }
         ft_vec[var] = true;
+        ft_amount++;
 
         for(const auto impl : variable_occurences[var]) {
             left_size[impl]--;
@@ -77,30 +115,81 @@ HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount
                     left_size.push_back(0);
                     right_side.clear();
                     right_side.push_back(-1);
+                    variable_occurences.clear();
+                    variable_occurences.resize(varamount);
                     return;
                 }
                 ft.push(right_side[impl]);
-                clauses_size--;
-                left_size[impl] = left_size[clauses_size];
-                right_side[impl] = right_side[clauses_size];
-                removed_mapping.push_back(std::make_pair(impl,clauses_size));
+                removed_impl.push_back(impl);
             }
         }
         variable_occurences[var].clear();
     }
 
-    for(size_t i = 0; i < variable_occurences.size(); ++i) {
-        for(size_t j = 0; j < removed_mapping.size(); ++j) {
-            bool old_found = variable_occurences[i].find(removed_mapping[i].second) !=
-                    variable_occurences[i].end();
-            variable_occurences[i].erase(removed_mapping[i].second);
-            if(!old_found) {
-                variable_occurences[i].erase(removed_mapping[i].first);
+    /*
+     * replace all empty implications with non-empty implication from the back of the vector
+     * example: left_size: 2 3 0 4 0 5, removed_impl = 2 4 (must be sorted!)
+     * --> new left_size 2 3 5 4 0 0, then we can resize the vector to 2 3 5 4
+     */
+    std::sort(removed_impl.begin(), removed_impl.end());
+    int old_location = amount_implications-1;
+    for(size_t i = 0; i < removed_impl.size(); ++i) {
+        int new_location = removed_impl[i];
+        // assert that the implication is empty and the right side is forced true
+        assert(left_size[new_location] == 0);
+        assert(ft_vec[right_side[new_location]]);
+        //find the implication with the highest index number that is not going to be deleted
+        while(left_size[old_location] == 0) {
+            old_location--;
+        }
+
+        // every implication with index higher than new_location is already 0
+        // --> we can break out the loop since removed_impl is sorted, i.e. all
+        // removed_impl[j] with j > i will also have higher index than old_location
+        if(old_location <= new_location) {
+            break;
+        }
+
+        // swap the implication from old_location to new_location
+        // (since the implication at new_location is empty, we don't need to swap this part)
+        left_size[new_location] = left_size[old_location];
+        right_side[new_location] = right_side[old_location];
+
+        // update variable_occurences
+        for(size_t j = 0; j < variable_occurences.size(); ++j) {
+            if(variable_occurences[j].erase(old_location) > 0) {
+                variable_occurences[j].insert(new_location);
             }
         }
+        old_location--;
     }
 
+    // this loop just asserts that all empty implications are now at the end
+    for(int i = 0; i < amount_implications-removed_impl.size(); ++i) {
+       assert(left_size[i] > 0);
+    }
 
+    // remove empty implications
+    left_size.resize(amount_implications-removed_impl.size());
+    right_side.resize(amount_implications-removed_impl.size());
+
+    // push all forced true variables into the forced_true vector
+    forced_true.clear();
+    forced_true.reserve(ft_amount);
+    for(size_t i = 0; i < ft_vec.size(); ++i) {
+        if(ft_vec[i]) {
+            forced_true.push_back(i);
+        }
+    }
+}
+
+void HornFormula::set_left_vars() {
+    left_vars.resize(left_size.size());
+    for(size_t i = 0; i < varamount; ++i) {
+        for(int elem: variable_occurences[i]) {
+            left_vars[elem].push_back(i);
+        }
+    }
 }
 
 const std::unordered_set<int> &HornFormula::get_variable_occurence(int var) const {
@@ -115,14 +204,35 @@ int HornFormula::get_varamount() const {
     return varamount;
 }
 
+int HornFormula::get_left(int index) const{
+    return left_size[index];
+}
+
+int HornFormula::get_right(int index) const {
+    return right_side[index];
+}
+
+const std::vector<int> &HornFormula::get_forced_true() const {
+    return forced_true;
+}
+
+const std::vector<int> &HornFormula::get_left_vars(int index) const {
+    return left_vars[index];
+}
+
 void HornFormula::dump() const{
-    /*for(int i = 0; i < implications.size(); ++i) {
-        for(int j = 0; j < implications[i].get_left().size(); ++j) {
-            std::cout << implications[i].get_left().at(j) << ",";
-        }
-        std::cout << ";"<<implications[i].get_right() << "|";
+    std::cout << "forced true: ";
+    for(int i = 0; i < forced_true.size(); ++i) {
+        std::cout << forced_true[i] << " ";
     }
-    std::cout << std::endl;*/
+    std::cout << std::endl;
+    for(int i = 0; i < left_size.size(); ++i) {
+        for(int j = 0; j < left_vars[i].size(); ++j) {
+            std::cout << left_vars[i][j] << " ";
+        }
+        std::cout << "," << right_side[i] << "|";
+    }
+    std::cout << std::endl;
 }
 
 
@@ -143,77 +253,95 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
         int delim = line.find(":");
         assert(delim != std::string::npos);
         std::string name = line.substr(0,delim);
-        /*std::vector<std::string> clauses = determine_parameters(line.substr(delim+1),'|');
-        for(int i = 0; i < clauses.size(); ++i) {
-            delim = clauses[i].find(",");
-            assert(delim != std::string::npos);
-            std::istringstream iss(clauses[i].substr(0,delim));
-            std::vector<int> left;
-            int tmp;
-            while(iss >> tmp) {
-                left.push_back(tmp);
-            }
-            int right;
-            iss = std::istringstream(clauses[i].substr(delim+1));
-            iss >> right;
-            implications.push_back(Implication(left,right));
-        }*/
         stored_formulas.insert(std::make_pair(name,HornFormula(line.substr(delim+1),varamount)));
     }
 
-    // insert true set
-    stored_formulas.insert(std::make_pair("true",HornFormula(std::vector<Implication>(),varamount)));
+    // insert true set (TODO: how to represent true?)
+    stored_formulas.insert(std::make_pair("true",HornFormula("",varamount)));
 
     // insert empty set
-    std::vector<Implication> empty_impl;
-    empty_impl.push_back(Implication(std::vector<int>(),-1));
-    stored_formulas.insert(std::make_pair("empty",HornFormula(empty_impl,varamount)));
+    stored_formulas.insert(std::make_pair("empty",HornFormula(",-1|",varamount)));
+
+    //used for building goal, initial state, and action formulas
+    std::vector<int> left;
+    std::vector<int> right;
+    std::vector<std::unordered_set<int>> var_occ(varamount);
+    // this is the maximum amount of implications the formulas need
+    left.reserve(varamount*2);
+    left.reserve(varamount*2);
 
     // insert goal
-    std::vector<Implication> goal_impl;
     const Cube &goal = task->get_goal();
     for(int i = 0; i < goal.size(); ++i) {
         if(goal.at(i) == 1) {
-            goal_impl.push_back(Implication(std::vector<int>(),i));
+            left.push_back(0);
+            right.push_back(i);
         }
     }
-    stored_formulas.insert(std::make_pair("S_G",HornFormula(goal_impl, varamount)));
+    stored_formulas.insert(std::make_pair("S_G",HornFormula(left, right, var_occ, varamount)));
 
     // insert initial state
-    std::vector<Implication> init_impl;
+    left.clear();
+    right.clear();
+    for(size_t i = 0; i < var_occ.size(); ++i) {
+        var_occ[i].clear();
+    }
     const Cube &init = task->get_initial_state();
     for(int i = 0; i < init.size(); ++i) {
         if(init.at(i) == 1) {
-            init_impl.push_back(Implication(std::vector<int>(),i));
+            left.push_back(0);
+            right.push_back(i);
         } else {
-            init_impl.push_back(Implication(std::vector<int>(1,i),-1));
+            left.push_back(1);
+            right.push_back(-1);
+            var_occ[i].insert(left.size()-1);
         }
     }
-    stored_formulas.insert(std::make_pair("S_I",HornFormula(init_impl, varamount)));
+    stored_formulas.insert(std::make_pair("S_I",HornFormula(left, right, var_occ, varamount)));
 
     // insert action formulas
     action_formulas.reserve(task->get_number_of_actions());
     for(int actionsize = 0; actionsize < task->get_number_of_actions(); ++actionsize) {
-        std::vector<Implication> actionimpl;
+        left.clear();
+        right.clear();
+        var_occ = std::vector<std::unordered_set<int>>(varamount*2);
         const Action & action = task->get_action(actionsize);
+        std::vector<bool> in_pre(varamount,false);
         for(int i = 0; i < action.pre.size(); ++i) {
-            actionimpl.push_back(Implication(std::vector<int>(),action.pre[i]));
+            in_pre[action.pre[i]] = true;
+            left.push_back(0);
+            right.push_back(action.pre[i]);
         }
         for(int i = 0; i < varamount; ++i) {
             // add effect
             if(action.change[i] == 1) {
-                actionimpl.push_back(Implication(std::vector<int>(),i+varamount));
+                left.push_back(0);
+                right.push_back(i+varamount);
             // delete effect
             } else if(action.change[i] == -1) {
-                actionimpl.push_back(Implication(std::vector<int>(1,i+varamount),-1));
-            // no change -> frame axiom
+                left.push_back(1);
+                right.push_back(-1);
+                var_occ[i+varamount].insert(left.size()-1);
+            // no change
             } else {
-                actionimpl.push_back(Implication(std::vector<int>(1,i),i+varamount));
-                actionimpl.push_back(Implication(std::vector<int>(1,i+varamount),i));
+                // if var i is in pre but does not change, it must be true after the action application
+                if(in_pre[i]) {
+                    left.push_back(0);
+                    right.push_back(i+varamount);
+                // if var i is not in pre, we need to use frame axioms
+                } else {
+                    left.push_back(1);
+                    right.push_back(i+varamount);
+                    var_occ[i].insert(left.size()-1);
+                    left.push_back(1);
+                    right.push_back(i);
+                    var_occ[i+varamount].insert(left.size()-1);
+                }
             }
         }
-        action_formulas.push_back(HornFormula(actionimpl,varamount*2));
+        action_formulas.push_back(HornFormula(left, right, var_occ,varamount*2));
     }
+
 
     std::getline(in, line);
     // read in composite formulas
@@ -233,7 +361,7 @@ void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
     std::string line;
     std::getline(in, line);
 
-    std::vector<std::pair<HornFormula *,bool>> elements;
+    std::vector<const HornFormula *> elements;
     //count asserts that the composite formula is syntactically correct
     int count = 0;
     while(line.compare("composite formulas end") != 0) {
@@ -253,12 +381,13 @@ void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
                 exit_with(ExitCode::CRITICAL_ERROR);
             } else {
                 assert(stored_formulas.find(item) != stored_formulas.end());
-                elements.push_back(std::make_pair(&(stored_formulas.find(item)->second),false));
+                elements.push_back(&stored_formulas.find(item)->second);
                 count++;
             }
         }
         assert(count == 1);
         stored_formulas.insert(std::make_pair(line, HornFormula(elements)));
+        elements.clear();
         std::getline(in, line);
     }
 }
@@ -273,7 +402,7 @@ bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas, Cube 
     return is_restricted_satisfiable(formulas, restrictions, solution);
 }
 
-bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions) {
+bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas, Cube &restrictions) {
     Cube solution;
     return is_restricted_satisfiable(formulas, restrictions, solution);
 }
@@ -281,41 +410,58 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
 // implementation note: if restriction has the wrong size, it gets forced resized with
 // don't care as fill value
 bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
-                                                     const Cube &restrictions, Cube &solution) {
-    assert(formulas.size >= 1);
-    int varamount = formulas[0].first.get_varamount();
+                                                     Cube &restrictions, Cube &solution) {
+    assert(formulas.size() >= 1);
+    int varamount = formulas[0].first->get_varamount();
     // total amount of implications
     int implamount = 0;
     std::stack<int> forced_true;
-    // the index in which the implications for this formula start in left_count
-    std::vector<int> implstart(formulas.size(),-1);
+    // the index for which the implications for this formula start in left_count
+    std::vector<int> implstart(formulas.size());
 
     for(size_t i = 0; i < formulas.size(); ++i) {
         implstart[i] = implamount;
-        varamount = std::max(varamount, formulas[i].first.get_varamount());
-        implamount += formulas[i].first.get_size();
+        int localvaramount = formulas[i].first->get_varamount();
+        if(formulas[i].second) {
+            localvaramount *= 2;
+        }
+        varamount = std::max(varamount, localvaramount);
+        implamount += formulas[i].first->get_size();
     }
 
     solution.resize(varamount);
     restrictions.resize(varamount,2);
-    std::fill(solution.begin(), solution.end(), false);
+    std::fill(solution.begin(), solution.end(), 0);
     std::vector<int> left_count(implamount,-1);
 
+    for(size_t i = 0; i < restrictions.size(); ++i) {
+        if(restrictions[i] == 1) {
+            forced_true.push(i);
+        }
+    }
+
     for(size_t i = 0; i < formulas.size(); ++i) {
-        const HornFormula &formula = formulas[i].first;
-        const std::vector<int> &formula_forced_true = formula.get_forced_true();
+        const HornFormula *formula = formulas[i].first;
+        const std::vector<int> &formula_forced_true = formula->get_forced_true();
         int offset = 0;
         if(formulas[i].second) {
-            offset = varamount;
+            offset = formula->get_varamount();
         }
         for(size_t j = 0; j < formula_forced_true.size(); ++j) {
-            if(restrictions[formula_forced_true[j]+offset] == 0) {
+            if(restrictions[formula_forced_true.at(j)+offset] == 0) {
                 return false;
             }
-            forced_true.push_back(formula_forced_true[j]+offset);
+            forced_true.push(formula_forced_true.at(j)+offset);
         }
-        for(size_t j = 0; j < formula.size(); ++j) {
-            left_count[implstart[i]+j] = formula.get_implication(j).get_left().size();
+        for(int j = 0; j < formula->get_size(); ++j) {
+            left_count[implstart[i]+j] = formula->get_left(j);
+            if(left_count[implstart[i]+j] == 0) {
+                int right_with_offset = formula->get_right(j) + offset;
+                if(formula->get_right(j) == -1 || restrictions[right_with_offset] == 0) {
+                    return false;
+                }
+                forced_true.push(right_with_offset);
+            }
         }
     }
 
@@ -327,56 +473,78 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
         }
         solution[var] = 1;
         for(size_t findex = 0; findex < formulas.size(); ++findex) {
+            int local_varamount = formulas[findex].first->get_varamount();
             // if the variable is primed but not the formula or vice versa we don't need to change anything
-            if((var >= varamount && !formulas[findex].second) ||
-               (var < varamount && formulas[findex].second)) {
+            if((var >= local_varamount && !formulas[findex].second) ||
+               (var < local_varamount && formulas[findex].second)) {
                 continue;
             }
             int offset = 0;
             if(formulas[findex].second) {
-                offset = varamount;
+                offset = local_varamount;
             }
-            HornFormula &formula = formulas[findex].first;
-            std::vector<int> &var_occurences = formula.get_variable_occurence(var-offset);
-            for(int i = 0; i < var_occurences.size(); ++i) {
-                int impl_number = var_occurences.at(i) + implstart[findex];
+            const HornFormula *formula = formulas[findex].first;
+            const std::unordered_set<int> &var_occurences = formula->get_variable_occurence(var-offset);
+            for(int internal_impl_number: var_occurences) {
+                int impl_number = internal_impl_number + implstart[findex];
                 left_count[impl_number]--;
                 if(left_count[impl_number] == 0) {
-                    int right = formula.get_implication(impl_number).get_rght() + offset;
-                    if(right == -1 || restrictions[right] == 0) {
+                    int right_with_offset = formula->get_right(internal_impl_number) + offset;
+                    if(formula->get_right(internal_impl_number) == -1 || restrictions[right_with_offset] == 0) {
                         return false;
                     }
-                    forced_true.push(right);
+                    forced_true.push(right_with_offset);
                 }
             }
         }
     }
+    return true;
 }
 
 bool StatementCheckerHorn::implies(const HornFormulaList &formulas,
-                                   const HornFormula &right, bool right_primed) {
+                                   const HornFormula &right_formula, bool right_primed) {
     assert(formulas.size() >= 1);
-    int varamount = formulas[0].first.get_varamount();
-    for(int i = 0; i < formulas.size(); ++i) {
-        varamount = std::max(varamount, formulas[i].first.get_varamount());
-    }
-    Cube restrictions(right.get_varamount(),2);
+    int right_varamount = right_formula.get_varamount();
     int offset = 0;
     if(right_primed) {
-        offstet += varamount;
+        offset += right_varamount;
+        right_varamount *= 2;
+    }
+    Cube restrictions = Cube(right_varamount,2);
+
+    /* If formula1 implies formula2, then formula1 \land \lnot formula 2 is unsatisfiable.
+     * Since Horn formulas don't support negation but the negation is a disjunction over
+     * unit clauses we can test for each disjunction separately if
+     * formula1 \land disjunction is unsatisfiable.
+     * special cases:
+     *  - if the right formula is empty (= true) then it correctly returns true since we don't enter the loop
+     *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
+     *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
+     */
+
+    // first loop over all forced true
+    for(size_t i = 0; i < right_formula.get_forced_true().size(); ++ i) {
+        int forced_true = right_formula.get_forced_true().at(i)+offset;
+        restrictions[forced_true] = 0;
+        if(is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+        restrictions[forced_true] = 2;
     }
 
-    // If formula1 implies formula2, then formula1 \land \lnot formula 2 is unsatisfiable.
-    // Since Horn formulas don't support negation but the negation is a disjunction over
-    // unit clauses we can test for each disjunction separately if
-    // formula1 \land disjunction is unsatisfiable.
-    for(int i = 0; i < right.get_size(); ++i) {
-        const Implication &impl = right.get_implication(i);
-        for(int j = 0; j < impl.get_left().size(); ++j) {
-            restrictions[impl.get_left().at(j)+offset] = 1;
+    // now loop over implications
+    for(size_t i = 0; i < right_formula.get_size(); ++i) {
+        const std::vector<int> &left_vars = right_formula.get_left_vars(i);
+        for(size_t j = 0; j < left_vars.size(); ++j) {
+            restrictions[left_vars.at(j)+offset] = 1;
         }
-        if(impl.get_right() != -1) {
-            restrictions[impl.get_right()+offset] = 0;
+        if(right_formula.get_right(i) != -1) {
+            // if the current implication is (a \lor ... \lor \lnot a)
+            // then formula1 \land \lnot a \land .. \land a is unsatisfiable
+            if(restrictions[right_formula.get_right(i)+offset] == 1) {
+                continue;
+            }
+            restrictions[right_formula.get_right(i)+offset] = 0;
         }
         if(is_restricted_satisfiable(formulas, restrictions)) {
             return false;
@@ -388,8 +556,8 @@ bool StatementCheckerHorn::implies(const HornFormulaList &formulas,
 
 bool StatementCheckerHorn::check_subset(const std::string &set1, const std::string &set2) {
     assert(stored_formulas.find(set1) != stored_formulas.end() && stored_formulas.find(set2) != stored_formulas.end());
-    std::vector<const HornFormula &,bool> left;
-    left.push_back(std::make_pair(stored_formulas.find(set1)->second,false));
+    HornFormulaList left;
+    left.push_back(std::make_pair(&stored_formulas.find(set1)->second,false));
     HornFormula &formula2 = stored_formulas.find(set2)->second;
     if(implies(left, formula2, false)) {
         return true;
@@ -414,11 +582,11 @@ bool StatementCheckerHorn::check_progression(const std::string &set1, const std:
     HornFormula &formula2 = stored_formulas.find(set2_neg)->second;
 
     HornFormulaList subformulas;
-    subformulas().reserve(3);
-    subformulas.push_back(std::make_pair(formula1, false));
-    subformulas.push_back(std::make_pair(formula2, true));
+    subformulas.reserve(3);
+    subformulas.push_back(std::make_pair(&formula1, false));
+    subformulas.push_back(std::make_pair(&formula2, true));
     //dummy initialization
-    subformulas.push_back(std::make_pair(formula1, false));
+    subformulas.push_back(std::make_pair(&formula1, false));
 
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
         subformulas[2] = std::make_pair(&action_formulas[i],false);
@@ -446,11 +614,11 @@ bool StatementCheckerHorn::check_regression(const std::string &set1, const std::
     HornFormula &formula2 = stored_formulas.find(set2_neg)->second;
 
     HornFormulaList subformulas;
-    subformulas().reserve(3);
-    subformulas.push_back(std::make_pair(formula1, true));
-    subformulas.push_back(std::make_pair(formula2, false));
+    subformulas.reserve(3);
+    subformulas.push_back(std::make_pair(&formula1, true));
+    subformulas.push_back(std::make_pair(&formula2, false));
     //dummy initialization
-    subformulas.push_back(std::make_pair(formula1, false));
+    subformulas.push_back(std::make_pair(&formula1, false));
 
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
         subformulas[2] = std::make_pair(&action_formulas[i],false);
@@ -463,7 +631,7 @@ bool StatementCheckerHorn::check_regression(const std::string &set1, const std::
 
 bool StatementCheckerHorn::check_is_contained(Cube &state, const std::string &set) {
     assert(stored_formulas.find(set) != stored_formulas.end());
-    HornFormulaList list = HornFormulaList(std::make_pair(stored_formulas.find(set)->second,false);
+    HornFormulaList list(1,std::make_pair(&stored_formulas.find(set)->second,false));
     if(is_restricted_satisfiable(list, state)) {
         return true;
     }
@@ -473,8 +641,9 @@ bool StatementCheckerHorn::check_is_contained(Cube &state, const std::string &se
 
 bool StatementCheckerHorn::check_initial_contained(const std::string &set) {
     assert(stored_formulas.find(set) != stored_formulas.end());
-    HornFormulaList list = HornFormulaList(std::make_pair(stored_formulas.find(set)->second,false);
-    if(is_restricted_satisfiable(list, task->get_initial_state())) {
+    HornFormulaList list(1,std::make_pair(&stored_formulas.find(set)->second,false));
+    Cube init_nonconst(task->get_initial_state());
+    if(is_restricted_satisfiable(list, init_nonconst)) {
         return true;
     }
     return false;
@@ -482,10 +651,10 @@ bool StatementCheckerHorn::check_initial_contained(const std::string &set) {
 
 bool StatementCheckerHorn::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
     assert(stored_formulas.find(set) != stored_formulas.end());
-    HornFormulaList list = HornFormulaList(std::make_pair(stored_formulas.find(set)->second,false);
+    HornFormulaList list(1,std::make_pair(&stored_formulas.find(set)->second,false));
 
-    Cube x(formulas[0].first.get_varamount(), 2);
-    Cube y(formulas[0].first.get_varamount(), 2);
+    Cube x(list[0].first->get_varamount(), 2);
+    Cube y(list[0].first->get_varamount(), 2);
 
     Cube *old_solution = &x;
     Cube *new_solution = &y;

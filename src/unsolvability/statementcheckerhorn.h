@@ -5,33 +5,35 @@
 #include <unordered_set>
 
 
-class Implication {
+class HornFormula {
 private:
-    std::vector<int> left;
-    int right;
-public:
-    Implication(std::vector<int> left, int right);
-    const std::vector<int> &get_left() const;
-    int get_right() const;
-};
-
-struct HornFormula {
-private:
-    int varamount;
     std::vector<int> left_size;
+    std::vector<std::vector<int>> left_vars;
     std::vector<int> right_side;
     std::vector<std::unordered_set<int>> variable_occurences;
     std::vector<int> forced_true;
+    int varamount;
+
+    // these two methods should be called from every constructor!
+    void simplify();
+    void set_left_vars();
 public:
-    // implicitly simplifies the formula (finds all forced_true)
+    // Horn formulas implicitly simplify themselves when constructed
     HornFormula(std::string input, int varamount);
-    const std::unordered_set<int> &get_variable_occurence(int var) const;
+    HornFormula(std::vector<int> &left_size, std::vector<int> &right_side,
+                std::vector<std::unordered_set<int>> &variable_occurences, int varamount);
+    HornFormula(std::vector<const HornFormula *> &subformulas);
     int get_size() const;
     int get_varamount() const;
+    int get_left(int index) const;
+    const std::vector<int> &get_left_vars(int index) const;
+    int get_right(int index) const;
+    const std::unordered_set<int> &get_variable_occurence(int var) const;
+    const std::vector<int> & get_forced_true() const;
     void dump() const;
 };
 
-typedef std::vector<std::pair<const HornFormula &,bool>> HornFormulaList;
+typedef std::vector<std::pair<const HornFormula *,bool>> HornFormulaList;
 
 class StatementCheckerHorn : public StatementChecker
 {
@@ -41,11 +43,11 @@ private:
     void read_in_composite_formulas(std::ifstream &in);
     bool is_satisfiable(const HornFormulaList &formulas);
     bool is_satisfiable(const HornFormulaList &formulas, Cube &solution);
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions);
-    // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care),
-    // which needs to be the same length as the formula.
-    // any content in solution will get overwritten (even if the formula is not satisfiable)
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, Cube &solution);
+    bool is_restricted_satisfiable(const HornFormulaList &formulas, Cube &restrictions);
+    // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care).
+    // If restrictions has the wrong size, it gets force resized with don't care as fill values.
+    // Any content in solution will get overwritten (even if the formula is not satisfiable).
+    bool is_restricted_satisfiable(const HornFormulaList &formulas, Cube &restrictions, Cube &solution);
     bool implies(const HornFormulaList &formulas, const HornFormula &right, bool right_primed);
 public:
     StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in);
