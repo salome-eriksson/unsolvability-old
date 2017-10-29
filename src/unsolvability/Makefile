@@ -2,7 +2,7 @@
 CUDD_DIR=$(DOWNWARD_CUDD_ROOT)
 
 CXX = g++
-CXXFLAGS = --debug -m32 -std=c++11
+CXXFLAGS = -g --debug -m32 -std=c++11
 CUDD_CXXFLAGS = -I$(CUDD_DIR)/include
 CUDD_LDFLAGS = -static -L$(CUDD_DIR)/lib -lcudd
 
