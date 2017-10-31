@@ -14,6 +14,7 @@ private:
     std::vector<int> right_side;
     std::vector<std::unordered_set<int>> variable_occurences;
     std::vector<int> forced_true;
+    std::vector<int> forced_false;
     int varamount;
 
     // these two methods should be called from every constructor!
@@ -32,6 +33,7 @@ public:
     int get_right(int index) const;
     const std::unordered_set<int> &get_variable_occurence(int var) const;
     const std::vector<int> & get_forced_true() const;
+    const std::vector<int> & get_forced_false() const;
     void dump() const;
 };
 
