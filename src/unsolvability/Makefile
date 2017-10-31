@@ -24,6 +24,9 @@ HEADERS = \
 SOURCES = verify.cc $(HEADERS:%.h=%.cc)
 OBJ = $(SOURCES:%.cc=%.o)
 
+TESTSOURCES = testverify.cc $(HEADERS:%.h=%.cc)
+TESTOBJ = $(TESTSOURCES:%cc.=%.o)
+
 all: verify
 
 $(OBJ): %.o: %.cc
@@ -31,6 +34,10 @@ $(OBJ): %.o: %.cc
 
 verify: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CUDD_LDFLAGS)
+
+testverify: $(TESTOBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CUDD_LDFLAGS)
+
 
 test: testobj.cc
 	$(CXX) -m32  testobj.cc -o test $(CUDD_CXXFLAGS) $(CUDD_LDFLAGS)
