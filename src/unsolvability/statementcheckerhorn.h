@@ -4,6 +4,8 @@
 #include "statementchecker.h"
 #include <unordered_set>
 
+// TODO: These two classes need some refactoring!!
+
 class HornFormula;
 typedef std::vector<std::pair<const HornFormula *,bool>> HornFormulaList;
 
@@ -46,11 +48,10 @@ private:
     void read_in_composite_formulas(std::ifstream &in);
     bool is_satisfiable(const HornFormulaList &formulas);
     bool is_satisfiable(const HornFormulaList &formulas, Cube &solution);
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, Cube &restrictions);
+    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions);
     // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care).
-    // If restrictions has the wrong size, it gets force resized with don't care as fill values.
     // Any content in solution will get overwritten (even if the formula is not satisfiable).
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, Cube &restrictions, Cube &solution);
+    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, Cube &solution);
     bool implies(const HornFormulaList &formulas, const HornFormula &right, bool right_primed);
 public:
     StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in);

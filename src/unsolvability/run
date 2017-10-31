@@ -2,7 +2,7 @@
 
 rm *.txt
 
-PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob06.pddl
+PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob10.pddl
 echo "-------------------------------------------------"
 echo "RUNNING TASK"
 echo "-------------------------------------------------"
