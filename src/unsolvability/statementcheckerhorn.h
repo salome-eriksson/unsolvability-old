@@ -4,6 +4,8 @@
 #include "statementchecker.h"
 #include <unordered_set>
 
+class HornFormula;
+typedef std::vector<std::pair<const HornFormula *,bool>> HornFormulaList;
 
 class HornFormula {
 private:
@@ -22,7 +24,7 @@ public:
     HornFormula(std::string input, int varamount);
     HornFormula(std::vector<int> &left_size, std::vector<int> &right_side,
                 std::vector<std::unordered_set<int>> &variable_occurences, int varamount);
-    HornFormula(std::vector<const HornFormula *> &subformulas);
+    HornFormula(HornFormulaList &subformulas);
     int get_size() const;
     int get_varamount() const;
     int get_left(int index) const;
@@ -33,7 +35,6 @@ public:
     void dump() const;
 };
 
-typedef std::vector<std::pair<const HornFormula *,bool>> HornFormulaList;
 
 class StatementCheckerHorn : public StatementChecker
 {

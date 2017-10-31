@@ -41,23 +41,47 @@ HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount
     set_left_vars();
 }
 
-HornFormula::HornFormula(std::vector<const HornFormula *> &subformulas) {
+HornFormula::HornFormula(HornFormulaList &subformulas) {
     assert(subformulas.size() > 1);
-    varamount = subformulas[0]->get_varamount();
+    varamount = 0;
+    int size = 0;
+
+    for(size_t i = 0; i < subformulas.size(); ++i) {
+        int local_varamount = subformulas[i].first->get_varamount();
+        if(subformulas[i].second) {
+            local_varamount *= 2;
+        }
+        varamount = std::max(varamount, local_varamount);
+        size += subformulas[i].first->get_size();
+    }
+    left_size.reserve(size);
+    right_side.reserve(size);
+
     variable_occurences = std::vector<std::unordered_set<int>>(varamount);
     int impl_count = 0;
-    int size = 0;
     for(size_t i = 0; i < subformulas.size(); ++i) {
-        assert(subformulas[i]->get_varamount() == varamount);
-        left_size.insert(left_size.end(), subformulas[i]->left_size.begin(), subformulas[i]->left_size.end());
-        right_side.insert(right_side.end(), subformulas[i]->right_side.begin(), subformulas[i]->right_side.end());
-        forced_true.insert(forced_true.end(), subformulas[i]->forced_true.begin(), subformulas[i]->forced_true.end());
-        for(size_t j = 0; j < varamount; ++j) {
-            for(int elem : subformulas[i]->get_variable_occurence(j)) {
-                variable_occurences[j].insert(elem+impl_count);
+        const HornFormula *formula = subformulas[i].first;
+        left_size.insert(left_size.end(), formula->left_size.begin(), formula->left_size.end());
+        right_side.insert(right_side.end(), formula->right_side.begin(), formula->right_side.end());
+        int forced_true_old_size = forced_true.size();
+        forced_true.insert(forced_true.end(), formula->forced_true.begin(), formula->forced_true.end());
+
+        int offset = 0;
+        if(subformulas[i].second) {
+            offset += formula->get_varamount();
+            for(int j = impl_count; j < left_size.size(); ++j) {
+                right_side[j] += offset;
+            }
+            for(int j = forced_true_old_size; j < forced_true.size(); ++j) {
+                forced_true[j] += offset;
             }
         }
-        size += subformulas[i]->get_size();
+
+        for(size_t j = 0; j < formula->get_varamount(); ++j) {
+            for(int elem : formula->get_variable_occurence(j)) {
+                variable_occurences[j+offset].insert(elem+impl_count);
+            }
+        }
         impl_count = left_size.size();
     }
 
@@ -361,7 +385,7 @@ void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
     std::string line;
     std::getline(in, line);
 
-    std::vector<const HornFormula *> elements;
+    HornFormulaList elements;
     //count asserts that the composite formula is syntactically correct
     int count = 0;
     while(line.compare("composite formulas end") != 0) {
@@ -381,7 +405,7 @@ void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
                 exit_with(ExitCode::CRITICAL_ERROR);
             } else {
                 assert(stored_formulas.find(item) != stored_formulas.end());
-                elements.push_back(&stored_formulas.find(item)->second);
+                elements.push_back(std::make_pair(&stored_formulas.find(item)->second,false));
                 count++;
             }
         }
@@ -590,6 +614,8 @@ bool StatementCheckerHorn::check_progression(const std::string &set1, const std:
 
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
         subformulas[2] = std::make_pair(&action_formulas[i],false);
+        //HornFormula combined = HornFormula(subformulas);
+        //HornFormulaList combined_list(1,std::make_pair(&combined,false));
         if(!implies(subformulas, formula1, true)) {
             return false;
         }
