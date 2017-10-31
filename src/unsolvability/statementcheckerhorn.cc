@@ -478,15 +478,14 @@ bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas, Cube 
     return is_restricted_satisfiable(formulas, restrictions, solution);
 }
 
-bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas, Cube &restrictions) {
+bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions) {
     Cube solution;
     return is_restricted_satisfiable(formulas, restrictions, solution);
 }
 
-// implementation note: if restriction has the wrong size, it gets forced resized with
-// don't care as fill value
+
 bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
-                                                     Cube &restrictions, Cube &solution) {
+                                                     const Cube &restrictions, Cube &solution) {
     assert(formulas.size() >= 1);
     int varamount = formulas[0].first->get_varamount();
     // total amount of implications
@@ -498,30 +497,37 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
     for(size_t i = 0; i < formulas.size(); ++i) {
         implstart[i] = implamount;
         int localvaramount = formulas[i].first->get_varamount();
-        int offset = 0;
         if(formulas[i].second) {
-            offset = localvaramount;
             localvaramount *= 2;
         }
         varamount = std::max(varamount, localvaramount);
         implamount += formulas[i].first->get_size();
+    }
+
+    solution.resize(varamount);
+    Cube local_restrictions(restrictions);
+    local_restrictions.resize(varamount,2);
+    std::fill(solution.begin(), solution.end(), 0);
+    std::vector<int> left_count(implamount,-1);
+
+    // set forced false vars in the local restriction cube
+    for(size_t i = 0; i < formulas.size(); ++i) {
+        int offset = 0;
+        if(formulas[i].second) {
+            offset = formulas[i].first->get_varamount();
+        }
         const std::vector<int> &forced_false = formulas[i].first->get_forced_false();
         for(size_t j = 0; j < forced_false.size(); ++j) {
-            if(restrictions[forced_false[j]+offset] == 1) {
+            if(local_restrictions[forced_false[j]+offset] == 1) {
                 return false;
             } else {
-                restrictions[forced_false[j]+offset] = 0;
+                local_restrictions[forced_false[j]+offset] = 0;
             }
         }
     }
 
-    solution.resize(varamount);
-    restrictions.resize(varamount,2);
-    std::fill(solution.begin(), solution.end(), 0);
-    std::vector<int> left_count(implamount,-1);
-
-    for(size_t i = 0; i < restrictions.size(); ++i) {
-        if(restrictions[i] == 1) {
+    for(size_t i = 0; i < local_restrictions.size(); ++i) {
+        if(local_restrictions[i] == 1) {
             forced_true.push(i);
         }
     }
@@ -534,7 +540,7 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
             offset = formula->get_varamount();
         }
         for(size_t j = 0; j < formula_forced_true.size(); ++j) {
-            if(restrictions[formula_forced_true.at(j)+offset] == 0) {
+            if(local_restrictions[formula_forced_true.at(j)+offset] == 0) {
                 return false;
             }
             forced_true.push(formula_forced_true.at(j)+offset);
@@ -543,7 +549,7 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
             left_count[implstart[i]+j] = formula->get_left(j);
             if(left_count[implstart[i]+j] == 0) {
                 int right_with_offset = formula->get_right(j) + offset;
-                if(formula->get_right(j) == -1 || restrictions[right_with_offset] == 0) {
+                if(formula->get_right(j) == -1 || local_restrictions[right_with_offset] == 0) {
                     return false;
                 }
                 forced_true.push(right_with_offset);
@@ -576,7 +582,7 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
                 left_count[impl_number]--;
                 if(left_count[impl_number] == 0) {
                     int right_with_offset = formula->get_right(internal_impl_number) + offset;
-                    if(formula->get_right(internal_impl_number) == -1 || restrictions[right_with_offset] == 0) {
+                    if(formula->get_right(internal_impl_number) == -1 || local_restrictions[right_with_offset] == 0) {
                         return false;
                     }
                     forced_true.push(right_with_offset);
