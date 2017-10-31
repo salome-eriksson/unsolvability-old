@@ -65,6 +65,8 @@ HornFormula::HornFormula(HornFormulaList &subformulas) {
         right_side.insert(right_side.end(), formula->right_side.begin(), formula->right_side.end());
         int forced_true_old_size = forced_true.size();
         forced_true.insert(forced_true.end(), formula->forced_true.begin(), formula->forced_true.end());
+        int forced_false_old_size = forced_false.size();
+        forced_false.insert(forced_false.end(), formula->forced_false.begin(), formula->forced_false.end());
 
         int offset = 0;
         if(subformulas[i].second) {
@@ -74,6 +76,9 @@ HornFormula::HornFormula(HornFormulaList &subformulas) {
             }
             for(int j = forced_true_old_size; j < forced_true.size(); ++j) {
                 forced_true[j] += offset;
+            }
+            for(int j = forced_false_old_size; j< forced_false.size(); ++j) {
+                forced_false[j] += offset;
             }
         }
 
@@ -93,10 +98,18 @@ void HornFormula::simplify() {
     std::stack<int> ft;
     int ft_amount = 0;
     std::vector<bool> ft_vec(varamount, false);
+    int ff_amount = 0;
+    std::vector<bool> ff_vec(varamount, false);
     for(size_t i = 0; i < forced_true.size(); ++i) {
         if(!ft_vec[forced_true[i]]) {
             ft_vec[forced_true[i]] = true;
             ft_amount++;
+        }
+    }
+    for(size_t i = 0; i < forced_false.size(); ++i) {
+        if(!ff_vec[forced_false[i]]) {
+            ff_vec[forced_false[i]] = true;
+            ff_amount++;
         }
     }
     std::vector<int> removed_impl;
@@ -106,7 +119,7 @@ void HornFormula::simplify() {
     for(int i = 0; i < amount_implications; ++i) {
         if(left_size[i] == 0) {
             // formula is (trivially) unsatisfiable
-            if(right_side[i] == -1) {
+            if(right_side[i] == -1 || ff_vec[right_side[i]]) {
                 left_size.clear();
                 left_size.push_back(0);
                 right_side.clear();
@@ -116,6 +129,20 @@ void HornFormula::simplify() {
                 return;
             }
             ft.push(right_side[i]);
+            removed_impl.push_back(i);
+        // implication = \lnot x --> x forced false
+        } else if(left_size[i] == 1 && right_side[i] == -1) {
+            int var = -1;
+            for(size_t j = 0; j < variable_occurences.size(); ++j) {
+                if(variable_occurences[j].erase(i) == 1) {
+                    var = j;
+                    break;
+                }
+            }
+            assert(var != -1);
+            ff_vec[var] = true;
+            ff_amount++;
+            left_size[i]--;
             removed_impl.push_back(i);
         }
     }
@@ -134,7 +161,7 @@ void HornFormula::simplify() {
             left_size[impl]--;
             if(left_size[impl] == 0) {
                 // formula is unsatisfiable
-                if(right_side[impl] == -1) {
+                if(right_side[impl] == -1 || ff_vec[right_side[impl]]) {
                     left_size.clear();
                     left_size.push_back(0);
                     right_side.clear();
@@ -144,6 +171,20 @@ void HornFormula::simplify() {
                     return;
                 }
                 ft.push(right_side[impl]);
+                removed_impl.push_back(impl);
+            // implication = \lnot x --> x forced false
+            } else if(left_size[impl] == 1 && right_side[impl] == -1) {
+                int var = -1;
+                for(size_t j = 0; j < variable_occurences.size(); ++j) {
+                    if(variable_occurences[j].erase(impl) == 1) {
+                        var = j;
+                        break;
+                    }
+                }
+                assert(var != -1);
+                ff_vec[var] = true;
+                ff_amount++;
+                left_size[impl]--;
                 removed_impl.push_back(impl);
             }
         }
@@ -159,9 +200,9 @@ void HornFormula::simplify() {
     int old_location = amount_implications-1;
     for(size_t i = 0; i < removed_impl.size(); ++i) {
         int new_location = removed_impl[i];
-        // assert that the implication is empty and the right side is forced true
+        // assert that the implication is empty and the right side is -1 or forced true
         assert(left_size[new_location] == 0);
-        assert(ft_vec[right_side[new_location]]);
+        assert(right_side[new_location] == -1 || ft_vec[right_side[new_location]]);
         //find the implication with the highest index number that is not going to be deleted
         while(left_size[old_location] == 0) {
             old_location--;
@@ -205,6 +246,13 @@ void HornFormula::simplify() {
             forced_true.push_back(i);
         }
     }
+    forced_false.clear();
+    forced_false.reserve(ff_amount);
+    for(size_t i = 0; i < ff_vec.size(); ++i) {
+        if(ff_vec[i]) {
+            forced_false.push_back(i);
+        }
+    }
 }
 
 void HornFormula::set_left_vars() {
@@ -238,6 +286,10 @@ int HornFormula::get_right(int index) const {
 
 const std::vector<int> &HornFormula::get_forced_true() const {
     return forced_true;
+}
+
+const std::vector<int> &HornFormula::get_forced_false() const {
+    return forced_false;
 }
 
 const std::vector<int> &HornFormula::get_left_vars(int index) const {
@@ -446,11 +498,21 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
     for(size_t i = 0; i < formulas.size(); ++i) {
         implstart[i] = implamount;
         int localvaramount = formulas[i].first->get_varamount();
+        int offset = 0;
         if(formulas[i].second) {
+            offset = localvaramount;
             localvaramount *= 2;
         }
         varamount = std::max(varamount, localvaramount);
         implamount += formulas[i].first->get_size();
+        const std::vector<int> &forced_false = formulas[i].first->get_forced_false();
+        for(size_t j = 0; j < forced_false.size(); ++j) {
+            if(restrictions[forced_false[j]+offset] == 1) {
+                return false;
+            } else {
+                restrictions[forced_false[j]+offset] = 0;
+            }
+        }
     }
 
     solution.resize(varamount);
