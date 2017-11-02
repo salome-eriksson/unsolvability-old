@@ -372,7 +372,7 @@ void EagerSearch::write_unsolvability_certificate() {
         h->dump_certificate_info(infofile);
         infofile.close();
         CuddManager manager;
-        manager.writeTaskFile();
+        manager.writeTaskFile(directory);
         return;
     }
 
@@ -385,7 +385,7 @@ void EagerSearch::write_unsolvability_certificate() {
     rulefile.open(directory + "rules.txt");
 
     CuddManager manager;
-    manager.writeTaskFile();
+    manager.writeTaskFile(directory);
     CuddBDD dead = CuddBDD(&manager, false);
     CuddBDD expanded = CuddBDD(&manager, false);
     statefile << "stateset_dead\n";
