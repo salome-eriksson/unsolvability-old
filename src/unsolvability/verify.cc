@@ -79,6 +79,9 @@ int main(int argc, char** argv) {
 
     std::ifstream infofile;
     infofile.open(certificate_file);
+    if(!infofile.is_open()) {
+        exit_with(ExitCode::NO_CERTIFICATE_FILE);
+    }
     std::string line;
 
     // first line contains location of the stateseet file needed for the knowledgebase
