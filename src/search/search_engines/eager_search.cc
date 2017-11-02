@@ -366,13 +366,13 @@ void EagerSearch::write_unsolvability_certificate() {
         rulefile << "UI\n";
         rulefile.close();
 
-        infofile.open(directory + "certificate.txt");
+        infofile.open("certificate.txt");
         infofile << "statesets:" << directory << "statesets.txt\n";
         infofile << "rules:" << directory << "rules.txt\n";
         h->dump_certificate_info(infofile);
         infofile.close();
         CuddManager manager;
-        manager.writeTaskFile(directory);
+        manager.writeTaskFile();
         return;
     }
 
@@ -385,7 +385,7 @@ void EagerSearch::write_unsolvability_certificate() {
     rulefile.open(directory + "rules.txt");
 
     CuddManager manager;
-    manager.writeTaskFile(directory);
+    manager.writeTaskFile();
     CuddBDD dead = CuddBDD(&manager, false);
     CuddBDD expanded = CuddBDD(&manager, false);
     statefile << "stateset_dead\n";
@@ -447,7 +447,7 @@ void EagerSearch::write_unsolvability_certificate() {
     rulefile << "UI\n";
     rulefile.close();
 
-    infofile.open(directory + "certificate.txt");
+    infofile.open("certificate.txt");
     infofile << "statesets:" << directory << "statesets.txt\n";
     infofile << "rules:" << directory << "rules.txt\n";
     // info for BDD statements from search
