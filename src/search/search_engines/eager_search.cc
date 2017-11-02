@@ -366,7 +366,7 @@ void EagerSearch::write_unsolvability_certificate() {
         rulefile << "UI\n";
         rulefile.close();
 
-        infofile.open("certificate.txt");
+        infofile.open(directory + "certificate.txt");
         infofile << "statesets:" << directory << "statesets.txt\n";
         infofile << "rules:" << directory << "rules.txt\n";
         h->dump_certificate_info(infofile);
@@ -447,7 +447,7 @@ void EagerSearch::write_unsolvability_certificate() {
     rulefile << "UI\n";
     rulefile.close();
 
-    infofile.open("certificate.txt");
+    infofile.open(directory + "certificate.txt");
     infofile << "statesets:" << directory << "statesets.txt\n";
     infofile << "rules:" << directory << "rules.txt\n";
     // info for BDD statements from search
