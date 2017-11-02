@@ -34,8 +34,8 @@ HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount
             count++;
         }
         left_size[i] = count;
-        iss = std::istringstream(clauses[i].substr(delim+1));
-        iss >> right_side[i];
+        std::istringstream iss2(clauses[i].substr(delim+1));
+        iss2 >> right_side[i];
     }
     simplify();
     set_left_vars();
