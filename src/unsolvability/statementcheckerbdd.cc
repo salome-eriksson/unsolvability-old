@@ -97,7 +97,7 @@ BDD StatementCheckerBDD::build_bdd_for_action(const Action &a) {
     return ret;
 }
 
-void StatementCheckerBDD::read_in_bdds(std::string filename, std::vector<std::__cxx11::string> &bdd_names) {
+void StatementCheckerBDD::read_in_bdds(std::string filename, std::vector<std::string> &bdd_names) {
 
     // move variables so the primed versions are in between
     int compose[task->get_number_of_facts()];
