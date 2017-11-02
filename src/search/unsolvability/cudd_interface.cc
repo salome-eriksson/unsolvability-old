@@ -208,9 +208,9 @@ const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {
     return &fact_to_var;
 }
 
-void CuddManager::writeTaskFile(std::string directory) const{
+void CuddManager::writeTaskFile() const{
     std::ofstream task_file;
-    task_file.open(directory + "task.txt");
+    task_file.open("task.txt");
 
     int fact_amount = 0;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {

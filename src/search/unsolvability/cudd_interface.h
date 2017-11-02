@@ -90,7 +90,7 @@ public:
     CUDD_METHOD(int get_amount_vars() const)
     CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
     // TODO: should this method be here?
-    CUDD_METHOD(void writeTaskFile(std::string directory) const)
+    CUDD_METHOD(void writeTaskFile() const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD*> &bdds, std::string filename) const)
 };
 
