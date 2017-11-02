@@ -373,6 +373,9 @@ void EagerSearch::write_unsolvability_certificate() {
         infofile.close();
         CuddManager manager;
         manager.writeTaskFile();
+        double writing_end = utils::g_timer();
+        std::cout << "Time for writing unsolvability certificate: "
+                  << writing_end - writing_start << std::endl;
         return;
     }
 
