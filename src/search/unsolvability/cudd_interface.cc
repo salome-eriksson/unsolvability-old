@@ -196,8 +196,8 @@ CuddManager::CuddManager(std::vector<int> &var_order)
     }
     ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
     Cudd_InstallOutOfMemoryHandler(exit_oom);
-    //extern DD_OOMFP MMoutOfMemory;
-    //MMoutOfMemory = exit_oom;
+    extern DD_OOMFP Cudd_OutOfMemSilent;
+    Cudd_RegisterOutOfMemoryCallback(ddmgr, Cudd_OutOfMemSilent);
 }
 
 int CuddManager::get_amount_vars() const {
