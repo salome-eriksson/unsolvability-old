@@ -29,7 +29,6 @@ private:
     KnowledgeBase *kb;
     Task *task;
     std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
-    Cube parseCube(const std::string &param);
 public:
     RuleChecker(KnowledgeBase *kb, Task *task);
     bool check_rule_and_insert_into_kb(const std::string &line);

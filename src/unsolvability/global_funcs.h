@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "timer.h"
+#include "task.h"
 
 extern Timer timer;
 extern int g_timeout;
@@ -20,6 +21,13 @@ enum class ExitCode {
     TIMEOUT = 7
 };
 
+enum class SpecialSet {
+    EMPTYSET = 0,
+    TRUESET = 1,
+    GOALSET = 2,
+    INITSET = 3
+};
+
 //TODO: move this to an appropriate place
 void split(const std::string &s, std::vector<std::string> &vec, char delim);
 void print_parsing_error_and_exit(std::string &line, std::string expected);
@@ -32,6 +40,8 @@ void exit_oom(size_t size);
 void exit_timeout(std::string);
 void register_event_handlers();
 std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
+Cube parseCube(const std::string &param, int size);
+std::string special_set_string(SpecialSet set);
 
 
 #endif /* GLOBAL_FUNCS_H */

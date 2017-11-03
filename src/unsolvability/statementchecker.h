@@ -24,8 +24,6 @@ protected:
     Task *task;
     std::string statementfile;
     std::unordered_map<std::string,Statement> string_to_statement;
-    // TOOD: this is a duplicate from RuleChecker::parseCube)
-    Cube parseCube(const std::string &param);
 
 public:
     StatementChecker(KnowledgeBase *kb, Task *task);

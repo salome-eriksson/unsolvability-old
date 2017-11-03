@@ -186,8 +186,8 @@ void RelaxationHeuristic::simplify() {
 }
 
 // TODO: guarantee unique names for files and formulas
-void RelaxationHeuristic::setup_unsolvability_proof(std::string directory) {
-    certificate_directory = directory;
+void RelaxationHeuristic::setup_unsolvability_proof() {
+    certificate_directory = UnsolvabilityManager::getInstance().get_directory();
     certificate_stmtfile.open(certificate_directory + "stmt_relax.txt");
     certificate_formulafile.open(certificate_directory + "horn_relax.txt");
     fact_to_variable.resize(g_variable_domain.size());
@@ -198,24 +198,16 @@ void RelaxationHeuristic::setup_unsolvability_proof(std::string directory) {
             fact_to_variable[i][j] = count++;
         }
     }
-    num_certificate_sets = 0;
 }
 
 void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &rules) {
-    // TODO: create function for this
-    std::stringstream statess;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
-            statess << (int)(state[i] == j) << " ";
-        }
-    }
-    statess << "\b";
-
-
+    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
-    std::string setname = "relax_" + std::to_string(num_certificate_sets);
-    certificate_formulafile << setname << ":";
+    int setid = unsolvmgr.get_new_setid();
+    setids.push_back(setid);
+    //std::string setname = "relax_" + std::to_string(num_certificate_sets);
+    certificate_formulafile << setid << ":";
     for(size_t i = 0; i < propositions.size(); ++i) {
         for(size_t j = 0; j < propositions[i].size(); ++j) {
             if(propositions[i][j].cost == -1) {
@@ -225,22 +217,26 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
     }
 
     certificate_formulafile << "\n";
-    certificate_stmtfile << "sub:" << setname << " S_G ^;empty\n";
-    certificate_stmtfile << "prog:" << setname << ";true not\n";
-    certificate_stmtfile << "in:" << statess.str() << ";" << setname << "\n";
+    certificate_stmtfile << "sub:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
+    certificate_stmtfile << "prog:" << setid << ";" << unsolvmgr.get_truesetid() <<" not\n";
+    certificate_stmtfile << "in:";
+    unsolvmgr.dump_state(state,certificate_stmtfile);
+    certificate_stmtfile << ";" << setid << "\n";
 
-    rules << "SD:" << setname << " S_G ^;empty\n";
-    rules << "PD:" << setname << ";true not\n";
-    rules << "sD:" << statess.str() << ";" << setname << "\n";
-    num_certificate_sets++;
+    rules << "SD:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() <<"\n";
+    rules << "PD:" << setid << ";" << unsolvmgr.get_truesetid() << " not\n";
+    rules << "sD:";
+    unsolvmgr.dump_state(state,rules);
+    rules << ";" << setid << "\n";
 }
 
 void RelaxationHeuristic::dump_certificate_info(ofstream &infofile) {
+    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     infofile << "Statements:Horn\n";
     infofile << certificate_directory << "horn_relax.txt\n";
     infofile << "composite formulas begin\n";
-    for(int i = 0; i < num_certificate_sets; ++i) {
-        infofile << "relax_" << i << " S_G ^\n";
+    for(size_t i = 0; i < setids.size(); ++i) {
+        infofile << setids[i] << " " << unsolvmgr.get_goalsetid() << " ^\n";
     }
     infofile << "composite formulas end\n";
     infofile << certificate_directory << "stmt_relax.txt\n";

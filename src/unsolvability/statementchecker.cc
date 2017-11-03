@@ -18,19 +18,6 @@ StatementChecker::StatementChecker(KnowledgeBase *kb, Task *task)
 
 }
 
-// TOOD: this is a duplicate from RuleChecker::parseCube)
-Cube StatementChecker::parseCube(const std::string &param) {
-    Cube cube;
-    cube.reserve(task->get_number_of_facts());
-    std::istringstream iss(param);
-    int n;
-    while (iss >> n){
-        cube.push_back(n);
-    }
-    assert(cube.size() == task->get_number_of_facts());
-    return cube;
-}
-
 void StatementChecker::check_statements_and_insert_into_kb() {
     assert(statementfile.compare("") != 0);
     std::ifstream in;
@@ -78,7 +65,7 @@ void StatementChecker::check_statements_and_insert_into_kb() {
         }
         case Statement::CONTAINED: {
             assert(params.size() == 2);
-            Cube state_cube = parseCube(params[0]);
+            Cube state_cube = parseCube(params[0], task->get_number_of_facts());
             statement_correct = check_is_contained(state_cube, params[1]);
             if(statement_correct) {
                 kb->insert_contained_in(state_cube,params[1]);

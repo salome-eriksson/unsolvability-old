@@ -7,6 +7,8 @@
 
 #include "algorithms/ordered_set.h"
 
+#include "unsolvability/unsolvabilitymanager.h"
+
 #include <memory>
 #include <vector>
 #include <fstream>
@@ -105,7 +107,7 @@ public:
         return heuristic_cache[state].dirty;
     }
 
-    virtual void setup_unsolvability_proof(std::string) {}
+    virtual void setup_unsolvability_proof() {}
     virtual void prove_state_dead(const GlobalState &, std::ofstream &) {}
     virtual void dump_certificate_info(std::ofstream &) {}
 };
