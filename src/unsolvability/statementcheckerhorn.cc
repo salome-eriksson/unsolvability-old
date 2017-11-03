@@ -332,11 +332,11 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
         stored_formulas.insert(std::make_pair(name,HornFormula(line.substr(delim+1),varamount)));
     }
 
-    // insert true set (TODO: how to represent true?)
-    stored_formulas.insert(std::make_pair("true",HornFormula("",varamount)));
+    // insert true set
+    stored_formulas.insert(std::make_pair(special_set_string(SpecialSet::TRUESET), HornFormula("",varamount)));
 
     // insert empty set
-    stored_formulas.insert(std::make_pair("empty",HornFormula(",-1|",varamount)));
+    stored_formulas.insert(std::make_pair(special_set_string(SpecialSet::EMPTYSET),HornFormula(",-1|",varamount)));
 
     //used for building goal, initial state, and action formulas
     std::vector<int> left;
@@ -354,7 +354,7 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
             right.push_back(i);
         }
     }
-    stored_formulas.insert(std::make_pair("S_G",HornFormula(left, right, var_occ, varamount)));
+    stored_formulas.insert(std::make_pair(special_set_string(SpecialSet::GOALSET),HornFormula(left, right, var_occ, varamount)));
 
     // insert initial state
     left.clear();
@@ -373,7 +373,7 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
             var_occ[i].insert(left.size()-1);
         }
     }
-    stored_formulas.insert(std::make_pair("S_I",HornFormula(left, right, var_occ, varamount)));
+    stored_formulas.insert(std::make_pair(special_set_string(SpecialSet::INITSET),HornFormula(left, right, var_occ, varamount)));
 
     // insert action formulas
     action_formulas.reserve(task->get_number_of_actions());

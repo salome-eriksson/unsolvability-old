@@ -6,6 +6,7 @@
 #include <limits>
 #include <string.h>
 #include <fcntl.h>
+#include <cassert>
 
 #include "global_funcs.h"
 
@@ -271,4 +272,33 @@ std::vector<std::string> determine_parameters(const std::string &parameter_line,
         tokens.push_back(token);
     }
     return tokens;
+}
+
+Cube parseCube(const std::string &param, int size) {
+    assert(param.length() == (size+7)/8);
+    Cube cube(size,0);
+    for(int i = 0; i < param.length(); ++i) {
+        char n = param.at(i);
+        for(int j = 0; j < 8; ++j) {
+            if(n & (1 << (7-j))) {
+                cube[8*i+j] = 1;
+            }
+        }
+    }
+    return cube;
+}
+
+std::string special_set_string(SpecialSet set) {
+    switch (set) {
+    case SpecialSet::EMPTYSET:
+        return "0";
+    case SpecialSet::TRUESET:
+        return "1";
+    case SpecialSet::GOALSET:
+        return "2";
+    case SpecialSet::INITSET:
+        return "3";
+    default:
+        return "-1";
+    }
 }

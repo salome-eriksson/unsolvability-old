@@ -1,21 +1,19 @@
 #include "knowledgebase.h"
+#include "global_funcs.h"
 
 #include <cassert>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
-std::string KnowledgeBase::EMPTYSET = "empty";
 std::string KnowledgeBase::UNION = "u";
 std::string KnowledgeBase::INTERSECTION = "^";
 std::string KnowledgeBase::NEGATION = "not";
-std::string KnowledgeBase::GOAL = "S_G";
-std::string KnowledgeBase::INIT_SET = "S_I";
 
 KnowledgeBase::KnowledgeBase(Task *task, std::string filename) : task(task), manager(Cudd(task->get_number_of_facts(),0)) {
     unsolvability_proven = false;
-    dead_sets.insert(EMPTYSET);
-    dead_sets.insert("true not");
+    dead_sets.insert(special_set_string(SpecialSet::EMPTYSET));
+    dead_sets.insert(special_set_string(SpecialSet::TRUESET) + " not");
     dead_states = manager.bddZero();
     std::ifstream in;
     in.open(filename);
@@ -26,15 +24,7 @@ KnowledgeBase::KnowledgeBase(Task *task, std::string filename) : task(task), man
         int size = 0;
         std::getline(in,line);
         while(line.compare("set end") != 0) {
-            std::istringstream iss(line);
-            int n;
-            Cube cube(task->get_number_of_facts());
-            int i = 0;
-            while (iss >> n){
-                cube[i] = n;
-                i++;
-            }
-            assert(i==cube.size());
+            Cube cube = parseCube(line, task->get_number_of_facts());
             bdd = bdd + BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), cube.data()));
             size++;
             std::getline(in,line);

@@ -1,4 +1,5 @@
 #include "rulechecker.h"
+#include "global_funcs.h"
 
 #include <cassert>
 #include <iostream>
@@ -17,18 +18,6 @@ RuleChecker::RuleChecker(KnowledgeBase *kb, Task *task)
     string_to_rule.insert(std::make_pair("Rd",Rules::REGRESION_NEGATED_DEAD));
     string_to_rule.insert(std::make_pair("UI",Rules::UNSOLVABLE_INIT_DEAD));
     string_to_rule.insert(std::make_pair("UG",Rules::UNSOLVABLE_GOAL_DEAD));
-}
-
-Cube RuleChecker::parseCube(const std::string &param) {
-    Cube cube;
-    cube.reserve(task->get_number_of_facts());
-    std::istringstream iss(param);
-    int n;
-    while (iss >> n){
-        cube.push_back(n);
-    }
-    assert(cube.size() == task->get_number_of_facts());
-    return cube;
 }
 
 std::vector<std::string> RuleChecker::determine_parameters(const std::string &parameter_line, char delim) {
@@ -99,7 +88,7 @@ bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
     }
     case Rules::STATE_DEAD: {
         assert(param.size() == 2);
-        Cube state = parseCube(param[0]);
+        Cube state = parseCube(param[0], task->get_number_of_facts());
         if(!kb->is_contained_in(state,param[1]) || !kb->is_dead_set(param[1])) {
             return false;
         } else {
@@ -111,7 +100,7 @@ bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
         assert(param.size() == 2);
         if(!kb->is_progression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
-                !kb->is_dead_set(param[0] + " " + KnowledgeBase::GOAL + " " + KnowledgeBase::INTERSECTION)) {
+                !kb->is_dead_set(param[0] + " " + special_set_string(SpecialSet::GOALSET) + " " + KnowledgeBase::INTERSECTION)) {
             return false;
         } else {
             kb->insert_dead_set(param[0]);
@@ -144,7 +133,7 @@ bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
         assert(param.size() == 2);
         if(!kb->is_regression(param[0],param[1]) ||
                 !kb->is_dead_set(param[1]) ||
-                !kb->is_dead_set(param[0] + " " + KnowledgeBase::NEGATION + " " + KnowledgeBase::GOAL + " " + KnowledgeBase::INTERSECTION)) {
+                !kb->is_dead_set(param[0] + " " + KnowledgeBase::NEGATION + " " + special_set_string(SpecialSet::GOALSET) + " " + KnowledgeBase::INTERSECTION)) {
             return false;
         } else {
             kb->insert_dead_set(param[0] + " " + KnowledgeBase::NEGATION);
@@ -162,7 +151,7 @@ bool RuleChecker::check_rule_and_insert_into_kb(const std::string &line) {
         }
     }
     case Rules::UNSOLVABLE_GOAL_DEAD: {
-        if(!kb->is_dead_set(KnowledgeBase::GOAL)) {
+        if(!kb->is_dead_set(special_set_string(SpecialSet::GOALSET))) {
             return false;
         } else {
             kb->set_unsolvability_proven();

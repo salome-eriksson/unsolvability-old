@@ -34,13 +34,13 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
     }
 
     // insert BDDs for initial state, goal and empty set
-    bdds.insert(std::make_pair("S_I", build_bdd_from_cube(task->get_initial_state())));
-    bdds.insert(std::make_pair("S_G", build_bdd_from_cube(task->get_goal())));
-    bdds.insert(std::make_pair("empty",manager.bddZero()));
+    bdds.insert(std::make_pair(special_set_string(SpecialSet::INITSET), build_bdd_from_cube(task->get_initial_state())));
+    bdds.insert(std::make_pair(special_set_string(SpecialSet::GOALSET), build_bdd_from_cube(task->get_goal())));
+    bdds.insert(std::make_pair(special_set_string(SpecialSet::EMPTYSET), manager.bddZero()));
 
-    initial_state_bdd = &(bdds.find("S_I")->second);
-    goal_bdd = &(bdds.find("S_G")->second);
-    empty_bdd = &(bdds.find("empty")->second);
+    initial_state_bdd = &(bdds.find(special_set_string(SpecialSet::INITSET))->second);
+    goal_bdd = &(bdds.find(special_set_string(SpecialSet::GOALSET))->second);
+    empty_bdd = &(bdds.find(special_set_string(SpecialSet::EMPTYSET))->second);
 
     // second line contains bdd names separated by semicolons
     std::vector<std::string> bdd_names;
