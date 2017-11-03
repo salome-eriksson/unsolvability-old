@@ -1,4 +1,5 @@
 #include "statementcheckerbdd.h"
+#include "global_funcs.h"
 
 #include "dddmp.h"
 
@@ -9,6 +10,10 @@
 
 StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifstream &in)
     : StatementChecker(kb, task), manager(Cudd(task->get_number_of_facts()*2,0)) {
+
+
+    manager.setTimeoutHandler(exit_timeout);
+    manager.InstallOutOfMemoryHandler(exit_oom);
 
     std::string line;
 
