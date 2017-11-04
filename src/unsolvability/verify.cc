@@ -110,6 +110,7 @@ int main(int argc, char** argv) {
             exit_with(ExitCode::CRITICAL_ERROR);
         }
         stmtchecker->check_statements_and_insert_into_kb();
+        delete stmtchecker;
     }
 
     // check rules

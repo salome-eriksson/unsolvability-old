@@ -20,6 +20,7 @@ private:
     BDD build_bdd_for_action(const Action &a);
     void read_in_bdds(std::string filename, std::vector<std::string> &bdd_names);
     void read_in_composite_formulas(std::ifstream &in);
+    BDD &get_BDD(const std::string &description, std::vector<BDD> &tmp_bdds);
 public:
     StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifstream &in);
     bool check_subset(const std::string &set1, const std::string &set2);

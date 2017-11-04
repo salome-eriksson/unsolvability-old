@@ -205,7 +205,6 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
     int setid = unsolvmgr.get_new_setid();
-    setids.push_back(setid);
     //std::string setname = "relax_" + std::to_string(num_certificate_sets);
     certificate_formulafile << setid << ":";
     for(size_t i = 0; i < propositions.size(); ++i) {
@@ -231,13 +230,9 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
 }
 
 void RelaxationHeuristic::dump_certificate_info(ofstream &infofile) {
-    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     infofile << "Statements:Horn\n";
     infofile << certificate_directory << "horn_relax.txt\n";
     infofile << "composite formulas begin\n";
-    for(size_t i = 0; i < setids.size(); ++i) {
-        infofile << setids[i] << " " << unsolvmgr.get_goalsetid() << " ^\n";
-    }
     infofile << "composite formulas end\n";
     infofile << certificate_directory << "stmt_relax.txt\n";
     infofile << "Statements:Horn end\n";

@@ -27,7 +27,7 @@ public:
     HornFormula(std::string input, int varamount);
     HornFormula(std::vector<int> &left_size, std::vector<int> &right_side,
                 std::vector<std::unordered_set<int>> &variable_occurences, int varamount);
-    HornFormula(HornFormulaList &subformulas);
+    HornFormula(const HornFormulaList &subformulas);
     int get_size() const;
     int get_varamount() const;
     int get_left(int index) const;
@@ -46,13 +46,14 @@ private:
     std::vector<HornFormula> action_formulas;
     std::unordered_map<std::string,HornFormula> stored_formulas;
     void read_in_composite_formulas(std::ifstream &in);
+    HornFormulaList get_formulalist(const std::string &description);
     bool is_satisfiable(const HornFormulaList &formulas);
     bool is_satisfiable(const HornFormulaList &formulas, Cube &solution);
     bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions);
     // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care).
     // Any content in solution will get overwritten (even if the formula is not satisfiable).
     bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, Cube &solution);
-    bool implies(const HornFormulaList &formulas, const HornFormula &right, bool right_primed);
+    bool implies(const HornFormulaList &formulas, const HornFormulaList &right);
 public:
     StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in);
     virtual bool check_subset(const std::string &set1, const std::string &set2);

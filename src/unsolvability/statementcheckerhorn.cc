@@ -41,18 +41,18 @@ HornFormula::HornFormula(std::string input, int varamount) : varamount(varamount
     set_left_vars();
 }
 
-HornFormula::HornFormula(HornFormulaList &subformulas) {
+HornFormula::HornFormula(const HornFormulaList &subformulas) {
     assert(subformulas.size() > 1);
     varamount = 0;
     int size = 0;
 
     for(size_t i = 0; i < subformulas.size(); ++i) {
-        int local_varamount = subformulas[i].first->get_varamount();
-        if(subformulas[i].second) {
+        int local_varamount = subformulas.at(i).first->get_varamount();
+        if(subformulas.at(i).second) {
             local_varamount *= 2;
         }
         varamount = std::max(varamount, local_varamount);
-        size += subformulas[i].first->get_size();
+        size += subformulas.at(i).first->get_size();
     }
     left_size.reserve(size);
     right_side.reserve(size);
@@ -60,7 +60,7 @@ HornFormula::HornFormula(HornFormulaList &subformulas) {
     variable_occurences = std::vector<std::unordered_set<int>>(varamount);
     int impl_count = 0;
     for(size_t i = 0; i < subformulas.size(); ++i) {
-        const HornFormula *formula = subformulas[i].first;
+        const HornFormula *formula = subformulas.at(i).first;
         left_size.insert(left_size.end(), formula->left_size.begin(), formula->left_size.end());
         right_side.insert(right_side.end(), formula->right_side.begin(), formula->right_side.end());
         int forced_true_old_size = forced_true.size();
@@ -69,7 +69,7 @@ HornFormula::HornFormula(HornFormulaList &subformulas) {
         forced_false.insert(forced_false.end(), formula->forced_false.begin(), formula->forced_false.end());
 
         int offset = 0;
-        if(subformulas[i].second) {
+        if(subformulas.at(i).second) {
             offset += formula->get_varamount();
             for(int j = impl_count; j < left_size.size(); ++j) {
                 right_side[j] += offset;
@@ -436,36 +436,40 @@ StatementCheckerHorn::StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::i
 void StatementCheckerHorn::read_in_composite_formulas(std::ifstream &in) {
     std::string line;
     std::getline(in, line);
-
-    HornFormulaList elements;
-    //count asserts that the composite formula is syntactically correct
-    int count = 0;
     while(line.compare("composite formulas end") != 0) {
-        count = 0;
-        std::stringstream ss;
-        ss.str(line);
-        std::string item;
-        while(std::getline(ss, item, ' ')) {
-            if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
-                assert(count >=2);
-                count--;
-            } else if(item.compare(KnowledgeBase::UNION) == 0) {
-                std::cout << "UNION not supported for Horn composite formulas" << std::endl;
-                exit_with(ExitCode::CRITICAL_ERROR);
-            } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
-                std::cout << "UNION not supported for Horn composite formulas" << std::endl;
-                exit_with(ExitCode::CRITICAL_ERROR);
-            } else {
-                assert(stored_formulas.find(item) != stored_formulas.end());
-                elements.push_back(std::make_pair(&stored_formulas.find(item)->second,false));
-                count++;
-            }
-        }
-        assert(count == 1);
-        stored_formulas.insert(std::make_pair(line, HornFormula(elements)));
-        elements.clear();
+        HornFormulaList list = get_formulalist(line);
+        stored_formulas.insert(std::make_pair(line, HornFormula(list)));
         std::getline(in, line);
     }
+}
+
+HornFormulaList StatementCheckerHorn::get_formulalist(const std::string &description) {
+    HornFormulaList list;
+    //count asserts that the formula is syntactically correct
+    int count = 0;
+    std::stringstream ss;
+    ss.str(description);
+    std::string item;
+    while(std::getline(ss, item, ' ')) {
+        if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
+            assert(count >=2);
+            count--;
+        } else if(item.compare(KnowledgeBase::UNION) == 0) {
+            std::cout << "UNION not supported for Horn composite formulas" << std::endl;
+            exit_with(ExitCode::CRITICAL_ERROR);
+        } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
+            std::cout << "NEGATION not supported for Horn composite formulas" << std::endl;
+            exit_with(ExitCode::CRITICAL_ERROR);
+        } else {
+            auto found = stored_formulas.find(description);
+            found = stored_formulas.find(item);
+            assert(found != stored_formulas.end());
+            list.push_back(std::make_pair(&found->second,false));
+            count++;
+        }
+    }
+    assert(count == 1);
+    return list;
 }
 
 bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas) {
@@ -593,65 +597,75 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
     return true;
 }
 
-bool StatementCheckerHorn::implies(const HornFormulaList &formulas,
-                                   const HornFormula &right_formula, bool right_primed) {
-    assert(formulas.size() >= 1);
-    int right_varamount = right_formula.get_varamount();
-    int offset = 0;
-    if(right_primed) {
-        offset += right_varamount;
-        right_varamount *= 2;
-    }
-    Cube restrictions = Cube(right_varamount,2);
+/* If formula1 implies formula2, then formula1 \land \lnot formula 2 is unsatisfiable.
+ * Since Horn formulas don't support negation but the negation is a disjunction over
+ * unit clauses we can test for each disjunction separately if
+ * formula1 \land disjunction is unsatisfiable.
+ * special cases:
+ *  - if the right formula is empty (= true) then it correctly returns true since we don't enter the loop
+ *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
+ *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
+ */
+bool StatementCheckerHorn::implies(const HornFormulaList &formulas, const HornFormulaList &right) {
+    assert(formulas.size() >= 1 && right.size() >= 1);
 
-    /* If formula1 implies formula2, then formula1 \land \lnot formula 2 is unsatisfiable.
-     * Since Horn formulas don't support negation but the negation is a disjunction over
-     * unit clauses we can test for each disjunction separately if
-     * formula1 \land disjunction is unsatisfiable.
-     * special cases:
-     *  - if the right formula is empty (= true) then it correctly returns true since we don't enter the loop
-     *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
-     *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
-     */
-
-    // first loop over all forced true
-    for(size_t i = 0; i < right_formula.get_forced_true().size(); ++ i) {
-        int forced_true = right_formula.get_forced_true().at(i)+offset;
-        restrictions[forced_true] = 0;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
+    for(size_t index = 0;  index < right.size(); ++index) {
+        const HornFormula *right_formula = right.at(index).first;
+        int right_varamount = right_formula->get_varamount();
+        int offset = 0;
+        if(right.at(index).second) {
+            offset += right_varamount;
+            right_varamount *= 2;
         }
-        restrictions[forced_true] = 2;
-    }
+        Cube restrictions = Cube(right_varamount,2);
 
-    // now loop over implications
-    for(size_t i = 0; i < right_formula.get_size(); ++i) {
-        const std::vector<int> &left_vars = right_formula.get_left_vars(i);
-        for(size_t j = 0; j < left_vars.size(); ++j) {
-            restrictions[left_vars.at(j)+offset] = 1;
-        }
-        if(right_formula.get_right(i) != -1) {
-            // if the current implication is (a \lor ... \lor \lnot a)
-            // then formula1 \land \lnot a \land .. \land a is unsatisfiable
-            if(restrictions[right_formula.get_right(i)+offset] == 1) {
-                continue;
+        // first loop over all forced true
+        for(size_t i = 0; i < right_formula->get_forced_true().size(); ++ i) {
+            int forced_true = right_formula->get_forced_true().at(i)+offset;
+            restrictions[forced_true] = 0;
+            if(is_restricted_satisfiable(formulas, restrictions)) {
+                return false;
             }
-            restrictions[right_formula.get_right(i)+offset] = 0;
+            restrictions[forced_true] = 2;
         }
-        if(is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
+
+        // then loop over all forced false
+        for(size_t i = 0; i < right_formula->get_forced_false().size(); ++i) {
+            int forced_false = right_formula->get_forced_false().at(i)+offset;
+            restrictions[forced_false] = 1;
+            if(is_restricted_satisfiable(formulas, restrictions)) {
+                return false;
+            }
+            restrictions[forced_false] = 2;
         }
-        std::fill(restrictions.begin(), restrictions.end(),2);
+
+        // now loop over implications
+        for(size_t i = 0; i < right_formula->get_size(); ++i) {
+            const std::vector<int> &left_vars = right_formula->get_left_vars(i);
+            for(size_t j = 0; j < left_vars.size(); ++j) {
+                restrictions[left_vars.at(j)+offset] = 1;
+            }
+            if(right_formula->get_right(i) != -1) {
+                // if the current implication is (a \lor ... \lor \lnot a)
+                // then formula1 \land \lnot a \land .. \land a is unsatisfiable
+                if(restrictions[right_formula->get_right(i)+offset] == 1) {
+                    continue;
+                }
+                restrictions[right_formula->get_right(i)+offset] = 0;
+            }
+            if(is_restricted_satisfiable(formulas, restrictions)) {
+                return false;
+            }
+            std::fill(restrictions.begin(), restrictions.end(),2);
+        }
     }
     return true;
 }
 
 bool StatementCheckerHorn::check_subset(const std::string &set1, const std::string &set2) {
-    assert(stored_formulas.find(set1) != stored_formulas.end() && stored_formulas.find(set2) != stored_formulas.end());
-    HornFormulaList left;
-    left.push_back(std::make_pair(&stored_formulas.find(set1)->second,false));
-    HornFormula &formula2 = stored_formulas.find(set2)->second;
-    if(implies(left, formula2, false)) {
+    HornFormulaList left = get_formulalist(set1);
+    HornFormulaList right = get_formulalist(set2);
+    if(implies(left, right)) {
         return true;
     }
     return false;
@@ -662,29 +676,29 @@ bool StatementCheckerHorn::check_subset(const std::string &set1, const std::stri
 // that phi_1 \land t_o_i \implies phi_1' \lor \lnot phi_2', which is equal to
 // phi_1 \land t_o_i \land phi_2' implies phi_1'
 bool StatementCheckerHorn::check_progression(const std::string &set1, const std::string &set2) {
-    assert(stored_formulas.find(set1) != stored_formulas.end());
-    HornFormula &formula1 = stored_formulas.find(set1)->second;
+    HornFormulaList subformulas = get_formulalist(set1);
     size_t not_pos = set2.find(" " + KnowledgeBase::NEGATION);
     if(not_pos == std::string::npos) {
         std::cout << set2 << " is not a negation" << std::endl;
         return false;
     }
     std::string set2_neg = set2.substr(0,set2.size()-4);
-    assert(stored_formulas.find(set2_neg) != stored_formulas.end());
-    HornFormula &formula2 = stored_formulas.find(set2_neg)->second;
+    HornFormulaList formula2_list = get_formulalist(set2_neg);
 
-    HornFormulaList subformulas;
-    subformulas.reserve(3);
-    subformulas.push_back(std::make_pair(&formula1, false));
-    subformulas.push_back(std::make_pair(&formula2, true));
+    HornFormulaList formula1_primed(subformulas);
+    for(size_t i = 0; i < formula1_primed.size(); ++i) {
+        formula1_primed[i].second = true;
+    }
+
+    for(size_t i = 0; i < formula2_list.size(); ++i) {
+        subformulas.push_back(std::make_pair(formula2_list[i].first, true));
+    }
     //dummy initialization
-    subformulas.push_back(std::make_pair(&formula1, false));
+    subformulas.push_back(std::make_pair(nullptr, false));
 
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
-        subformulas[2] = std::make_pair(&action_formulas[i],false);
-        //HornFormula combined = HornFormula(subformulas);
-        //HornFormulaList combined_list(1,std::make_pair(&combined,false));
-        if(!implies(subformulas, formula1, true)) {
+        subformulas[subformulas.size()-1] = std::make_pair(&action_formulas[i],false);
+        if(!implies(subformulas, formula1_primed)) {
             return false;
         }
     }
@@ -696,27 +710,24 @@ bool StatementCheckerHorn::check_progression(const std::string &set1, const std:
 // that phi_1' \land t_o_i implies phi_1 \lor \lnot phi_2, which is equal to
 // phi_1' \land t_o_i \land phi_2 implies phi_1
 bool StatementCheckerHorn::check_regression(const std::string &set1, const std::string &set2) {
-    assert(stored_formulas.find(set1) != stored_formulas.end());
-    HornFormula &formula1 = stored_formulas.find(set1)->second;
+    HornFormulaList formula1_list = get_formulalist(set1);
     size_t not_pos = set2.find(" " + KnowledgeBase::NEGATION);
     if(not_pos == std::string::npos) {
-        std::cerr << set2 << " is not a negation" << std::endl;
+        std::cout << set2 << " is not a negation" << std::endl;
         return false;
     }
     std::string set2_neg = set2.substr(0,set2.size()-4);
-    assert(stored_formulas.find(set2_neg) != stored_formulas.end());
-    HornFormula &formula2 = stored_formulas.find(set2_neg)->second;
+    HornFormulaList subformulas = get_formulalist(set2_neg);
 
-    HornFormulaList subformulas;
-    subformulas.reserve(3);
-    subformulas.push_back(std::make_pair(&formula1, true));
-    subformulas.push_back(std::make_pair(&formula2, false));
+    for(size_t i = 0; i < formula1_list.size(); ++i) {
+        subformulas.push_back(std::make_pair(formula1_list[i].first, true));
+    }
     //dummy initialization
-    subformulas.push_back(std::make_pair(&formula1, false));
+    subformulas.push_back(std::make_pair(nullptr, false));
 
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
-        subformulas[2] = std::make_pair(&action_formulas[i],false);
-        if(!implies(subformulas, formula1, false)) {
+        subformulas[subformulas.size()-1] = std::make_pair(&action_formulas[i],false);
+        if(!implies(subformulas, formula1_list)) {
             return false;
         }
     }
@@ -724,9 +735,7 @@ bool StatementCheckerHorn::check_regression(const std::string &set1, const std::
 }
 
 bool StatementCheckerHorn::check_is_contained(Cube &state, const std::string &set) {
-    assert(stored_formulas.find(set) != stored_formulas.end());
-    HornFormulaList list(1,std::make_pair(&stored_formulas.find(set)->second,false));
-    if(is_restricted_satisfiable(list, state)) {
+    if(is_restricted_satisfiable(get_formulalist(set), state)) {
         return true;
     }
     return false;
@@ -734,18 +743,14 @@ bool StatementCheckerHorn::check_is_contained(Cube &state, const std::string &se
 }
 
 bool StatementCheckerHorn::check_initial_contained(const std::string &set) {
-    assert(stored_formulas.find(set) != stored_formulas.end());
-    HornFormulaList list(1,std::make_pair(&stored_formulas.find(set)->second,false));
-    Cube init_nonconst(task->get_initial_state());
-    if(is_restricted_satisfiable(list, init_nonconst)) {
+    if(is_restricted_satisfiable(get_formulalist(set), task->get_initial_state())) {
         return true;
     }
     return false;
 }
 
 bool StatementCheckerHorn::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
-    assert(stored_formulas.find(set) != stored_formulas.end());
-    HornFormulaList list(1,std::make_pair(&stored_formulas.find(set)->second,false));
+    HornFormulaList list = get_formulalist(set);
 
     Cube x(list[0].first->get_varamount(), 2);
     Cube y(list[0].first->get_varamount(), 2);
