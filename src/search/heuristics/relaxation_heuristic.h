@@ -56,7 +56,6 @@ protected:
     std::vector<Proposition *> goal_propositions;
 
     std::vector<std::vector<int>> fact_to_variable;
-    std::vector<int> setids;
 
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;

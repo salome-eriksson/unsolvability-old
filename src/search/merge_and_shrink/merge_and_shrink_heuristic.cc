@@ -442,7 +442,6 @@ void MergeAndShrinkHeuristic::dump_certificate_info(std::ofstream &infofile) {
     infofile << certificate_id << "\n";
     infofile << certificate_directory << "bdds_mas.txt\n";
     infofile << "composite formulas begin\n";
-    infofile << certificate_id <<" " << UnsolvabilityManager::getInstance().get_goalsetid() << " ^\n";
     infofile << "composite formulas end\n";
     infofile << certificate_directory << "stmt_mas.txt\n";
     infofile << "Statements:BDD end\n";

@@ -133,67 +133,82 @@ void StatementCheckerBDD::read_in_bdds(std::string filename, std::vector<std::st
 void StatementCheckerBDD::read_in_composite_formulas(std::ifstream &in) {
     std::string line;
     std::getline(in, line);
-
-    std::stack<std::pair<std::string,BDD>> elements;
+    std::vector<BDD> tmp_bdds;
     while(line.compare("composite formulas end") != 0) {
-        std::stringstream ss;
-        ss.str(line);
-        std::string item;
-        while(std::getline(ss, item, ' ')) {
-            if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
-                assert(elements.size() >=2);
-                std::pair<std::string,BDD> right = elements.top();
-                elements.pop();
-                std::pair<std::string,BDD> left = elements.top();
-                elements.pop();
-                elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::INTERSECTION, left.second * right.second));
-            } else if(item.compare(KnowledgeBase::UNION) == 0) {
-                assert(elements.size() >=2);
-                std::pair<std::string,BDD> right = elements.top();
-                elements.pop();
-                std::pair<std::string,BDD> left = elements.top();
-                elements.pop();
-                elements.push(make_pair(left.first + " " + right.first + " " + KnowledgeBase::UNION, left.second + right.second));
-            } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
-                assert(elements.size() >= 1);
-                std::pair<std::string,BDD> elem = elements.top();
-                elements.pop();
-                elements.push(make_pair(elem.first + " " + KnowledgeBase::NEGATION, !elem.second));
-            } else {
-                assert(bdds.find(item) != bdds.end());
-                elements.push(make_pair(item,bdds.find(item)->second));
-            }
-        }
-        assert(elements.size() == 1);
-        std::pair<std::string,BDD> result = elements.top();
-        elements.pop();
-        bdds.insert(std::make_pair(result.first, result.second));
+        bdds.insert(std::make_pair(line, get_BDD(line, tmp_bdds)));
         std::getline(in, line);
     }
 }
 
-bool StatementCheckerBDD::check_subset(const std::string &set1, const std::string &set2) {
-    assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
-    if(!bdds.find(set1)->second.Leq(bdds.find(set2)->second)) {
-        return false;
+// returns a reference to a BDD that is either already saved in the bdds map or temporarily
+// constructed in the tmp_bdds vector
+// various tmp BDDs needed in the construction may get added to the tmp_bdds vector
+BDD &StatementCheckerBDD::get_BDD(const std::string &description, std::vector<BDD> &tmp_bdds) {
+    auto found = bdds.find(description);
+    if(found != bdds.end()) {
+        return found->second;
     }
-    return true;
 
+    int tmp_old_size = tmp_bdds.size();
+    std::stack<BDD *> elements;
+    std::stringstream ss;
+    ss.str(description);
+    std::string item;
+    while(std::getline(ss, item, ' ')) {
+        if(item.compare(KnowledgeBase::INTERSECTION) == 0) {
+            assert(elements.size() >=2);
+            BDD *right = elements.top();
+            elements.pop();
+            BDD *left = elements.top();
+            elements.pop();
+            tmp_bdds.push_back((*left)*(*right));
+            elements.push(&(tmp_bdds.at(tmp_bdds.size()-1)));
+        } else if(item.compare(KnowledgeBase::UNION) == 0) {
+            assert(elements.size() >=2);
+            BDD *right = elements.top();
+            elements.pop();
+            BDD *left = elements.top();
+            elements.pop();
+            tmp_bdds.push_back((*left)+(*right));
+            elements.push(&(tmp_bdds.at(tmp_bdds.size()-1)));
+        } else if(item.compare(KnowledgeBase::NEGATION) == 0) {
+            assert(elements.size() >= 1);
+            BDD *elem = elements.top();
+            elements.pop();
+            tmp_bdds.push_back(!(*elem));
+            elements.push(&(tmp_bdds.at(tmp_bdds.size()-1)));
+        } else {
+            assert(bdds.find(item) != bdds.end());
+            elements.push(&(bdds.find(item)->second));
+        }
+    }
+    assert(elements.size() == 1 && tmp_bdds.size() > tmp_old_size);
+    return tmp_bdds[tmp_bdds.size()-1];
+}
+
+bool StatementCheckerBDD::check_subset(const std::string &set1, const std::string &set2) {
+    std::vector<BDD> tmp_bdds;
+    BDD &bdd1 = get_BDD(set1, tmp_bdds);
+    BDD &bdd2 = get_BDD(set2, tmp_bdds);
+    if(bdd1.Leq(bdd2)) {
+        return true;
+    }
+    return false;
 }
 
 bool StatementCheckerBDD::check_progression(const std::string &set1, const std::string &set2) {
-    assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
-    BDD &set1_bdd = bdds.find(set1)->second;
-    BDD &set2_bdd = bdds.find(set2)->second;
+    std::vector<BDD> tmp_bdds;
+    BDD &bdd1 = get_BDD(set1, tmp_bdds);
+    BDD &bdd2 = get_BDD(set2, tmp_bdds);
 
-    BDD possible_successors = (set1_bdd + set2_bdd).Permute(&prime_permutation[0]);
+    BDD possible_successors = (bdd1 + bdd2).Permute(&prime_permutation[0]);
 
     // loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
         const Action &a = task->get_action(i);
         BDD action_bdd = build_bdd_for_action(a);
         // succ represents pairs of states and its successors achieved with action a
-        BDD succ = action_bdd * set1_bdd;
+        BDD succ = action_bdd * bdd1;
 
         // test if succ is a subset of all "allowed" successors
         if(!succ.Leq(possible_successors)) {
@@ -204,18 +219,18 @@ bool StatementCheckerBDD::check_progression(const std::string &set1, const std::
 }
 
 bool StatementCheckerBDD::check_regression(const std::string &set1, const std::string &set2) {
-    assert(bdds.find(set1) != bdds.end() && bdds.find(set2) != bdds.end());
-    BDD &set1_bdd = bdds.find(set1)->second;
-    BDD &set2_bdd = bdds.find(set2)->second;
+    std::vector<BDD> tmp_bdds;
+    BDD &bdd1 = get_BDD(set1, tmp_bdds);
+    BDD &bdd2 = get_BDD(set2, tmp_bdds);
 
-    BDD possible_predecessors = set1_bdd + set2_bdd;
+    BDD possible_predecessors = bdd1 + bdd2;
 
     // loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
         const Action &a = task->get_action(i);
         BDD action_bdd = build_bdd_for_action(a);
         // pred represents pairs of states and its predecessors from action a
-        BDD pred = action_bdd * set1_bdd.Permute(&prime_permutation[0]);
+        BDD pred = action_bdd * bdd1.Permute(&prime_permutation[0]);
 
         // test if pred is a subset of all "allowed" predecessors
         if(!pred.Leq(possible_predecessors)) {
@@ -226,8 +241,8 @@ bool StatementCheckerBDD::check_regression(const std::string &set1, const std::s
 }
 
 bool StatementCheckerBDD::check_is_contained(Cube &state, const std::string &set) {
-    assert(bdds.find(set) != bdds.end());
-    BDD &set_bdd = bdds.find(set)->second;
+    std::vector<BDD> tmp_bdds;
+    BDD &set_bdd = get_BDD(set, tmp_bdds);
     BDD state_bdd = build_bdd_from_cube(state);
     if(!state_bdd.Leq(set_bdd)) {
         return false;
@@ -236,8 +251,8 @@ bool StatementCheckerBDD::check_is_contained(Cube &state, const std::string &set
 }
 
 bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
-    assert(bdds.find(set) != bdds.end());
-    BDD &set_bdd = bdds.find(set)->second;
+    std::vector<BDD> tmp_bdds;
+    BDD &set_bdd = get_BDD(set, tmp_bdds);
     if(!(*initial_state_bdd).Leq(set_bdd)) {
         return false;
     }
@@ -246,8 +261,8 @@ bool StatementCheckerBDD::check_initial_contained(const std::string &set) {
 
 // TODO: check if variable permutation is applied correctly
 bool StatementCheckerBDD::check_set_subset_to_stateset(const std::string &set, const StateSet &stateset) {
-    assert(bdds.find(set) != bdds.end());
-    BDD &set_bdd = bdds.find(set)->second;
+    std::vector<BDD> tmp_bdds;
+    BDD &set_bdd = get_BDD(set, tmp_bdds);
     if(set_bdd.IsZero()) {
         return true;
     // if the BDD contains more models than the stateset, it cannot be a subset
