@@ -10,6 +10,30 @@
 #include "cuddObj.hh"
 #include "dddmp.h"
 
+void dump_state(std::vector<bool> state, std::ofstream &stream) {
+    char c(0);
+    std::vector<char> cvec;
+    int count = 0;
+    for(size_t i = 0; i < state.size(); ++i) {
+        if(state[i]) {
+            c |= 1;
+        }
+        count++;
+        if(count%8==0) {
+            cvec.push_back(c);
+            c = 0;
+        } else {
+            c <<= 1;
+        }
+    }
+    if(count%8 != 0) {
+        c <<= 7-(count%8);
+        cvec.push_back(c);
+    }
+    std::string s(cvec.begin(), cvec.end());
+    stream << s;
+}
+
 void createTaskFile() {
     //create task file
     std::cout << "creating task file" << std::endl;
@@ -88,10 +112,22 @@ void createKnowledgeBaseFile() {
     std::ofstream file; // out file stream
     file.open("sets_testStatementChecker.txt");
     file << "stateset" << std::endl;
-    file << "1 1 1 1 0" << std::endl;
+    std::vector<bool> state({true, true, true, true, false});
+    dump_state(state, file);
+    file << std::endl;
+    state = {true,true,false,true,false};
+    dump_state(state, file);
+    file << std::endl;
+    state = {true,true,true,false,false};
+    dump_state(state, file);
+    file << std::endl;
+    state = {true,true,false,false,false};
+    dump_state(state, file);
+    file << std::endl;
+    /*file << "1 1 1 1 0" << std::endl;
     file << "1 1 0 1 0" << std::endl;
     file << "1 1 1 0 0" << std::endl;
-    file << "1 1 0 0 0" << std::endl;
+    file << "1 1 0 0 0" << std::endl;*/
     file << "set end" << std::endl;
     file.close();
 }
@@ -157,17 +193,21 @@ void createStatementFileBDD() {
     file << "sub:S5;S2" << std::endl;
     file << "sub:S6;S4" << std::endl;
     file << "exsub:S7 S5 not ^;stateset" << std::endl;
-    file << "exsub:empty;stateset" << std::endl;
+    file << "exsub:0;stateset" << std::endl;
     file << "prog:S1;S2" << std::endl;
     file << "reg:S3;S4" << std::endl;
-    file << "in:0 1 0 0 1;S1" << std::endl;
+    file << "in:";
+    dump_state(std::vector<bool>({false, true, false, false, true}),file);
+    file << ";S1" << std::endl;
     file << "init:S7" << std::endl;
     //from here on the statements should be false
     file << "sub:S1;S7" << std::endl;
     file << "exsub:S1;stateset" << std::endl;
     file << "prog:S1;S5" << std::endl;
     file << "reg:S3;S6" << std::endl;
-    file << "in:1 0 0 1 0;S5" << std::endl;
+    file << "in:";
+    dump_state(std::vector<bool>({true, false, false, true, false}),file);
+    file << ";S5" << std::endl;
     file << "init:S1" << std::endl;
     file.close();
 }
@@ -176,7 +216,7 @@ void assertKBBDD(KnowledgeBase &kb) {
     assert(kb.is_subset("S5","S2"));
     assert(kb.is_subset("S6","S4"));
     assert(kb.is_subset("S7 S5 not ^","stateset"));
-    assert(kb.is_subset("empty","stateset"));
+    assert(kb.is_subset("0","stateset"));
     assert(kb.is_progression("S1","S2"));
     assert(kb.is_regression("S3","S4"));
     Cube cube ={0,1,0,0,1};
@@ -206,7 +246,7 @@ void createHornFormulas() {
     file << "S6:0,-1|,2|" << std::endl;
     file << "S6':2,0|" << std::endl;
     file << "S7:,0|,1|4,-1|" << std::endl;
-    file << "S8:0,-1|2,-1|2,-1" << std::endl;
+    file << "S8:0,-1|2,-1|3,-1" << std::endl;
     file.close();
 }
 
@@ -231,18 +271,22 @@ void createStatementFileHorn() {
     file << "sub:S5;S2" << std::endl;
     file << "sub:S6;S4" << std::endl;
     file << "exsub:S7 S5' ^;stateset" << std::endl;
-    file << "exsub:empty;stateset" << std::endl;
+    file << "exsub:0;stateset" << std::endl;
     file << "prog:S1;S2' not" << std::endl;
     file << "reg:S3;S4' not" << std::endl;
-    file << "in:0 1 0 0 1;S1" << std::endl;
+    file << "in:";
+    dump_state(std::vector<bool>({false, true, false, false, true}),file);
+    file << ";S1" << std::endl;
     file << "init:S7" << std::endl;
-    file << "prog:S8;true not" << std::endl;
+    file << "prog:S8;1 not" << std::endl;
     //from here on the statements should be false
     file << "sub:S1;S7" << std::endl;
     file << "exsub:S1;stateset" << std::endl;
     file << "prog:S1;S5' not" << std::endl;
     file << "reg:S3;S6' not" << std::endl;
-    file << "in:1 0 0 1 0;S5" << std::endl;
+    file << "in:";
+    dump_state(std::vector<bool>({true, false, false, true, false}),file);
+    file << ";S5" << std::endl;
     file << "init:S1" << std::endl;
     file.close();
 }
@@ -251,12 +295,13 @@ void assertKBHorn(KnowledgeBase &kb) {
     assert(kb.is_subset("S5","S2"));
     assert(kb.is_subset("S6","S4"));
     assert(kb.is_subset("S7 S5' ^","stateset"));
-    assert(kb.is_subset("empty","stateset"));
+    assert(kb.is_subset("0","stateset"));
     assert(kb.is_progression("S1","S2' not"));
     assert(kb.is_regression("S3","S4' not"));
     Cube cube ={0,1,0,0,1};
     assert(kb.is_contained_in(cube,"S1"));
     assert(kb.contains_initial("S7"));
+    assert(kb.is_progression("S8", "1 not"));
     assert(!kb.is_subset("S1","S7"));
     assert(!kb.is_subset("S1","stateset"));
     assert(!kb.is_progression("S1","S5' not"));
@@ -270,12 +315,12 @@ void testStatementChecker(std::string certtype) {
     createTaskFile();
     createKnowledgeBaseFile();
     std::ifstream in;
-    if(certtype.compare("BDD")) {
+    if(certtype.compare("BDD") == 0) {
         createBDDS();
         createInfoFileBDD();
         createStatementFileBDD();
         in.open("info_testStatementCheckerBDD.txt");
-    } else if(certtype.compare("HORN")) {
+    } else if(certtype.compare("HORN") == 0) {
         createHornFormulas();
         createInfoFileHorn();
         createStatementFileHorn();
@@ -291,19 +336,19 @@ void testStatementChecker(std::string certtype) {
     std::cout << "creating KnowledgeBase Object" << std::endl;
     KnowledgeBase kb(&task,"sets_testStatementChecker.txt");
     StatementChecker *stmtchecker;
-    if(certtype.compare("BDD")) {
+    if(certtype.compare("BDD") == 0) {
         std::cout << "creating StatementCheckerBDD Object" << std::endl;
         stmtchecker = new StatementCheckerBDD(&kb,&task,in);
-    } else if(certtype.compare("HORN")) {
+    } else if(certtype.compare("HORN") == 0) {
         std::cout << "creating StatementCheckerHorn Object" << std::endl;
         stmtchecker = new StatementCheckerHorn(&kb,&task,in);
     }
     std::cout << "checking statements" << std::endl;
     stmtchecker->check_statements_and_insert_into_kb();
 
-    if(certtype.compare("BDD")) {
+    if(certtype.compare("BDD") == 0) {
         assertKBBDD(kb);
-    } else if(certtype.compare("HORN")) {
+    } else if(certtype.compare("HORN") == 0) {
         assertKBHorn(kb);
     }
 }

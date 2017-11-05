@@ -276,6 +276,10 @@ int HornFormula::get_varamount() const {
     return varamount;
 }
 
+const std::vector<int> &HornFormula::get_left_sizes() const {
+    return left_size;
+}
+
 int HornFormula::get_left(int index) const{
     return left_size[index];
 }
@@ -300,6 +304,10 @@ void HornFormula::dump() const{
     std::cout << "forced true: ";
     for(int i = 0; i < forced_true.size(); ++i) {
         std::cout << forced_true[i] << " ";
+    }
+    std::cout << ", forced false: ";
+    for(int i = 0; i < forced_false.size(); ++i) {
+        std::cout << forced_false[i] << " ";
     }
     std::cout << std::endl;
     for(int i = 0; i < left_size.size(); ++i) {
@@ -472,24 +480,27 @@ HornFormulaList StatementCheckerHorn::get_formulalist(const std::string &descrip
     return list;
 }
 
-bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas) {
+bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas, bool partial) {
     Cube restrictions, solution;
-    return is_restricted_satisfiable(formulas, restrictions, solution);
+    return is_restricted_satisfiable(formulas, restrictions, solution, partial);
 }
 
-bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas, Cube &solution) {
+bool StatementCheckerHorn::is_satisfiable(const HornFormulaList &formulas, Cube &solution,
+                                          bool partial) {
     Cube restrictions;
-    return is_restricted_satisfiable(formulas, restrictions, solution);
+    return is_restricted_satisfiable(formulas, restrictions, solution, partial);
 }
 
-bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions) {
+bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
+                                                     const Cube &restrictions, bool partial) {
     Cube solution;
-    return is_restricted_satisfiable(formulas, restrictions, solution);
+    return is_restricted_satisfiable(formulas, restrictions, solution, partial);
 }
 
 
 bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
-                                                     const Cube &restrictions, Cube &solution) {
+                                                     const Cube &restrictions, Cube &solution,
+                                                     bool partial) {
     assert(formulas.size() >= 1);
     int varamount = formulas[0].first->get_varamount();
     // total amount of implications
@@ -498,6 +509,7 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
     // the index for which the implications for this formula start in left_count
     std::vector<int> implstart(formulas.size());
 
+    // count amount of implication and total varamount
     for(size_t i = 0; i < formulas.size(); ++i) {
         implstart[i] = implamount;
         int localvaramount = formulas[i].first->get_varamount();
@@ -506,15 +518,19 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
         }
         varamount = std::max(varamount, localvaramount);
         implamount += formulas[i].first->get_size();
+
+        const HornFormula *f = formulas[i].first;
+        if(f->get_size() == 1 && f->get_left(0) == 0 && f->get_right(0) == -1) {
+            return false;
+        }
     }
 
     solution.resize(varamount);
     Cube local_restrictions(restrictions);
     local_restrictions.resize(varamount,2);
     std::fill(solution.begin(), solution.end(), 0);
-    std::vector<int> left_count(implamount,-1);
 
-    // set forced false vars in the local restriction cube
+    // set forced true/false vars in the local restriction cube
     for(size_t i = 0; i < formulas.size(); ++i) {
         int offset = 0;
         if(formulas[i].second) {
@@ -528,6 +544,14 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
                 local_restrictions[forced_false[j]+offset] = 0;
             }
         }
+        const std::vector<int> &forced_true_vec = formulas[i].first->get_forced_true();
+        for(size_t j = 0; j < forced_true_vec.size(); ++j) {
+            if(local_restrictions[forced_true_vec[j]+offset] == 0) {
+                return false;
+            } else {
+                local_restrictions[forced_true_vec[j]+offset] = 1;
+            }
+        }
     }
 
     for(size_t i = 0; i < local_restrictions.size(); ++i) {
@@ -536,29 +560,18 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
         }
     }
 
+    // setting up left size count for implications
+    // left count cannot be 0 anywhere since we simplify the formulas by construction time
+    std::vector<int> left_count;
+    left_count.reserve(implamount);
     for(size_t i = 0; i < formulas.size(); ++i) {
         const HornFormula *formula = formulas[i].first;
-        const std::vector<int> &formula_forced_true = formula->get_forced_true();
         int offset = 0;
         if(formulas[i].second) {
             offset = formula->get_varamount();
         }
-        for(size_t j = 0; j < formula_forced_true.size(); ++j) {
-            if(local_restrictions[formula_forced_true.at(j)+offset] == 0) {
-                return false;
-            }
-            forced_true.push(formula_forced_true.at(j)+offset);
-        }
-        for(int j = 0; j < formula->get_size(); ++j) {
-            left_count[implstart[i]+j] = formula->get_left(j);
-            if(left_count[implstart[i]+j] == 0) {
-                int right_with_offset = formula->get_right(j) + offset;
-                if(formula->get_right(j) == -1 || local_restrictions[right_with_offset] == 0) {
-                    return false;
-                }
-                forced_true.push(right_with_offset);
-            }
-        }
+        const std::vector<int> &left_sizes = formula->get_left_sizes();
+        left_count.insert(left_count.end(), left_sizes.begin(), left_sizes.end());
     }
 
     while(!forced_true.empty()) {
@@ -584,15 +597,34 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
             for(int internal_impl_number: var_occurences) {
                 int impl_number = internal_impl_number + implstart[findex];
                 left_count[impl_number]--;
+                // right side is forced true
                 if(left_count[impl_number] == 0) {
-                    int right_with_offset = formula->get_right(internal_impl_number) + offset;
-                    if(formula->get_right(internal_impl_number) == -1 || local_restrictions[right_with_offset] == 0) {
+                    int right = formula->get_right(internal_impl_number);
+                    if(right == -1 || local_restrictions[right+offset] == 0) {
                         return false;
                     }
-                    forced_true.push(right_with_offset);
+                    forced_true.push(right+offset);
+                    local_restrictions[right+offset] = 1;
+                // last element in left side and no right side --> forced false
+                } else if(left_count[impl_number] == 1 && formula->get_right(internal_impl_number) == -1) {
+                    const std::vector<int> &left_vars = formula->get_left_vars(internal_impl_number);
+                    bool found = false;
+                    for(size_t i = 0; i < left_vars.size(); ++i) {
+                        if(local_restrictions[left_vars[i]+offset] != 1) {
+                            found = true;
+                            local_restrictions[left_vars[i]+offset] = 0;
+                            break;
+                        }
+                    }
+                    if(!found) {
+                        return false;
+                    }
                 }
             }
         }
+    }
+    if(partial) {
+        solution.swap(local_restrictions);
     }
     return true;
 }
@@ -606,8 +638,13 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
  *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
  *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
  */
-bool StatementCheckerHorn::implies(const HornFormulaList &formulas, const HornFormulaList &right) {
+bool StatementCheckerHorn::implies(const HornFormulaList &formulas,const HornFormulaList &right) {
     assert(formulas.size() >= 1 && right.size() >= 1);
+
+    Cube left_solution_partial;
+    if(!is_satisfiable(formulas, left_solution_partial, true)) {
+        return true;
+    }
 
     for(size_t index = 0;  index < right.size(); ++index) {
         const HornFormula *right_formula = right.at(index).first;
@@ -617,11 +654,15 @@ bool StatementCheckerHorn::implies(const HornFormulaList &formulas, const HornFo
             offset += right_varamount;
             right_varamount *= 2;
         }
-        Cube restrictions = Cube(right_varamount,2);
 
+        Cube restrictions = Cube(right_varamount,2);
         // first loop over all forced true
         for(size_t i = 0; i < right_formula->get_forced_true().size(); ++ i) {
             int forced_true = right_formula->get_forced_true().at(i)+offset;
+            // if left also forces the same variable true, then we don't need to check
+            if(left_solution_partial[right_formula->get_forced_true().at(i)+offset] == 1) {
+                continue;
+            }
             restrictions[forced_true] = 0;
             if(is_restricted_satisfiable(formulas, restrictions)) {
                 return false;
@@ -632,6 +673,11 @@ bool StatementCheckerHorn::implies(const HornFormulaList &formulas, const HornFo
         // then loop over all forced false
         for(size_t i = 0; i < right_formula->get_forced_false().size(); ++i) {
             int forced_false = right_formula->get_forced_false().at(i)+offset;
+            if(left_solution_partial[right_formula->get_forced_false().at(i)+offset] == 0) {
+                continue;
+            }
+            // it is still possible that ie right forces \lnot a true, but we don't reach that conclusion
+            // with left, e.g. left has the clauses (\lot a \lor b) \land (\lnot a \lor \lnot b)
             restrictions[forced_false] = 1;
             if(is_restricted_satisfiable(formulas, restrictions)) {
                 return false;
