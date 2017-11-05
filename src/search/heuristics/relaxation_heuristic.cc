@@ -185,7 +185,6 @@ void RelaxationHeuristic::simplify() {
     cout << " done! [" << unary_operators.size() << " unary operators]" << endl;
 }
 
-// TODO: guarantee unique names for files and formulas
 void RelaxationHeuristic::setup_unsolvability_proof() {
     certificate_directory = UnsolvabilityManager::getInstance().get_directory();
     certificate_stmtfile.open(certificate_directory + "stmt_relax.txt");
@@ -205,7 +204,6 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
     int setid = unsolvmgr.get_new_setid();
-    //std::string setname = "relax_" + std::to_string(num_certificate_sets);
     certificate_formulafile << setid << ":";
     for(size_t i = 0; i < propositions.size(); ++i) {
         for(size_t j = 0; j < propositions[i].size(); ++j) {
