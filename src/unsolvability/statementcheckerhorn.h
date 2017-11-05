@@ -30,6 +30,7 @@ public:
     HornFormula(const HornFormulaList &subformulas);
     int get_size() const;
     int get_varamount() const;
+    const std::vector<int> &get_left_sizes() const;
     int get_left(int index) const;
     const std::vector<int> &get_left_vars(int index) const;
     int get_right(int index) const;
@@ -47,12 +48,15 @@ private:
     std::unordered_map<std::string,HornFormula> stored_formulas;
     void read_in_composite_formulas(std::ifstream &in);
     HornFormulaList get_formulalist(const std::string &description);
-    bool is_satisfiable(const HornFormulaList &formulas);
-    bool is_satisfiable(const HornFormulaList &formulas, Cube &solution);
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions);
+    bool is_satisfiable(const HornFormulaList &formulas, bool partial = false);
+    bool is_satisfiable(const HornFormulaList &formulas, Cube &solution, bool partial = false);
+    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, bool partial = false);
     // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care).
     // Any content in solution will get overwritten (even if the formula is not satisfiable).
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, Cube &solution);
+    // If partial is true, then the solution will return 0 for forced false vars, 1 for forced true, and
+    // 2 for others. A concrete solution would be to set all don't cares to false
+    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions,
+                                   Cube &solution, bool partial= false);
     bool implies(const HornFormulaList &formulas, const HornFormulaList &right);
 public:
     StatementCheckerHorn(KnowledgeBase *kb, Task *task, std::ifstream &in);
