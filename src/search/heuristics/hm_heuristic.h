@@ -33,6 +33,8 @@ class HMHeuristic : public Heuristic {
     std::map<Tuple, int> hm_table;
     bool was_updated;
 
+    std::vector<std::vector<int>> fact_to_variable;
+
     // auxiliary methods
     void init_hm_table(const Tuple &t);
     void update_hm_table();
@@ -64,6 +66,10 @@ public:
     explicit HMHeuristic(const options::Options &opts);
 
     virtual bool dead_ends_are_reliable() const;
+
+    virtual void setup_unsolvability_proof();
+    virtual void prove_state_dead(const GlobalState &state, std::ofstream &rules);
+    virtual void dump_certificate_info(std::ofstream &infofile);
 };
 }
 
