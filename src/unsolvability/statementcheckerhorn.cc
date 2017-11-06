@@ -505,7 +505,6 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
     int varamount = formulas[0].first->get_varamount();
     // total amount of implications
     int implamount = 0;
-    std::stack<int> forced_true;
     // the index for which the implications for this formula start in left_count
     std::vector<int> implstart(formulas.size());
 
@@ -525,10 +524,8 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
         }
     }
 
-    solution.resize(varamount);
     Cube local_restrictions(restrictions);
     local_restrictions.resize(varamount,2);
-    std::fill(solution.begin(), solution.end(), 0);
 
     // set forced true/false vars in the local restriction cube
     for(size_t i = 0; i < formulas.size(); ++i) {
@@ -554,6 +551,7 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
         }
     }
 
+    std::stack<int> forced_true;
     for(size_t i = 0; i < local_restrictions.size(); ++i) {
         if(local_restrictions[i] == 1) {
             forced_true.push(i);
@@ -573,6 +571,9 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
         const std::vector<int> &left_sizes = formula->get_left_sizes();
         left_count.insert(left_count.end(), left_sizes.begin(), left_sizes.end());
     }
+
+    solution.resize(varamount);
+    std::fill(solution.begin(), solution.end(), 0);
 
     while(!forced_true.empty()) {
         int var = forced_true.top();
@@ -606,7 +607,7 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
                     forced_true.push(right+offset);
                     local_restrictions[right+offset] = 1;
                 // last element in left side and no right side --> forced false
-                } else if(left_count[impl_number] == 1 && formula->get_right(internal_impl_number) == -1) {
+                } else if(left_count[impl_number] == 1 && (formula->get_right(internal_impl_number) == -1 || local_restrictions[formula->get_right(internal_impl_number)] == 0)) {
                     const std::vector<int> &left_vars = formula->get_left_vars(internal_impl_number);
                     bool found = false;
                     for(size_t i = 0; i < left_vars.size(); ++i) {
@@ -625,6 +626,26 @@ bool StatementCheckerHorn::is_restricted_satisfiable(const HornFormulaList &form
     }
     if(partial) {
         solution.swap(local_restrictions);
+        for(size_t findex = 0; findex < formulas.size(); ++findex) {
+            int offset = 0;
+            if(formulas[findex].second) {
+                offset = formulas[findex].first->get_varamount();
+            }
+            const HornFormula *formula = formulas[findex].first;
+            for(int implnumber = 0; implnumber < formula->get_size(); ++implnumber) {
+                if(left_count[implstart[findex]+implnumber] == 1 && (formula->get_right(implnumber) == -1 || solution[formula->get_right(implnumber)+offset] == 0)) {
+                    const std::vector<int> &left_vars = formula->get_left_vars(implnumber);
+                    bool found = false;
+                    for(size_t i = 0; i < left_vars.size(); ++i) {
+                        if(solution[left_vars[i]+offset] != 1) {
+                            found = true;
+                            solution[left_vars[i]+offset] = 0;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
     return true;
 }
