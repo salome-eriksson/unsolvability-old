@@ -9,6 +9,7 @@
 
 extern Timer timer;
 extern int g_timeout;
+extern std::vector<std::vector<int>> hex;
 
 enum class ExitCode {
     CERTIFICATE_VALID = 0,
@@ -42,6 +43,7 @@ void register_event_handlers();
 std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim);
 Cube parseCube(const std::string &param, int size);
 std::string special_set_string(SpecialSet set);
+void setup_hex();
 
 
 #endif /* GLOBAL_FUNCS_H */

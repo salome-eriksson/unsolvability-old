@@ -112,18 +112,10 @@ void createKnowledgeBaseFile() {
     std::ofstream file; // out file stream
     file.open("sets_testStatementChecker.txt");
     file << "stateset" << std::endl;
-    std::vector<bool> state({true, true, true, true, false});
-    dump_state(state, file);
-    file << std::endl;
-    state = {true,true,false,true,false};
-    dump_state(state, file);
-    file << std::endl;
-    state = {true,true,true,false,false};
-    dump_state(state, file);
-    file << std::endl;
-    state = {true,true,false,false,false};
-    dump_state(state, file);
-    file << std::endl;
+    file << "f0" << std::endl;
+    file << "d0" << std::endl;
+    file << "e0" << std::endl;
+    file << "c0" << std::endl;
     /*file << "1 1 1 1 0" << std::endl;
     file << "1 1 0 1 0" << std::endl;
     file << "1 1 1 0 0" << std::endl;
@@ -196,18 +188,14 @@ void createStatementFileBDD() {
     file << "exsub:0;stateset" << std::endl;
     file << "prog:S1;S2" << std::endl;
     file << "reg:S3;S4" << std::endl;
-    file << "in:";
-    dump_state(std::vector<bool>({false, true, false, false, true}),file);
-    file << ";S1" << std::endl;
+    file << "in:48;S1" << std::endl;
     file << "init:S7" << std::endl;
     //from here on the statements should be false
     file << "sub:S1;S7" << std::endl;
     file << "exsub:S1;stateset" << std::endl;
     file << "prog:S1;S5" << std::endl;
     file << "reg:S3;S6" << std::endl;
-    file << "in:";
-    dump_state(std::vector<bool>({true, false, false, true, false}),file);
-    file << ";S5" << std::endl;
+    file << "in:90;S5" << std::endl;
     file << "init:S1" << std::endl;
     file.close();
 }
@@ -274,9 +262,7 @@ void createStatementFileHorn() {
     file << "exsub:0;stateset" << std::endl;
     file << "prog:S1;S2' not" << std::endl;
     file << "reg:S3;S4' not" << std::endl;
-    file << "in:";
-    dump_state(std::vector<bool>({false, true, false, false, true}),file);
-    file << ";S1" << std::endl;
+    file << "in:48;S1" << std::endl;
     file << "init:S7" << std::endl;
     file << "prog:S8;1 not" << std::endl;
     //from here on the statements should be false
@@ -284,9 +270,7 @@ void createStatementFileHorn() {
     file << "exsub:S1;stateset" << std::endl;
     file << "prog:S1;S5' not" << std::endl;
     file << "reg:S3;S6' not" << std::endl;
-    file << "in:";
-    dump_state(std::vector<bool>({true, false, false, true, false}),file);
-    file << ";S5" << std::endl;
+    file << "in:90;S5" << std::endl;
     file << "init:S1" << std::endl;
     file.close();
 }
@@ -356,6 +340,7 @@ void testStatementChecker(std::string certtype) {
 
 
 int main(int , char** ) {
+    setup_hex();
     testStatementChecker("BDD");
     testStatementChecker("HORN");
 }

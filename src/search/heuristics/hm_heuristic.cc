@@ -275,12 +275,23 @@ void HMHeuristic::setup_unsolvability_proof() {
     }
 }
 
+void HMHeuristic::dump_mutexes() {
+    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+        for(int j = 0; j < g_variable_domain[i]; ++j) {
+            for(int k = j+1; k < g_variable_domain[i]; ++k) {
+                certificate_formulafile << fact_to_variable[i][j] << " " << fact_to_variable[i][k] << ",-1|";
+            }
+        }
+    }
+}
+
 void HMHeuristic::prove_state_dead(const GlobalState &state, ofstream &rules) {
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
     int setid = unsolvmgr.get_new_setid();
     certificate_formulafile << setid << ":";
+    dump_mutexes();
     for(auto &elem : hm_table) {
         if (elem.second == numeric_limits<int>::max()) {
             for(size_t i = 0; i < elem.first.size(); ++i) {

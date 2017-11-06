@@ -67,6 +67,7 @@ public:
 
     virtual bool dead_ends_are_reliable() const;
 
+    void dump_mutexes();
     virtual void setup_unsolvability_proof();
     virtual void prove_state_dead(const GlobalState &state, std::ofstream &rules);
     virtual void dump_certificate_info(std::ofstream &infofile);
