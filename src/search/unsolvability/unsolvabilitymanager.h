@@ -15,6 +15,7 @@ private:
     int truesetid;
     int goalsetid;
     int initsetid;
+    std::vector<char> hex;
 
     UnsolvabilityManager();
 public:

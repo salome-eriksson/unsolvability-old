@@ -12,6 +12,7 @@ UnsolvabilityManager::UnsolvabilityManager()
     truesetid = setcount++;
     goalsetid = setcount++;
     initsetid = setcount++;
+    hex = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e' , 'f'};
 }
 
 UnsolvabilityManager &UnsolvabilityManager::getInstance() {
@@ -41,27 +42,22 @@ int UnsolvabilityManager::get_initsetid() {
 }
 
 void UnsolvabilityManager::dump_state(const GlobalState &state, std::ofstream &stream) {
-    char c(0);
-    std::vector<char> cvec;
-    int count = 0;
+    int c = 0;
+    int count = 3;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         for(int j = 0; j < g_variable_domain[i]; ++j) {
             if((state[i] == j)) {
-                c |= 1;
+                c += (1 << count);
             }
-            count++;
-            if(count%8==0) {
-                cvec.push_back(c);
+            count--;
+            if(count==-1) {
+                stream << hex[c];
                 c = 0;
-            } else {
-                c <<= 1;
+                count = 3;
             }
         }
     }
-    if(count%8 != 0) {
-        c <<= 7-(count%8);
-        cvec.push_back(c);
+    if(count != 3) {
+        stream << hex[c];
     }
-    std::string s(cvec.begin(), cvec.end());
-    stream << s;
 }

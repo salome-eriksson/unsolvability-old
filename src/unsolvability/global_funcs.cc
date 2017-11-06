@@ -12,6 +12,16 @@
 
 Timer timer;
 int g_timeout;
+std::vector<std::vector<int>> hex;
+
+// TODO: this is ugly, we rely on verify to call this function before reading states
+void setup_hex() {
+    hex.reserve(16);
+    for(int i = 0; i < 16; ++i) {
+        std::vector<int> tmp = { (i >> 3)%2, (i >> 2)%2, (i >> 1)%2, i%2};
+        hex.push_back(tmp);
+    }
+}
 
 //TODO: move this to an appropriate place
 void split(const std::string &s, std::vector<std::string> &vec, char delim) {
@@ -275,16 +285,20 @@ std::vector<std::string> determine_parameters(const std::string &parameter_line,
 }
 
 Cube parseCube(const std::string &param, int size) {
-    assert(param.length() == (size+7)/8);
-    Cube cube(size,0);
+    assert(param.length() == (size+3)/4);
+    Cube cube;
+    cube.reserve(size+3);
     for(int i = 0; i < param.length(); ++i) {
-        char n = param.at(i);
-        for(int j = 0; j < 8; ++j) {
-            if(n & (1 << (7-j))) {
-                cube[8*i+j] = 1;
-            }
+        const std::vector<int> *vec;
+        if(param.at(i) < 'a') {
+            vec = &hex.at(param.at(i)-'0');
+        } else {
+            vec = &hex.at(param.at(i)-'a'+10);
         }
+
+        cube.insert(cube.end(), vec->begin(), vec->end());
     }
+    cube.resize(size);
     return cube;
 }
 

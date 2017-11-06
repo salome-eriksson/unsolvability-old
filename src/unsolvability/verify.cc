@@ -60,6 +60,7 @@ int main(int argc, char** argv) {
     }
     register_event_handlers();
     initialize_timer();
+    setup_hex();
     std::string task_file = argv[1];
     std::string certificate_file = argv[2];
     int x = 0;
