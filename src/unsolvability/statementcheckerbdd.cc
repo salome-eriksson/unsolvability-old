@@ -14,6 +14,7 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
 
     manager.setTimeoutHandler(exit_timeout);
     manager.InstallOutOfMemoryHandler(exit_oom);
+    manager.UnregisterOutOfMemoryCallback();
 
     std::string line;
 
