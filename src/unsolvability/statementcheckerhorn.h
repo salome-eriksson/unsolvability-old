@@ -8,33 +8,33 @@
 
 class HornFormula;
 typedef std::vector<std::pair<const HornFormula *,bool>> HornFormulaList;
+typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurence;
 
 class HornFormula {
 private:
-    std::vector<int> left_size;
     std::vector<std::vector<int>> left_vars;
+    std::vector<int> left_sizes;
     std::vector<int> right_side;
-    std::vector<std::unordered_set<int>> variable_occurences;
+    VariableOccurence variable_occurences;
     std::vector<int> forced_true;
     std::vector<int> forced_false;
     int varamount;
 
-    // these two methods should be called from every constructor!
+    // this method should be called from every constructor!
     void simplify();
-    void set_left_vars();
 public:
     // Horn formulas implicitly simplify themselves when constructed
     HornFormula(std::string input, int varamount);
-    HornFormula(std::vector<int> &left_size, std::vector<int> &right_side,
-                std::vector<std::unordered_set<int>> &variable_occurences, int varamount);
+    HornFormula(const std::vector<std::pair<std::vector<int>,int>> &clauses, int varamount);
     HornFormula(const HornFormulaList &subformulas);
     int get_size() const;
     int get_varamount() const;
-    const std::vector<int> &get_left_sizes() const;
     int get_left(int index) const;
+    const std::vector<int> &get_left_sizes() const;
     const std::vector<int> &get_left_vars(int index) const;
     int get_right(int index) const;
-    const std::unordered_set<int> &get_variable_occurence(int var) const;
+    const std::unordered_set<int> &get_variable_occurence_left(int var) const;
+    const std::unordered_set<int> &get_variable_occurence_right(int var) const;
     const std::vector<int> & get_forced_true() const;
     const std::vector<int> & get_forced_false() const;
     void dump() const;
