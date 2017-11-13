@@ -78,6 +78,13 @@ int main(int argc, char** argv) {
     Task* task = new Task(task_file);
     std::cout << "Amount of Actions: " << task->get_number_of_actions() << std::endl;
 
+    if(certificate_file.compare(0,8,"$TMPDIR/") == 0) {
+        std::string old_certificate_file = certificate_file;
+        certificate_file = std::getenv("TMPDIR");
+        certificate_file += "/";
+        certificate_file += old_certificate_file.substr(8);
+    }
+
     std::ifstream infofile;
     infofile.open(certificate_file);
     if(!infofile.is_open()) {
