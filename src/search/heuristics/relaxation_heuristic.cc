@@ -186,56 +186,74 @@ void RelaxationHeuristic::simplify() {
 }
 
 void RelaxationHeuristic::setup_unsolvability_proof() {
+    manager = new CuddManager();
     certificate_directory = UnsolvabilityManager::getInstance().get_directory();
     certificate_stmtfile.open(certificate_directory + "stmt_relax.txt");
-    certificate_formulafile.open(certificate_directory + "horn_relax.txt");
-    fact_to_variable.resize(g_variable_domain.size());
-    int count = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        fact_to_variable[i].resize(g_variable_domain[i]);
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
-            fact_to_variable[i][j] = count++;
-        }
-    }
 }
 
 void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &rules) {
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
-    int setid = unsolvmgr.get_new_setid();
-    certificate_formulafile << setid << ":";
-    for(size_t i = 0; i < propositions.size(); ++i) {
-        for(size_t j = 0; j < propositions[i].size(); ++j) {
-            if(propositions[i][j].cost == -1) {
-                certificate_formulafile << fact_to_variable[i][j] << ",-1|";
-            }
+
+    CuddBDD statebdd(manager, state);
+    for(size_t i = 0; i < bdds.size(); ++i) {
+        if(statebdd.isSubsetOf(*bdds[i])) {
+            certificate_stmtfile << "in:";
+            unsolvmgr.dump_state(state, certificate_stmtfile);
+            certificate_stmtfile << ";" << set_ids[i] << "\n";
+            rules << "sD:";
+            unsolvmgr.dump_state(state, rules);
+            rules << ";" << set_ids[i] << "\n";
+            return;
         }
     }
 
-    certificate_formulafile << "\n";
+    int setid = unsolvmgr.get_new_setid();
+    std::vector<std::pair<int,int>> pos_vars;
+    std::vector<std::pair<int,int>> neg_vars;
+    for(size_t i = 0; i < propositions.size(); ++i) {
+        for(size_t j = 0; j < propositions[i].size(); ++j) {
+            if(propositions[i][j].cost == -1) {
+                neg_vars.push_back(std::make_pair(i,j));
+            }
+        }
+    }
+    bdds.push_back(new CuddBDD(manager, pos_vars,neg_vars));
+    set_ids.push_back(setid);
     certificate_stmtfile << "sub:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-    certificate_stmtfile << "prog:" << setid << ";" << unsolvmgr.get_truesetid() <<" not\n";
+    certificate_stmtfile << "prog:" << setid << ";" << unsolvmgr.get_emptysetid() << "\n";
     certificate_stmtfile << "in:";
     unsolvmgr.dump_state(state,certificate_stmtfile);
     certificate_stmtfile << ";" << setid << "\n";
 
     rules << "SD:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() <<"\n";
-    rules << "PD:" << setid << ";" << unsolvmgr.get_truesetid() << " not\n";
+    rules << "PD:" << setid << ";" << unsolvmgr.get_emptysetid() << "\n";
     rules << "sD:";
     unsolvmgr.dump_state(state,rules);
     rules << ";" << setid << "\n";
 }
 
 void RelaxationHeuristic::dump_certificate_info(ofstream &infofile) {
-    infofile << "Statements:Horn\n";
-    infofile << certificate_directory << "horn_relax.txt\n";
+    manager->dumpBDDs(bdds,certificate_directory + "bdds_relax.txt");
+    infofile << "Statements:BDD\n";
+    const std::vector<std::vector<int>> *fact_to_var = manager->get_fact_to_var();
+    for(size_t i = 0; i < fact_to_var->size(); ++i) {
+        for(size_t j = 0; j < fact_to_var->at(i).size(); ++j) {
+            infofile << fact_to_var->at(i).at(j) << " ";
+        }
+    }
+    infofile << "\b\n";
+    for(size_t i = 0; i < set_ids.size(); ++i) {
+        infofile << set_ids[i] << ";";
+    }
+    infofile << "\n";
+    infofile << certificate_directory << "bdds_relax.txt\n";
     infofile << "composite formulas begin\n";
     infofile << "composite formulas end\n";
     infofile << certificate_directory << "stmt_relax.txt\n";
-    infofile << "Statements:Horn end\n";
+    infofile << "Statements:BDD end\n";
 
     certificate_stmtfile.close();
-    certificate_formulafile.close();
 }
 }

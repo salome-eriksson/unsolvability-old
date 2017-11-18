@@ -13,6 +13,7 @@ private:
     std::vector<int> variable_permutation;
     std::vector<int> prime_permutation;
     std::unordered_map<std::string,BDD> bdds;
+    std::vector<BDD> action_bdds;
     BDD* initial_state_bdd;
     BDD* goal_bdd;
     BDD* empty_bdd;

@@ -34,6 +34,12 @@ StatementCheckerBDD::StatementCheckerBDD(KnowledgeBase *kb, Task *task, std::ifs
       prime_permutation[(2*i)+1] = 2*i;
     }
 
+    //set up action bdds
+    action_bdds.reserve(task->get_number_of_actions());
+    for(int i = 0; i < task->get_number_of_actions(); ++i) {
+        action_bdds.push_back(build_bdd_for_action(task->get_action(i)));
+    }
+
     // insert BDDs for initial state, goal and empty set
     bdds.insert(std::make_pair(special_set_string(SpecialSet::INITSET), build_bdd_from_cube(task->get_initial_state())));
     bdds.insert(std::make_pair(special_set_string(SpecialSet::GOALSET), build_bdd_from_cube(task->get_goal())));
@@ -206,10 +212,8 @@ bool StatementCheckerBDD::check_progression(const std::string &set1, const std::
 
     // loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
-        const Action &a = task->get_action(i);
-        BDD action_bdd = build_bdd_for_action(a);
         // succ represents pairs of states and its successors achieved with action a
-        BDD succ = action_bdd * bdd1;
+        BDD succ = action_bdds[i] * bdd1;
 
         // test if succ is a subset of all "allowed" successors
         if(!succ.Leq(possible_successors)) {
@@ -228,10 +232,8 @@ bool StatementCheckerBDD::check_regression(const std::string &set1, const std::s
 
     // loop over all actions
     for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
-        const Action &a = task->get_action(i);
-        BDD action_bdd = build_bdd_for_action(a);
         // pred represents pairs of states and its predecessors from action a
-        BDD pred = action_bdd * bdd1.Permute(&prime_permutation[0]);
+        BDD pred = action_bdds[i] * bdd1.Permute(&prime_permutation[0]);
 
         // test if pred is a subset of all "allowed" predecessors
         if(!pred.Leq(possible_predecessors)) {
