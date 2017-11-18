@@ -196,7 +196,7 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
 
-    CuddBDD statebdd(manager, state);
+    /*CuddBDD statebdd(manager, state);
     for(size_t i = 0; i < bdds.size(); ++i) {
         if(statebdd.isSubsetOf(*bdds[i])) {
             certificate_stmtfile << "in:";
@@ -207,7 +207,7 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
             rules << ";" << set_ids[i] << "\n";
             return;
         }
-    }
+    }*/
 
     int setid = unsolvmgr.get_new_setid();
     std::vector<std::pair<int,int>> pos_vars;
