@@ -55,7 +55,9 @@ protected:
     std::vector<std::vector<Proposition>> propositions;
     std::vector<Proposition *> goal_propositions;
 
-    std::vector<std::vector<int>> fact_to_variable;
+    CuddManager *manager;
+    std::vector<CuddBDD *> bdds;
+    std::vector<int> set_ids;
 
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;
