@@ -1,6 +1,8 @@
 #ifndef SETFORMULA_H
 #define SETFORMULA_H
 
+#include "task.h"
+
 enum SetFormulaType {
     CONSTANT,
     BDD,
@@ -32,6 +34,8 @@ public:
     virtual bool intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) = 0;
     virtual bool progression_is_union_subset(SetFormula *f, bool f_negated) = 0;
     virtual bool regression_is_union_subset(SetFormula *f, bool f_negated) = 0;
+
+    virtual SetFormulaType get_formula_type() = 0;
 };
 
 #endif // SETFORMULA_H
