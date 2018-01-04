@@ -1,17 +1,22 @@
 #ifndef SETFORMULAHORN_H
 #define SETFORMULAHORN_H
 
-#include <unordered_map>
+#include <unordered_set>
 
 #include "setformulabasic.h"
 #include "task.h"
 
 class SetFormulaHorn;
 
+typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
+typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurence;
+
 class SpecialFormulasHorn {
     friend class SetFormulaHorn;
 private:
-    static std::unordered_map<ConstantType, SetFormulaHorn *> constantformulas;
+    static SetFormulaHorn *emptyformula;
+    static SetFormulaHorn *initformula;
+    static SetFormulaHorn *goalformula;
     static std::vector<SetFormulaHorn *> actionformulas;
     SpecialFormulasHorn(Task *task);
 };
@@ -20,18 +25,53 @@ private:
 class SetFormulaHorn : public SetFormulaBasic
 {
 private:
-    static SpecialFormulasHorn *specialformulas;
+    std::vector<std::vector<int>> left_vars;
+    std::vector<int> left_sizes;
+    std::vector<int> right_side;
+    VariableOccurence variable_occurences;
+    std::vector<int> forced_true;
+    std::vector<int> forced_false;
+    int varamount;
+
+    // this method should be called from every constructor!
+    void simplify();
+
+    static SpecialFormulasHorn *special_formulas;
+    void setup_special_formulas();
 public:
     SetFormulaHorn();
 
-    virtual bool is_subset(SetFormula *f);
+    int get_size() const;
+    int get_varamount() const;
+    int get_left(int index) const;
+    const std::vector<int> &get_left_sizes() const;
+    const std::vector<int> &get_left_vars(int index) const;
+    int get_right(int index) const;
+    const std::unordered_set<int> &get_variable_occurence_left(int var) const;
+    const std::unordered_set<int> &get_variable_occurence_right(int var) const;
+    const std::vector<int> & get_forced_true() const;
+    const std::vector<int> & get_forced_false() const;
+    void dump() const;
+
+    static bool is_satisfiable(const HornFormulaList &formulas, bool partial = false);
+    static bool is_satisfiable(const HornFormulaList &formulas, Cube &solution, bool partial = false);
+    static bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, bool partial = false);
+    // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care).
+    // Any content in solution will get overwritten (even if the formula is not satisfiable).
+    // If partial is true, then the solution will return 0 for forced false vars, 1 for forced true, and
+    // 2 for others. A concrete solution would be to set all don't cares to false
+    static bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions,
+                                   Cube &solution, bool partial= false);
+    static bool implies(const HornFormulaList &formulas, const HornFormulaList &right);
+
+    virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
     virtual bool is_subset(SetFormula *f1, SetFormula *f2);
-    virtual bool intersection_with_goal_is_subset(SetFormula *f);
-    virtual bool progression_is_union_subset(SetFormula *f);
-    virtual bool regression_is_union_subset(SetFormula *f);
+    virtual bool intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated);
+    virtual bool progression_is_union_subset(SetFormula *f, bool f_negated);
+    virtual bool regression_is_union_subset(SetFormula *f, bool f_negated);
 
     SetFormulaType get_formula_type();
-    virtual SetFormulaBasic *get_constant_formula(ConstantType c);
+    virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
 };
 
 #endif // SETFORMULAHORN_H
