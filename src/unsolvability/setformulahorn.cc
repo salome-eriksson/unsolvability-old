@@ -38,6 +38,6 @@ bool SetFormulaHorn::get_formula_type() {
     return SetFormulaType::HORN;
 }
 
-SetFormulaBasic *SetFormulaHorn::getConstantFormula(ConstantType c) {
+SetFormulaBasic *SetFormulaHorn::get_constant_formula(ConstantType c) {
     return constantformulas[c];
 }

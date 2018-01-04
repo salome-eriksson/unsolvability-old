@@ -17,7 +17,7 @@ public:
 
     virtual SetFormulaType get_formula_type();
 
-    ConstantType getConstantType();
+    ConstantType get_constant_type();
 };
 
 #endif // SETFORMULACONSTANT_H

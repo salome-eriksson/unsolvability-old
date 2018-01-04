@@ -79,15 +79,17 @@ public:
     bool checkRuleD9(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
     bool checkRuleD10(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
-                      KnowledgeIndex ki1, KnowledgeIndex ki2);
+                      KnowledgeIndex ki);
     bool checkRuleD11(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
-                      KnowledgeIndex ki1, KnowledgeIndex ki2);
+                      KnowledgeIndex ki);
 
-    bool checkStatementB1(KnowledgeIndex newki, FormulaIndex f1, FormulaIndex f2);
-    bool checkStatementB2(KnowledgeIndex newki, FormulaIndex f1, FormulaIndex f2);
-    bool checkStatementB3(KnowledgeIndex newki, FormulaIndex f1, FormulaIndex f2);
-    bool checkStatementB4(KnowledgeIndex newki, FormulaIndex f1, FormulaIndex f2);
-    bool checkStatementB5(KnowledgeIndex newki, FormulaIndex f1, FormulaIndex f2);
+    bool checkStatementB1(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool checkStatementB2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool checkStatementB3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool checkStatementB4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool checkStatementB5(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+
+    bool is_unsolvability_proven();
 };
 
 #endif // PROOFCHECKER_H
