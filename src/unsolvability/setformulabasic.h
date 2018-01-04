@@ -9,9 +9,7 @@ class SetFormulaBasic : public SetFormula
 public:
     SetFormulaBasic();
 
-    virtual SetFormulaType get_formula_type() = 0;
-    //TODO: for BDDs the varorder can be retrieved from *this
-    virtual SetFormulaBasic *getConstantFormula(ConstantType c) = 0;
+    virtual SetFormulaBasic *get_constant_formula(ConstantType c) = 0;
 };
 
 #endif // SETFORMULABASIC_H

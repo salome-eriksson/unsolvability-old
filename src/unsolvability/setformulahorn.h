@@ -31,7 +31,7 @@ public:
     virtual bool regression_is_union_subset(SetFormula *f);
 
     SetFormulaType get_formula_type();
-    virtual SetFormulaBasic *getConstantFormula(ConstantType c);
+    virtual SetFormulaBasic *get_constant_formula(ConstantType c);
 };
 
 #endif // SETFORMULAHORN_H

@@ -27,13 +27,11 @@ class SetFormula
 public:
     SetFormula();
 
-    virtual bool is_subset(SetFormula *f) = 0;
+    virtual bool is_subset(SetFormula *f, bool negated, bool f_negated) = 0;
     virtual bool is_subset(SetFormula *f1, SetFormula *f2) = 0;
-    virtual bool intersection_with_goal_is_subset(SetFormula *f) = 0;
-    virtual bool progression_is_union_subset(SetFormula *f) = 0;
-    virtual bool regression_is_union_subset(SetFormula *f) = 0;
-
-    SetFormulaType get_formula_type() = 0;
+    virtual bool intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) = 0;
+    virtual bool progression_is_union_subset(SetFormula *f, bool f_negated) = 0;
+    virtual bool regression_is_union_subset(SetFormula *f, bool f_negated) = 0;
 };
 
 #endif // SETFORMULA_H

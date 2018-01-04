@@ -18,7 +18,7 @@ bool SetFormulaConstant::is_subset(SetFormula *f) {
     case SetFormulaType::TWOCNF:
     case SetFormulaType::EXPLICIT:
         SetFormulaBasic * constantformula =
-                static_cast<SetFormulaBasic *>(f)->getConstantFormula(constanttype);
+                static_cast<SetFormulaBasic *>(f)->get_constant_formula(constanttype);
         return constantformula->is_subset(f);
         break;
     case SetFormulaType::NEGATION:
@@ -52,6 +52,6 @@ SetFormulaType SetFormulaConstant::get_formula_type() {
     return SetFormulaType::CONSTANT;
 }
 
-ConstantType SetFormulaConstant::getConstantType() {
+ConstantType SetFormulaConstant::get_constant_type() {
     return constanttype;
 }
