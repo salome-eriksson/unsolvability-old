@@ -1,23 +1,131 @@
 #include "setformulahorn.h"
 
-SpecialFormulasHorn::SpecialFormulasHorn(Task *task) {
+#include "global_funcs.h"
 
+HornUtil::HornUtil(Task *task) {
+    int varamount = task->get_number_of_facts();
+    std::vector<std::pair<std::vector<int>,int>> clauses;
+    // this is the maximum amount of clauses the formulas need
+    clauses.reserve(varamount*2);
+
+    trueformula = new SetFormulaHorn(clauses, varamount);
+    clauses.push_back(std::make_pair(std::vector<int>(),i));
+    emptyformula = new SetFormulaHorn(clauses, varamount);
+    clauses.clear();
+
+    // insert goal
+    const Cube &goal = task->get_goal();
+    for(int i = 0; i < goal.size(); ++i) {
+        if(goal.at(i) == 1) {
+            clauses.push_back(std::make_pair(std::vector<int>(),i));
+        }
+    }
+    goalformula = new SetFormulaHorn(clauses, varamount);
+    clauses.clear();
+
+    // insert initial state
+    clauses.clear();
+    const Cube &init = task->get_initial_state();
+    for(int i = 0; i < init.size(); ++i) {
+        if(init.at(i) == 1) {
+            clauses.push_back(std::make_pair(std::vector<int>(),i));
+        } else {
+            clauses.push_back(std::make_pair(std::vector<int>(1,i),-1));
+        }
+    }
+    initformula = new SetFormulaHorn(clauses, varamount);
+
+    // insert action formulas
+    action_formulas.reserve(task->get_number_of_actions());
+    for(int actionsize = 0; actionsize < task->get_number_of_actions(); ++actionsize) {
+        clauses.clear();
+        const Action & action = task->get_action(actionsize);
+        std::vector<bool> in_pre(varamount,false);
+        for(int i = 0; i < action.pre.size(); ++i) {
+            clauses.push_back(std::make_pair(std::vector<int>(),action.pre[i]));
+            in_pre[action.pre[i]] = true;
+        }
+        for(int i = 0; i < varamount; ++i) {
+            // add effect
+            if(action.change[i] == 1) {
+                clauses.push_back(std::make_pair(std::vector<int>(),i+varamount));
+            // delete effect
+            } else if(action.change[i] == -1) {
+                clauses.push_back(std::make_pair(std::vector<int>(1,i+varamount),-1));
+            // no change
+            } else {
+                // if var i is in pre but does not change, it must be true after the action application
+                if(in_pre[i]) {
+                    clauses.push_back(std::make_pair(std::vector<int>(), i+varamount));
+                // if var i is not in pre, we need to use frame axioms
+                } else {
+                    clauses.push_back(std::make_pair(std::vector<int>(1,i),i+varamount));
+                    clauses.push_back(std::make_pair(std::vector<int>(1,i+varamount),i));
+                }
+            }
+        }
+        actionformulas.push_back(new SetFormulaHorn(clauses,varamount*2));
+    }
 }
 
-SetFormulaHorn::SetFormulaHorn()
-{
+SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int> > &clauses, int varamount)
+    : left_vars(clauses.size()), right_side(clauses.size()), variable_occurences(varamount), varamount(varamount) {
 
-    if (special_formulas == nullptr) {
-        setup_special_formulas();
+    for(int i = 0; i < clauses.size(); ++i) {
+        left_vars[i] = clauses[i].first;
+        right_side[i] = clauses[i].second;
+        for(int j = 0; j < left_vars[i].size(); ++j) {
+            variable_occurences[left_vars[i][j]].first.insert(i);
+        }
+        if(right_side[i] != -1) {
+            variable_occurences[right_side[i]].second.insert(i);
+        }
+    }
+    simplify();
+}
+
+SetFormulaHorn::SetFormulaHorn(std::ifstream input, Task *task) {
+
+    // TODO: parse input
+    std::string word;
+    int clausenum;
+    input >> word;
+    if (word.compare("p") != 0) {
+        std::cerr << "Invalid DIMACS format" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+    input >> varamount;
+    input >> clausenum;
+    left_vars.resize(num);
+    right_side.resize(num);
+    variable_occurences.resize(varamount);
+
+    for(int i = 0; i < clausenum; ++i) {
+        int var = varamount+1;
+        while(var != 0) {
+            input >> var;
+            if(var < 0) {
+                var = 1-var;
+                left_vars[i].push_back(var);
+                variable_occurences[var].first.insert(i);
+            } else {
+                if(right_side[i] != 0) {
+                    std::cerr << "Invalid Horn formula" << std::endl;
+                    exit_with(ExitCode::CRITICAL_ERROR);
+                }
+                right_side[i] = var-1;
+                variable_occurences[var].second.insert(i);
+            }
+        }
+    }
+
+    // only use this in constructor that reads formula from file
+    if (util == nullptr) {
+        util = new HornUtil(task);
     }
 
     simplify();
 }
-
-void SetFormulaHorn::setup_special_formulas() {
-
-}
-
 void SetFormulaHorn::simplify() {
     std::stack<int> ft;
     for(size_t i = 0; i < forced_true.size(); ++i) {
@@ -310,7 +418,7 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
         varamount = std::max(varamount, localvaramount);
         implamount += formulas[i].first->get_size();
 
-        const HornFormula *f = formulas[i].first;
+        const SetFormulaHorn *f = formulas[i].first;
         if(f->get_size() == 1 && f->get_left(0) == 0 && f->get_right(0) == -1) {
             return false;
         }
@@ -353,7 +461,7 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
     std::vector<int> left_count;
     left_count.reserve(implamount);
     for(auto fentry : formulas) {
-        const HornFormula *formula = fentry.first;
+        const SetFormulaHorn *formula = fentry.first;
         left_count.insert(left_count.end(), formula->get_left_sizes().begin(), formula->get_left_sizes().end());
     }
 
@@ -378,7 +486,7 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
             if(formulas[findex].second) {
                 offset = local_varamount;
             }
-            const HornFormula *formula = formulas[findex].first;
+            const SetFormulaHorn *formula = formulas[findex].first;
             const std::unordered_set<int> &var_occurences = formula->get_variable_occurence_left(var-offset);
             for(int internal_impl_number: var_occurences) {
                 int impl_number = internal_impl_number + implstart[findex];
@@ -419,7 +527,7 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
             }
         }
         for(size_t findex = 0; findex < formulas.size(); ++findex) {
-            const HornFormula *f = formulas[findex].first;
+            const SetFormulaHorn *f = formulas[findex].first;
             int offset = 0;
             if(formulas[findex].second) {
                 offset += f->get_varamount();
@@ -443,7 +551,7 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
                 if(formulas[findex].second) {
                     offset = local_varamount;
                 }
-                const HornFormula *formula = formulas[findex].first;
+                const SetFormulaHorn *formula = formulas[findex].first;
                 const std::unordered_set<int> &var_occurences = formula->get_variable_occurence_right(var-offset);
                 for(int internal_impl_number: var_occurences) {
                     int impl_number = internal_impl_number + implstart[findex];
@@ -472,78 +580,229 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
  *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
  *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
  */
-bool StatementCheckerHorn::implies(const HornFormulaList &formulas,const HornFormulaList &right) {
-    assert(formulas.size() >= 1 && right.size() >= 1);
+static bool SetFormulaHorn::implies(const HornFormulaList &formulas,
+                                    const SetFormulaHorn *right, bool right_primed) {
+    assert(formulas.size() >= 1);
 
     Cube left_solution_partial;
     if(!is_satisfiable(formulas, left_solution_partial, true)) {
         return true;
     }
 
-    for(size_t index = 0;  index < right.size(); ++index) {
-        const HornFormula *right_formula = right.at(index).first;
-        int right_varamount = right_formula->get_varamount();
-        int offset = 0;
-        if(right.at(index).second) {
-            offset += right_varamount;
-            right_varamount *= 2;
-        }
+    int right_varamount = right->get_varamount();
+    int offset = 0;
+    if(right_primed) {
+        offset += right_varamount;
+        right_varamount *= 2;
+    }
 
-        Cube restrictions = Cube(right_varamount,2);
-        // first loop over all forced true
-        for(size_t i = 0; i < right_formula->get_forced_true().size(); ++ i) {
-            int forced_true = right_formula->get_forced_true().at(i)+offset;
-            // if left also forces the same variable true, then we don't need to check
-            if(left_solution_partial[forced_true] == 1) {
-                continue;
-            }
-            restrictions[forced_true] = 0;
-            if(is_restricted_satisfiable(formulas, restrictions)) {
-                return false;
-            }
-            restrictions[forced_true] = 2;
+    Cube restrictions = Cube(right_varamount,2);
+    // first loop over all forced true
+    for(size_t i = 0; i < right->get_forced_true().size(); ++ i) {
+        int forced_true = right->get_forced_true().at(i)+offset;
+        // if left also forces the same variable true, then we don't need to check
+        if(left_solution_partial[forced_true] == 1) {
+            continue;
         }
+        restrictions[forced_true] = 0;
+        if(is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+        restrictions[forced_true] = 2;
+    }
 
-        // then loop over all forced false
-        for(size_t i = 0; i < right_formula->get_forced_false().size(); ++i) {
-            int forced_false = right_formula->get_forced_false().at(i)+offset;
-            if(left_solution_partial[forced_false] == 0) {
-                continue;
-            }
-            // it is still possible that ie right forces \lnot a true, but we don't reach that conclusion
-            // with left, e.g. left has the clauses (\lot a \lor b) \land (\lnot a \lor \lnot b)
-            restrictions[forced_false] = 1;
-            if(is_restricted_satisfiable(formulas, restrictions)) {
-                return false;
-            }
-            restrictions[forced_false] = 2;
+    // then loop over all forced false
+    for(size_t i = 0; i < right->get_forced_false().size(); ++i) {
+        int forced_false = right->get_forced_false().at(i)+offset;
+        if(left_solution_partial[forced_false] == 0) {
+            continue;
         }
+        // it is still possible that ie right forces \lnot a true, but we don't reach that conclusion
+        // with left, e.g. left has the clauses (\lot a \lor b) \land (\lnot a \lor \lnot b)
+        restrictions[forced_false] = 1;
+        if(is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+        restrictions[forced_false] = 2;
+    }
 
-        // now loop over implications
-        for(size_t i = 0; i < right_formula->get_size(); ++i) {
-            const std::vector<int> &left_vars = right_formula->get_left_vars(i);
-            for(size_t j = 0; j < left_vars.size(); ++j) {
-                restrictions[left_vars.at(j)+offset] = 1;
+    // now loop over implications
+    for(size_t i = 0; i < right->get_size(); ++i) {
+        const std::vector<int> &left_vars = right->get_left_vars(i);
+        /* We want to check for each clause if it is implied. If one variable of the clause
+         * is already part of the solution to formulas then it is implied and we don't need
+         * to check anything for this clause.
+         */
+        bool covered = false;
+        for(size_t j = 0; j < left_vars.size(); ++j) {
+            if(left_solution_partial[left_vars.at(j)+offset] == 0) {
+                covered = true;
+                break;
             }
-            if(right_formula->get_right(i) != -1) {
-                // if the current implication is (a \lor ... \lor \lnot a)
-                // then formula1 \land \lnot a \land .. \land a is unsatisfiable
-                if(restrictions[right_formula->get_right(i)+offset] == 1) {
-                    continue;
-                }
-                restrictions[right_formula->get_right(i)+offset] = 0;
-            }
-            if(is_restricted_satisfiable(formulas, restrictions)) {
-                return false;
-            }
-            std::fill(restrictions.begin(), restrictions.end(),2);
+            restrictions[left_vars.at(j)+offset] = 1;
         }
+        int r = right->get_right(i);
+        if(!covered && r != -1) {
+            /* First part: var is already directly implied from formulas.
+             * Second part: if the current implication is (\lnot a \lor \lnot ... \lor a)
+             * it equals true and is thus implied by formulas
+             */
+            if(left_solution_partial[r+offset] == 1 || restrictions[r+offset] == 1) {
+                covered = true;
+            } else {
+                restrictions[r+offset] = 0;
+            }
+        }
+        if(!covered && is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+        std::fill(restrictions.begin(), restrictions.end(),2);
     }
     return true;
 }
 
+// Given restrictions for a clause of the left formula, go through all right formulas
+bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
+                          SetFormulaHorn *right_formula, int right_offset,
+                          const Cube &formulas_solution_partial) {
+    // right forced true
+    for(int ft_right : right_formula->get_forced_true()) {
+        if(formulas_solution_partial[ft_right+right_offset] == 1 ||
+                restrictions[ft_right+right_offset] == 1) {
+            continue;
+        }
+        restrictions[ft_right+right_offset] = 0;
+        if(is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+        restrictions[ft_right+right_offset] = 2;
+    }
 
+    // right forced false;
+    for(int ff_right : right_formula->get_forced_false()) {
+        if(formulas_solution_partial[ff_right+right_offset] == 0 ||
+                restrictions[ff_right+right_offset] == 0) {
+            continue;
+        }
+        restrictions[ft_right+right_offset] = 1;
+        if(is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+        restrictions[ft_right+right_offset] = 2;
+    }
 
+    // right implications
+    // TODO: maybe this copy can be done nicer...
+    Cube restrictions_copy = restrictions;
+    for(size_t i = 0; i < right_formula->get_size(); ++i) {
+        const std::vector<int> &neg_vars = right_formula->get_left_vars(i);
+        bool covered = false;
+        for(int neg_var : neg_vars) {
+            if(formulas_solution_partial[neg_var+right_offset] == 0 ||
+                    restrictions[neg_var+right_offset] == 0) {
+                covered = true;
+                break;
+            }
+            restrictions[neg_var+right_offset] = 1;
+        }
+        int r = right_formula->get_right(i);
+        if(!covered && r != -1) {
+            if(formulas_solution_partial[r+right_offset] == 1 ||
+                    restrictions[r+right_offset] == 1) {
+                covered = true;
+            } else {
+                restrictions[r+right_offset] = 0;
+            }
+        }
+        if(!covered && is_restricted_satisfiable(formulas, restrictions)) {
+            return false;
+        }
+
+        restrictions = restrictions_copy;
+    }
+
+    return true;
+}
+
+// TODO: needs refactoring
+static bool SetFormulaHorn::implies_union(const HornFormulaList &formulas,
+                                  const SetFormulaHorn *union_left, bool left_primed,
+                                  const SetFormulaHorn *union_right, bool right_primed) {
+    //we currently demand that the union formula parts are "atomic"
+    assert(formulas.size() >= 1);
+
+    Cube formulas_solution_partial;
+    if(!is_satisfiable(formulas, formulas_solution_partial, true)) {
+        return true;
+    }
+
+    int left_varamount = union_left->get_varamount();
+    int left_offset = 0;
+    if(left_primed) {
+        left_offset += left_varamount;
+        left_varamount *= 2;
+    }
+    int right_varamount = union_right->get_varamount();
+    int right_offset = 0;
+    if(right_primed) {
+        right_offset += right_varamount;
+        right_varamount *= 2;
+    }
+
+    Cube restrictions = Cube(std::max(left_varamount, right_varamount),2);
+    // left forced true
+    for(int ft_left: union_left->get_forced_true()) {
+        if (formulas_solution_partial[ft_left+left_offset] == 1) {
+            continue;
+        }
+        restrictions[ft_left+left_offset] = 0;
+        if (!implies_union_helper(formulas, restrictions,
+                                 union_right, right_offset, formulas_solution_partial)) {
+            return false;
+        }
+        restrictions[ft_left+left_offset] = 2;
+    }
+
+    // left forced false
+    for(int ff_left: union_left->get_forced_false()) {
+        if (formulas_solution_partial[ff_left+left_offset] == 0) {
+            continue;
+        }
+        restrictions[ff_left+left_offset] = 1;
+        if (!implies_union_helper(formulas, restrictions,
+                                 union_right, right_offset, formulas_solution_partial)) {
+            return false;
+        }
+        restrictions[ff_left+left_offset] = 2;
+    }
+
+    // left implications
+    for(size_t i = 0; i < union_left->get_size(); ++i) {
+        const std::vector<int> &neg_vars = union_left->get_left_vars(i);
+        bool covered = false;
+        for(int neg_var : neg_vars) {
+            if(formulas_solution_partial[neg_var+left_offset] == 0) {
+                covered = true;
+                break;
+            }
+            restrictions[neg_var+left_offset] = 1;
+        }
+        int r = union_right->get_right(i);
+        if (!covered && r != -1) {
+            if (formulas_solution_partial[r+left_offset] == 1 || restrictions[r+left_offset] == 1) {
+                covered = true;
+            } else {
+                restrictions[r+left_offset] = 0;
+            }
+        }
+        if (!covered && !implies_union_helper(formulas, restrictions,
+                                     union_right, right_offset, formulas_solution_partial)) {
+            return false;
+        }
+        std::fill(restrictions.begin(), restrictions.end(),2);
+    }
+    return true;
+}
 
 
 
@@ -554,12 +813,37 @@ bool SetFormulaHorn::is_subset(SetFormula *f, bool negated, bool f_negated) {
     }
     switch (f->get_formula_type()) {
     case SetFormulaType::HORN:
+        HornFormulaList list;
+        // this \implies f
+        if(!negated && !f_negated) {
+            list.push_back(std::make_pair(this, false));
+            return implies(list, f, false);
+        // \lnot this \implies f --> \top \implies this \lor f
+        } else if(negated && !f_negated) {
+            list.push_back(std::make_pair(util->trueformula));
+            return implies_union(list, this, false, f, false);
+        // this \implies \lnot f --> this \land f is unsat
+        } else if(!negated && f_negated) {
+            list.push_back(std::make_pair(this, false));
+            list.push_back(std::make_pair(f, false));
+            return !is_satisfiable(list);
+        // \lnot this \implies \lnot f --> f \implies this
+        } else {
+            list.push_back(std::make_pair(f,false));
+            return implies(list, this, false);
+        }
         break;
     case SetFormulaType::BDD:
+        std::cerr << "not implemented yet";
+        return false;
         break;
     case SetFormulaType::TWOCNF:
+        std::cerr << "not implemented yet";
+        return false;
         break;
     case SetFormulaType::EXPLICIT:
+        std::cerr << "not implemented yet";
+        return false;
         break;
     default:
         std::cerr << "X \subseteq X' is not supported for Horn formula X "
@@ -581,6 +865,8 @@ bool SetFormulaHorn::is_subset(SetFormula *f1, SetFormula *f2) {
                      "and non-Horn formula X' or X''" << std::endl;
         return false;
     }
+    return implies_union(HornFormulaList(1,std::make_pair(&this, false)),
+                         f1, false, f2, false);
 
 }
 
@@ -589,9 +875,13 @@ bool SetFormulaHorn::intersection_with_goal_is_subset(SetFormula *f, bool negate
         f = get_constant_formula(f1);
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
         std::cerr << "L \cap S_G(\Pi) \subseteq L' is not supported for Horn Formula L"
-                     "and nonHorn formula L'" << std::endl;
+                     "and non-Horn formula L'" << std::endl;
         return false;
     }
+    HornFormulaList list;
+    list.push_back(std::make_pair(this, false));
+    list.push_back(std::make_pair(util->goalformula, false);
+    return implies(list, f, false);
 
 }
 
@@ -600,9 +890,31 @@ bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) 
         f = get_constant_formula(f1);
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
         std::cerr << "X[A] \subseteq X \cup X' is not supported for Horn Formula X"
-                     "and nonHorn formula X'" << std::endl;
+                     "and non-Horn formula X'" << std::endl;
         return false;
     }
+
+    HornFormulaList list;
+    list.push_back(std::make_pair(this, false));
+    if(f_negated) {
+        list.push_back(std::make_pair(f, true));
+    }
+    //dummy initialization for actionformula
+    list.push_back(std::make_pair(nullptr, false));
+
+    for(int i = 0; i < util->actionformulas.size(); ++i) {
+        list[list.size()-1] = std::make_pair(util->actionformulas[i],false);
+        if(f_negated) {
+            if(!implies(list, this, true)) {
+                return false;
+            }
+        } else {
+            if(!implies_union(list, this, true, f, true)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
@@ -610,9 +922,31 @@ bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
         f = get_constant_formula(f1);
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
         std::cerr << "[A]X \subseteq X \cup X' is not supported for Horn Formula X"
-                     "and nonHorn formula X'" << std::endl;
+                     "and non-Horn formula X'" << std::endl;
         return false;
     }
+
+    HornFormulaList list;
+    list.push_back(std::make_pair(this, true));
+    if(f_negated) {
+        list.push_back(std::make_pair(f, false));
+    }
+    //dummy initialization for actionformula
+    list.push_back(std::make_pair(nullptr, false));
+
+    for(int i = 0; i< util->actionformulas.size(); ++i) {
+        list[list.size()-1] = std::make_pair(util->actionformulas[i], false);
+        if(f_negated) {
+            if(!implies(list, this, false)) {
+                return false;
+            }
+        } else {
+            if(!implies_union(list, this, false, f, false)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 
@@ -623,13 +957,13 @@ bool SetFormulaHorn::get_formula_type() {
 SetFormulaBasic *SetFormulaHorn::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
-        return special_formulas->emptyformula;
+        return util->emptyformula;
         break;
     case ConstantType::INIT:
-        return special_formulas->initformula;
+        return util->initformula;
         break;
     case ConstantType::GOAL:
-        return special_formulas->goalformula;
+        return util->goalformula;
         break;
     default:
         std::cerr << "Unknown Constant type: " << c << std::endl;

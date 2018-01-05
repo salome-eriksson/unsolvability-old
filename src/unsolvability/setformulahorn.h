@@ -11,14 +11,15 @@ class SetFormulaHorn;
 typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
 typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurence;
 
-class SpecialFormulasHorn {
+class HornUtil {
     friend class SetFormulaHorn;
 private:
-    static SetFormulaHorn *emptyformula;
-    static SetFormulaHorn *initformula;
-    static SetFormulaHorn *goalformula;
-    static std::vector<SetFormulaHorn *> actionformulas;
-    SpecialFormulasHorn(Task *task);
+    SetFormulaHorn *emptyformula;
+    SetFormulaHorn *initformula;
+    SetFormulaHorn *goalformula;
+    SetFormulaHorn *trueformula;
+    std::vector<SetFormulaHorn *> actionformulas;
+    HornUtil(Task *task);
 };
 
 
@@ -33,13 +34,14 @@ private:
     std::vector<int> forced_false;
     int varamount;
 
+    static HornUtil *util;
+
+    // this constructor is used for setting up the formulas in util
+    SetFormulaHorn(const std::vector<std::pair<std::vector<int>,int>> &clauses, int varamount);
     // this method should be called from every constructor!
     void simplify();
-
-    static SpecialFormulasHorn *special_formulas;
-    void setup_special_formulas();
 public:
-    SetFormulaHorn();
+    SetFormulaHorn(std::ifstream input, Task *task);
 
     int get_size() const;
     int get_varamount() const;
@@ -62,8 +64,11 @@ public:
     // 2 for others. A concrete solution would be to set all don't cares to false
     static bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions,
                                    Cube &solution, bool partial= false);
-    static bool implies(const HornFormulaList &formulas, const HornFormulaList &right);
-
+    static bool implies(const HornFormulaList &formulas,
+                        const SetHornFormula *right, bool right_primed);
+    static bool implies_union(const HornFormulaList &formulas,
+                                      const SetFormulaHorn *union_left, bool left_primed,
+                                      const SetFormulaHorn *union_right, bool right_primed);
     virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
     virtual bool is_subset(SetFormula *f1, SetFormula *f2);
     virtual bool intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated);

@@ -34,8 +34,8 @@ bool ProofChecker::checkRuleD2(KnowledgeIndex newki, FormulaIndex fi,
     if (!f) {
         return false;
     }
-    FormulaIndex lefti = static_cast<SetFormulaUnion *>(f)->get_left_index();
-    FormulaIndex righti = static_cast<SetFormulaUnion *>(f)->get_right_index();
+    FormulaIndex lefti = f->get_left_index();
+    FormulaIndex righti = f->get_right_index();
 
     // check if k1 says that left is dead
     if ((kbentries[ki1]->get_kbentry_type != KBType::DEAD) ||
