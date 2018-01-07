@@ -8,7 +8,7 @@
 
 typedef int KnowledgeIndex;
 
-enum KBType {
+enum class KBType {
     SUBSET,
     DEAD,
     UNSOLVABLE
@@ -62,32 +62,35 @@ private:
     bool unsolvability_proven;
 public:
     ProofChecker();
+
+    void add_formula(SetFormula *formula, int index);
+
     // TODO: rather ints? or vectors? or the entire line and add parsing?
-    bool checkRuleD1(KnowledgeIndex newki, FormulaIndex emptyi);
-    bool checkRuleD2(KnowledgeIndex newki, FormulaIndex fi,
+    bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);
+    bool check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2);
-    bool checkRuleD3(KnowledgeIndex newki, FormulaIndex fi,
+    bool check_rule_D3(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2);
-    bool checkRuleD4(KnowledgeIndex newki, KnowledgeIndex ki);
-    bool checkRuleD5(KnowledgeIndex newki, KnowledgeIndex ki);
-    bool checkRuleD6(KnowledgeIndex newki, FormulaIndex fi,
+    bool check_rule_D4(KnowledgeIndex newki, KnowledgeIndex ki);
+    bool check_rule_D5(KnowledgeIndex newki, KnowledgeIndex ki);
+    bool check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool checkRuleD7(KnowledgeIndex newki, FormulaIndex fi,
+    bool check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool checkRuleD8(KnowledgeIndex newki, FormulaIndex fi,
+    bool check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool checkRuleD9(KnowledgeIndex newki, FormulaIndex fi,
+    bool check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool checkRuleD10(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
+    bool check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
                       KnowledgeIndex ki);
-    bool checkRuleD11(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
+    bool check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
                       KnowledgeIndex ki);
 
-    bool checkStatementB1(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool checkStatementB2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool checkStatementB3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool checkStatementB4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool checkStatementB5(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
 
     bool is_unsolvability_proven();
 };
