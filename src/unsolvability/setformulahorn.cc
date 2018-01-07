@@ -1,5 +1,10 @@
 #include "setformulahorn.h"
 
+#include <fstream>
+#include <stack>
+#include <algorithm>
+#include <cassert>
+
 #include "global_funcs.h"
 
 HornUtil::HornUtil(Task *task) {
@@ -9,7 +14,7 @@ HornUtil::HornUtil(Task *task) {
     clauses.reserve(varamount*2);
 
     trueformula = new SetFormulaHorn(clauses, varamount);
-    clauses.push_back(std::make_pair(std::vector<int>(),i));
+    clauses.push_back(std::make_pair(std::vector<int>(),-1));
     emptyformula = new SetFormulaHorn(clauses, varamount);
     clauses.clear();
 
@@ -36,7 +41,7 @@ HornUtil::HornUtil(Task *task) {
     initformula = new SetFormulaHorn(clauses, varamount);
 
     // insert action formulas
-    action_formulas.reserve(task->get_number_of_actions());
+    actionformulas.reserve(task->get_number_of_actions());
     for(int actionsize = 0; actionsize < task->get_number_of_actions(); ++actionsize) {
         clauses.clear();
         const Action & action = task->get_action(actionsize);
@@ -68,6 +73,14 @@ HornUtil::HornUtil(Task *task) {
     }
 }
 
+HornUtil *SetFormulaHorn::util = nullptr;
+
+SetFormulaHorn::SetFormulaHorn(Task *task) {
+    if (util == nullptr) {
+        util = new HornUtil(task);
+    }
+}
+
 SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int> > &clauses, int varamount)
     : left_vars(clauses.size()), right_side(clauses.size()), variable_occurences(varamount), varamount(varamount) {
 
@@ -84,7 +97,7 @@ SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int
     simplify();
 }
 
-SetFormulaHorn::SetFormulaHorn(std::ifstream input, Task *task) {
+SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
 
     // TODO: parse input
     std::string word;
@@ -96,19 +109,20 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream input, Task *task) {
     }
     input >> varamount;
     input >> clausenum;
-    left_vars.resize(num);
-    right_side.resize(num);
+    left_vars.resize(clausenum);
+    right_side.resize(clausenum);
     variable_occurences.resize(varamount);
 
     for(int i = 0; i < clausenum; ++i) {
-        int var = varamount+1;
+        int var;
+        input >> var;
         while(var != 0) {
-            input >> var;
             if(var < 0) {
-                var = 1-var;
+                var = -1-var;
                 left_vars[i].push_back(var);
                 variable_occurences[var].first.insert(i);
             } else {
+                var -= 1;
                 if(right_side[i] != 0) {
                     std::cerr << "Invalid Horn formula" << std::endl;
                     exit_with(ExitCode::CRITICAL_ERROR);
@@ -116,10 +130,16 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream input, Task *task) {
                 right_side[i] = var-1;
                 variable_occurences[var].second.insert(i);
             }
+            input >> var;
         }
     }
 
-    // only use this in constructor that reads formula from file
+    input >> word;
+    if( word.compare("}") != 0) {
+        std::cerr << "HornFormula syntax wrong" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+
     if (util == nullptr) {
         util = new HornUtil(task);
     }
@@ -380,25 +400,25 @@ void SetFormulaHorn::dump() const{
     std::cout << std::endl;
 }
 
-static bool SetFormulaHorn::is_satisfiable(const HornFormulaList &formulas, bool partial) {
+bool SetFormulaHorn::is_satisfiable(const HornFormulaList &formulas, bool partial) {
     Cube restrictions, solution;
     return is_restricted_satisfiable(formulas, restrictions, solution, partial);
 }
 
-static bool SetFormulaHorn::is_satisfiable(const HornFormulaList &formulas, Cube &solution,
+bool SetFormulaHorn::is_satisfiable(const HornFormulaList &formulas, Cube &solution,
                                           bool partial) {
     Cube restrictions;
     return is_restricted_satisfiable(formulas, restrictions, solution, partial);
 }
 
-static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
+bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
                                                      const Cube &restrictions, bool partial) {
     Cube solution;
     return is_restricted_satisfiable(formulas, restrictions, solution, partial);
 }
 
 
-static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
+bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &formulas,
                                                      const Cube &restrictions, Cube &solution,
                                                      bool partial) {
     assert(formulas.size() >= 1);
@@ -580,7 +600,7 @@ static bool SetFormulaHorn::is_restricted_satisfiable(const HornFormulaList &for
  *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
  *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
  */
-static bool SetFormulaHorn::implies(const HornFormulaList &formulas,
+bool SetFormulaHorn::implies(const HornFormulaList &formulas,
                                     const SetFormulaHorn *right, bool right_primed) {
     assert(formulas.size() >= 1);
 
@@ -663,7 +683,7 @@ static bool SetFormulaHorn::implies(const HornFormulaList &formulas,
 
 // Given restrictions for a clause of the left formula, go through all right formulas
 bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
-                          SetFormulaHorn *right_formula, int right_offset,
+                          const SetFormulaHorn *right_formula, int right_offset,
                           const Cube &formulas_solution_partial) {
     // right forced true
     for(int ft_right : right_formula->get_forced_true()) {
@@ -672,7 +692,7 @@ bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
             continue;
         }
         restrictions[ft_right+right_offset] = 0;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
+        if(SetFormulaHorn::is_restricted_satisfiable(formulas, restrictions)) {
             return false;
         }
         restrictions[ft_right+right_offset] = 2;
@@ -684,11 +704,11 @@ bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
                 restrictions[ff_right+right_offset] == 0) {
             continue;
         }
-        restrictions[ft_right+right_offset] = 1;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
+        restrictions[ff_right+right_offset] = 1;
+        if(SetFormulaHorn::is_restricted_satisfiable(formulas, restrictions)) {
             return false;
         }
-        restrictions[ft_right+right_offset] = 2;
+        restrictions[ff_right+right_offset] = 2;
     }
 
     // right implications
@@ -714,7 +734,7 @@ bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
                 restrictions[r+right_offset] = 0;
             }
         }
-        if(!covered && is_restricted_satisfiable(formulas, restrictions)) {
+        if(!covered && SetFormulaHorn::is_restricted_satisfiable(formulas, restrictions)) {
             return false;
         }
 
@@ -725,7 +745,7 @@ bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
 }
 
 // TODO: needs refactoring
-static bool SetFormulaHorn::implies_union(const HornFormulaList &formulas,
+bool SetFormulaHorn::implies_union(const HornFormulaList &formulas,
                                   const SetFormulaHorn *union_left, bool left_primed,
                                   const SetFormulaHorn *union_right, bool right_primed) {
     //we currently demand that the union formula parts are "atomic"
@@ -809,30 +829,32 @@ static bool SetFormulaHorn::implies_union(const HornFormulaList &formulas,
 
 bool SetFormulaHorn::is_subset(SetFormula *f, bool negated, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(f);
+        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     }
     switch (f->get_formula_type()) {
-    case SetFormulaType::HORN:
+    case SetFormulaType::HORN: {
+        const SetFormulaHorn *f_const = static_cast<SetFormulaHorn *>(f);
         HornFormulaList list;
         // this \implies f
         if(!negated && !f_negated) {
             list.push_back(std::make_pair(this, false));
-            return implies(list, f, false);
+            return SetFormulaHorn::implies(list, f_const, false);
         // \lnot this \implies f --> \top \implies this \lor f
         } else if(negated && !f_negated) {
-            list.push_back(std::make_pair(util->trueformula));
-            return implies_union(list, this, false, f, false);
+            list.push_back(std::make_pair(util->trueformula, false));
+            return SetFormulaHorn::implies_union(list, this, false, f_const, false);
         // this \implies \lnot f --> this \land f is unsat
         } else if(!negated && f_negated) {
             list.push_back(std::make_pair(this, false));
-            list.push_back(std::make_pair(f, false));
+            list.push_back(std::make_pair(f_const, false));
             return !is_satisfiable(list);
         // \lnot this \implies \lnot f --> f \implies this
         } else {
-            list.push_back(std::make_pair(f,false));
-            return implies(list, this, false);
+            list.push_back(std::make_pair(f_const,false));
+            return SetFormulaHorn::implies(list, this, false);
         }
         break;
+    }
     case SetFormulaType::BDD:
         std::cerr << "not implemented yet";
         return false;
@@ -846,7 +868,7 @@ bool SetFormulaHorn::is_subset(SetFormula *f, bool negated, bool f_negated) {
         return false;
         break;
     default:
-        std::cerr << "X \subseteq X' is not supported for Horn formula X "
+        std::cerr << "X \\subseteq X' is not supported for Horn formula X "
                      "and non-basic or constant formula X'" << std::endl;
         return false;
         break;
@@ -855,49 +877,70 @@ bool SetFormulaHorn::is_subset(SetFormula *f, bool negated, bool f_negated) {
 
 bool SetFormulaHorn::is_subset(SetFormula *f1, SetFormula *f2) {
     if(f1->get_formula_type() == SetFormulaType::CONSTANT) {
-        f1 = get_constant_formula(f1);
+        f1 = get_constant_formula(static_cast<SetFormulaConstant *>(f1));
     }
     if(f2->get_formula_type() == SetFormulaType::CONSTANT) {
-        f2 = get_constant_formula(f2);
+        f2 = get_constant_formula(static_cast<SetFormulaConstant *>(f2));
     }
     if(f1->get_formula_type() != SetFormulaType::HORN || f2->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "X \subseteq X' \cup X'' is not supported for Horn formula X "
-                     "and non-Horn formula X' or X''" << std::endl;
+        std::cerr << "X \\subseteq X' \\cup X'' is not supported for Horn formula X ";
+        std::cerr << "and non-Horn formula X' or X''" << std::endl;
         return false;
     }
-    return implies_union(HornFormulaList(1,std::make_pair(&this, false)),
-                         f1, false, f2, false);
+    const SetFormulaHorn *f1_const = static_cast<SetFormulaHorn *>(f1);
+    const SetFormulaHorn *f2_const = static_cast<SetFormulaHorn *>(f1);
+    return SetFormulaHorn::implies_union(HornFormulaList(1,std::make_pair(this, false)),
+                         f1_const, false, f2_const, false);
 
 }
 
-bool SetFormulaHorn::intersection_with_goal_is_subset(SetFormula *f, bool negate, bool f_negated) {
+bool SetFormulaHorn::intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(f1);
+        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "L \cap S_G(\Pi) \subseteq L' is not supported for Horn Formula L"
-                     "and non-Horn formula L'" << std::endl;
+        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for Horn Formula L";
+        std::cerr <<"and non-Horn formula L'" << std::endl;
         return false;
     }
+    const SetFormulaHorn *f_const = static_cast<SetFormulaHorn *>(f);
     HornFormulaList list;
-    list.push_back(std::make_pair(this, false));
-    list.push_back(std::make_pair(util->goalformula, false);
-    return implies(list, f, false);
+    list.push_back(std::make_pair(util->goalformula, false));
+
+
+    // \this \cap S_G(\Pi) \implies f
+    if(!negated && !f_negated) {
+        list.push_back(std::make_pair(this, false));
+        return SetFormulaHorn::implies(list, f_const, false);
+    // \lnot this \cap S_G(\Pi) \implies f --> \cap S_G(\Pi) \implies this \lor f
+    } else if(negated && !f_negated) {
+        return SetFormulaHorn::implies_union(list, this, false, f_const, false);
+    // this \cap S_G(\Pi) \implies \lnot f --> this \cap S_G(\Pi) \land f is unsat
+    } else if(!negated && f_negated) {
+        list.push_back(std::make_pair(this, false));
+        list.push_back(std::make_pair(f_const, false));
+        return !is_satisfiable(list);
+    // \lnot this \cap S_G(\Pi) \implies \lnot f --> f \cap S_G(\Pi) \implies this
+    } else {
+        list.push_back(std::make_pair(f_const,false));
+        return SetFormulaHorn::implies(list, this, false);
+    }
 
 }
 
 bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(f1);
+        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "X[A] \subseteq X \cup X' is not supported for Horn Formula X"
-                     "and non-Horn formula X'" << std::endl;
+        std::cerr << "X[A] \\subseteq X \\cup X' is not supported for Horn Formula X";
+        std::cerr << "and non-Horn formula X'" << std::endl;
         return false;
     }
+    const SetFormulaHorn *f_const = static_cast<SetFormulaHorn *>(f);
 
     HornFormulaList list;
     list.push_back(std::make_pair(this, false));
     if(f_negated) {
-        list.push_back(std::make_pair(f, true));
+        list.push_back(std::make_pair(f_const, true));
     }
     //dummy initialization for actionformula
     list.push_back(std::make_pair(nullptr, false));
@@ -905,11 +948,11 @@ bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
         list[list.size()-1] = std::make_pair(util->actionformulas[i],false);
         if(f_negated) {
-            if(!implies(list, this, true)) {
+            if(!SetFormulaHorn::implies(list, this, true)) {
                 return false;
             }
         } else {
-            if(!implies_union(list, this, true, f, true)) {
+            if(!SetFormulaHorn::implies_union(list, this, true, f_const, true)) {
                 return false;
             }
         }
@@ -919,17 +962,18 @@ bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) 
 
 bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(f1);
+        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "[A]X \subseteq X \cup X' is not supported for Horn Formula X"
-                     "and non-Horn formula X'" << std::endl;
+        std::cerr << "[A]X \\subseteq X \\cup X' is not supported for Horn Formula X";
+        std::cerr << "and non-Horn formula X'" << std::endl;
         return false;
     }
+    const SetFormulaHorn *f_const = static_cast<SetFormulaHorn *>(f);
 
     HornFormulaList list;
     list.push_back(std::make_pair(this, true));
     if(f_negated) {
-        list.push_back(std::make_pair(f, false));
+        list.push_back(std::make_pair(f_const, false));
     }
     //dummy initialization for actionformula
     list.push_back(std::make_pair(nullptr, false));
@@ -937,11 +981,11 @@ bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
     for(int i = 0; i< util->actionformulas.size(); ++i) {
         list[list.size()-1] = std::make_pair(util->actionformulas[i], false);
         if(f_negated) {
-            if(!implies(list, this, false)) {
+            if(!SetFormulaHorn::implies(list, this, false)) {
                 return false;
             }
         } else {
-            if(!implies_union(list, this, false, f, false)) {
+            if(!SetFormulaHorn::implies_union(list, this, false, f_const, false)) {
                 return false;
             }
         }
@@ -950,7 +994,7 @@ bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
 }
 
 
-bool SetFormulaHorn::get_formula_type() {
+SetFormulaType SetFormulaHorn::get_formula_type() {
     return SetFormulaType::HORN;
 }
 
@@ -966,7 +1010,7 @@ SetFormulaBasic *SetFormulaHorn::get_constant_formula(SetFormulaConstant *c_form
         return util->goalformula;
         break;
     default:
-        std::cerr << "Unknown Constant type: " << c << std::endl;
+        std::cerr << "Unknown Constant type: " << std::endl;
         return nullptr;
         break;
     }

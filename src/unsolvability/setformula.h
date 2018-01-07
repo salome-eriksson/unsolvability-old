@@ -3,7 +3,7 @@
 
 #include "task.h"
 
-enum SetFormulaType {
+enum class SetFormulaType {
     CONSTANT,
     BDD,
     HORN,
@@ -15,8 +15,10 @@ enum SetFormulaType {
     PROGRESSION,
     REGRESSION
 };
+// TODO: can this be done nicer?
+extern std::vector<std::string> setformulatype_strings;
 
-enum ConstantType {
+enum class ConstantType {
     EMPTY,
     GOAL,
     INIT

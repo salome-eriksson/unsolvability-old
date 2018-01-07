@@ -1,31 +1,33 @@
 #include "setformulacompound.h"
 
+#include <iostream>
+
 SetFormulaCompound::SetFormulaCompound() {
 
 }
 
 bool SetFormulaCompound::is_subset(SetFormula *, bool, bool) {
-    std::cerr << "L \subseteq L' is not supported for compound formulas L" << std::endl;
+    std::cerr << "L \\subseteq L' is not supported for compound formulas L" << std::endl;
     return false;
 }
 
 bool SetFormulaCompound::is_subset(SetFormula *, SetFormula *) {
-    std::cerr << "X \subseteq X' \cup X'' is not supported for compound formulas X" << std::endl;
+    std::cerr << "X \\subseteq X' \\cup X'' is not supported for compound formulas X" << std::endl;
     return false;
 }
 
 bool SetFormulaCompound::intersection_with_goal_is_subset(SetFormula *, bool, bool) {
-    std::cerr << "L \cap S_G(\Pi) \subseteq L' is not supported for compound formulas L" << std::endl;
+    std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for compound formulas L" << std::endl;
     return false;
 }
 
 bool SetFormulaCompound::progression_is_union_subset(SetFormula *, bool) {
-    std::cerr << "X[A] \subseteq X \cup X' is not supported for compound formulas x" << std::endl;
+    std::cerr << "X[A] \\subseteq X \\cup X' is not supported for compound formulas x" << std::endl;
     return false;
 }
 
 bool SetFormulaCompound::regression_is_union_subset(SetFormula *, bool) {
-    std::cerr << "[A]X \subseteq X \cup X' is not supported for compound formulas X" << std::endl;
+    std::cerr << "[A]X \\subseteq X \\cup X' is not supported for compound formulas X" << std::endl;
     return false;
 }
 

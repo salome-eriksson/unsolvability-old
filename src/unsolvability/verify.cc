@@ -10,47 +10,144 @@
 #include "global_funcs.h"
 #include "task.h"
 #include "timer.h"
-#include "knowledgebase.h"
-#include "rulechecker.h"
-#include "statementchecker.h"
-#include "statementcheckerbdd.h"
-#include "statementcheckerhorn.h"
+#include "proofchecker.h"
+#include "setformula.h"
+#include "setformulacompound.h"
+#include "setformulahorn.h"
 
-/*Certificate* build_certificate(std::string certificate_file, Task* task) {
-    std::ifstream stream;
-    stream.open(certificate_file);
-    if(!stream.is_open()) {
-        exit_with(ExitCode::NO_CERTIFICATE_FILE);
-    }
 
-    std::string line;
-    std::getline(stream, line);
-    std::vector<std::string> linevec;
-    split(line, linevec, ':');
-    assert(linevec.size() == 3);
-    assert(linevec[0].compare("certificate-type") == 0);
-    std::string type = linevec[1];
-    int r = stoi(linevec[2]);
+void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
+    FormulaIndex expression_index;
+    in >> expression_index;
+    std::string type;
+    in >> type;
+    SetFormula *expression;
 
-    Certificate *certificate = NULL;
-
-    if(type.compare("simple") == 0) {
-        std::cout << "reading in simple certificate" << std::endl;
-        certificate = new SimpleCertificate(task, stream);
-    } else if(type.compare("disjunctive") == 0) {
-        std::cout << "reading in disjunctive certificate (bound:" << r << ")" << std::endl;
-        certificate = new DisjunctiveCertificate(task, stream, r);
-    } else if(type.compare("conjunctive") == 0) {
-        std::cout << "reading in conjunctive certificate";
-        certificate = new ConjunctiveCertificate(task, stream, r);
+    if(type.compare("b") == 0) {
+        std::cerr << "not implemented yet" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    } else if(type.compare("h") == 0) {
+        expression = new SetFormulaHorn(in, task);
+    } else if(type.compare("t") == 0) {
+        std::cerr << "not implemented yet" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    } else if(type.compare("e") == 0) {
+        std::cerr << "not implemented yet" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    } else if(type.compare("c") == 0) {
+        expression = new SetFormulaConstant(in, task);
+    } else if(type.compare("n") == 0) {
+        FormulaIndex subformulaindex;
+        in >> subformulaindex;
+        expression = new SetFormulaNegation(subformulaindex);
+    } else if(type.compare("i") == 0) {
+        FormulaIndex left, right;
+        in >> left;
+        in >> right;
+        expression = new SetFormulaIntersection(left, right);
+    } else if(type.compare("u") == 0) {
+        FormulaIndex left, right;
+        in >> left;
+        in >> right;
+        expression = new SetFormulaUnion(left, right);
+    } else if(type.compare("p") == 0) {
+        FormulaIndex subformulaindex;
+        in >> subformulaindex;
+        expression = new SetFormulaProgression(subformulaindex);
+    } else if(type.compare("r") == 0) {
+        FormulaIndex subformulaindex;
+        in >> subformulaindex;
+        expression = new SetFormulaRegression(subformulaindex);
     } else {
-        exit_with(ExitCode::PARSING_ERROR);
+        std::cerr << "unknown expression type " << type << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
     }
-    stream.close();
-    return certificate;
-}*/
+    proofchecker.add_formula(expression, expression_index);
+}
 
+void read_in_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
+    KnowledgeIndex knowledge_index;
+    in >> knowledge_index;
+    bool successful;
 
+    std::string type;
+    in >> type;
+    if(type.compare("s") == 0) {
+        FormulaIndex left, right;
+        in >> left;
+        in >> right;
+        in >> type;
+        if(type.compare("b1") == 0) {
+            successful = proofchecker.check_statement_B1(knowledge_index, left, right);
+        } else if(type.compare("b2") == 0) {
+            successful = proofchecker.check_statement_B2(knowledge_index, left, right);
+        } else if(type.compare("b3") == 0) {
+            successful = proofchecker.check_statement_B3(knowledge_index, left, right);
+        } else if(type.compare("b4") == 0) {
+            successful = proofchecker.check_statement_B4(knowledge_index, left, right);
+        } else if(type.compare("b5") == 0) {
+            successful = proofchecker.check_statement_B5(knowledge_index, left, right);
+        } else if(type.compare("d10") == 0) {
+            KnowledgeIndex old_knowledge_index;
+            in >> old_knowledge_index;
+            successful = proofchecker.check_rule_D10(knowledge_index, left, right, old_knowledge_index);
+        } else if(type.compare("d11") == 0) {
+            KnowledgeIndex old_knowledge_index;
+            in >> old_knowledge_index;
+            successful = proofchecker.check_rule_D11(knowledge_index, left, right, old_knowledge_index);
+        } else {
+            std::cerr << "unknown justification for subset knowledge " << type << std::endl;
+            exit_with(ExitCode::CRITICAL_ERROR);
+        }
+    } else if(type.compare("d") == 0) {
+        FormulaIndex dead_index;
+        in >> dead_index;
+        in >> type;
+        if(type.compare("d1") == 0) {
+            successful = proofchecker.check_rule_D1(knowledge_index, dead_index);
+        } else if(type.compare("d2") == 0) {
+            KnowledgeIndex ki1, ki2;
+            in >> ki1;
+            in >> ki2;
+            successful = proofchecker.check_rule_D2(knowledge_index, dead_index, ki1, ki2);
+        } else if(type.compare("d3") == 0) {
+            KnowledgeIndex ki1, ki2;
+            in >> ki1;
+            in >> ki2;
+            successful = proofchecker.check_rule_D3(knowledge_index, dead_index, ki1, ki2);
+        } else if(type.compare("d6") == 0) {
+            KnowledgeIndex ki1, ki2, ki3;
+            in >> ki1;
+            in >> ki2;
+            in >> ki3;
+            successful = proofchecker.check_rule_D6(knowledge_index, dead_index, ki1, ki2, ki3);
+        } else if(type.compare("d7") == 0) {
+            KnowledgeIndex ki1, ki2, ki3;
+            in >> ki1;
+            in >> ki2;
+            in >> ki3;
+            successful = proofchecker.check_rule_D7(knowledge_index, dead_index, ki1, ki2, ki3);
+        } else if(type.compare("d8") == 0) {
+            KnowledgeIndex ki1, ki2, ki3;
+            in >> ki1;
+            in >> ki2;
+            in >> ki3;
+            successful = proofchecker.check_rule_D8(knowledge_index, dead_index, ki1, ki2, ki3);
+        } else if(type.compare("d9") == 0) {
+            KnowledgeIndex ki1, ki2, ki3;
+            in >> ki1;
+            in >> ki2;
+            in >> ki3;
+            successful = proofchecker.check_rule_D9(knowledge_index, dead_index, ki1, ki2, ki3);
+        }
+    } else {
+        std::cerr << "unknown knowledge type " << type << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+    if(!successful) {
+        std::cerr << "check for knowledge #" << knowledge_index << " NOT successful!" << std::endl;
+    }
+}
 
 int main(int argc, char** argv) {
     if(argc < 3 || argc > 4) {
@@ -85,72 +182,31 @@ int main(int argc, char** argv) {
         certificate_file += old_certificate_file.substr(8);
     }
 
-    std::ifstream infofile;
-    infofile.open(certificate_file);
-    if(!infofile.is_open()) {
+    std::ifstream certstream;
+    certstream.open(certificate_file);
+    if(!certstream.is_open()) {
         exit_with(ExitCode::NO_CERTIFICATE_FILE);
     }
-    std::string line;
-
-    // first line contains location of the stateseet file needed for the knowledgebase
-    std::getline(infofile,line);
-    int pos = line.find(":");
-    assert(pos != std::string::npos);
-    assert(line.substr(0,pos).compare("statesets") == 0);
-    KnowledgeBase *kb = new KnowledgeBase(task,line.substr(pos+1));
-
-    // second line contains location of the rules file
-    std::getline(infofile,line);
-    pos = line.find(":");
-    assert(pos != std::string::npos);
-    assert(line.substr(0,pos).compare("rules") == 0);
-    std::string rules_file = line.substr(pos+1);
-
-    // loop over all statement blocks
-    while(std::getline(infofile,line)) {
-        StatementChecker *stmtchecker;
-        if(line.compare("Statements:BDD") == 0) {
-            stmtchecker = new StatementCheckerBDD(kb,task,infofile);
-        } else if(line.compare("Statements:Horn") == 0) {
-            stmtchecker = new StatementCheckerHorn(kb,task,infofile);
+    ProofChecker proofchecker;
+    std::string input;
+    while(certstream >> input) {
+        if(input.compare("e") == 0) {
+            read_in_expression(certstream, proofchecker, task);
+        } else if(input.compare("k") == 0) {
+            read_in_knowledge(certstream, proofchecker);
         } else {
-            std::cout << "unknown Statement Type: " << line << std::endl;
+            std::cerr << "unknown start of line: " << input << std::endl;
             exit_with(ExitCode::CRITICAL_ERROR);
         }
-        stmtchecker->check_statements_and_insert_into_kb();
-        delete stmtchecker;
     }
-
-    // check rules
-    RuleChecker rulechecker(kb,task);
-    rulechecker.check_rules_from_file(rules_file);
 
     std::cout << "Verify total time: " << timer() << std::endl;
     std::cout << "Verify memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
-    if(kb->is_unsolvability_proven()) {
+    if(proofchecker.is_unsolvability_proven()) {
         std::cout << "unsolvability proven" << std::endl;
         exit_with(ExitCode::CERTIFICATE_VALID);
     } else {
         std::cout << "unsolvability NOT proven" << std::endl;
         exit_with(ExitCode::CERTIFICATE_NOT_VALID);
     }
-
-    //std::cout << "Verify verification time: ";
-    //std::cout << std::fixed << std::setprecision(2) << verification_time << std::endl;
-    std::cout << "Verify memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
-
-    //Certificate* certificate = build_certificate(certificate_file, task);
-    //double parsing_end = timer();
-    //print_info("Finished parsing");
-    //print_info("Verifying certificate");
-    //double verify_start = timer();
-    //bool valid = certificate->is_certificate_for(task->get_initial_state());
-    //double verify_end =  timer();
-    //double parsing_time = parsing_end-parsing_start;
-    //double verification_time = verify_end - verify_start;
-    //std::cout << "Verify total time: " << timer() << std::endl;
-    //std::cout << "Verify parsing time: ";
-    //std::cout << std::fixed << std::setprecision(2) << parsing_time << std::endl;
-
-
 }

@@ -25,6 +25,7 @@ private:
 
 class SetFormulaHorn : public SetFormulaBasic
 {
+    friend class HornUtil;
 private:
     std::vector<std::vector<int>> left_vars;
     std::vector<int> left_sizes;
@@ -41,7 +42,9 @@ private:
     // this method should be called from every constructor!
     void simplify();
 public:
-    SetFormulaHorn(std::ifstream input, Task *task);
+    // TODO: this is currently only used for a dummy initialization
+    SetFormulaHorn(Task *task);
+    SetFormulaHorn(std::ifstream &input, Task *task);
 
     int get_size() const;
     int get_varamount() const;
@@ -65,7 +68,7 @@ public:
     static bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions,
                                    Cube &solution, bool partial= false);
     static bool implies(const HornFormulaList &formulas,
-                        const SetHornFormula *right, bool right_primed);
+                        const SetFormulaHorn *right, bool right_primed);
     static bool implies_union(const HornFormulaList &formulas,
                                       const SetFormulaHorn *union_left, bool left_primed,
                                       const SetFormulaHorn *union_right, bool right_primed);
