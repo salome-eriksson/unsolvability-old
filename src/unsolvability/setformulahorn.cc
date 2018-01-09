@@ -107,10 +107,15 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
         std::cerr << "Invalid DIMACS format" << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }
+    input >> word;
+    if (word.compare("cnf") != 0) {
+        std::cerr << "DIMACS format" << word << "not recognized" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
     input >> varamount;
     input >> clausenum;
     left_vars.resize(clausenum);
-    right_side.resize(clausenum);
+    right_side.resize(clausenum, -1);
     variable_occurences.resize(varamount);
 
     for(int i = 0; i < clausenum; ++i) {
@@ -123,11 +128,11 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
                 variable_occurences[var].first.insert(i);
             } else {
                 var -= 1;
-                if(right_side[i] != 0) {
+                if(right_side[i] != -1) {
                     std::cerr << "Invalid Horn formula" << std::endl;
                     exit_with(ExitCode::CRITICAL_ERROR);
                 }
-                right_side[i] = var-1;
+                right_side[i] = var;
                 variable_occurences[var].second.insert(i);
             }
             input >> var;
@@ -135,7 +140,7 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
     }
 
     input >> word;
-    if( word.compare("}") != 0) {
+    if(word.compare(";") != 0) {
         std::cerr << "HornFormula syntax wrong" << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }

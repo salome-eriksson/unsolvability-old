@@ -140,6 +140,17 @@ void read_in_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
             in >> ki3;
             successful = proofchecker.check_rule_D9(knowledge_index, dead_index, ki1, ki2, ki3);
         }
+    } else if(type.compare("u") == 0) {
+        in >> type;
+        if(type.compare("d4") == 0) {
+            KnowledgeIndex ki;
+            in >> ki;
+            successful = proofchecker.check_rule_D4(knowledge_index, ki);
+        } else if(type.compare("d5") == 0) {
+            KnowledgeIndex ki;
+            in >> ki;
+            successful = proofchecker.check_rule_D5(knowledge_index, ki);
+        }
     } else {
         std::cerr << "unknown knowledge type " << type << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
