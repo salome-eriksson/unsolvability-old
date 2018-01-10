@@ -78,7 +78,7 @@ public:
     virtual bool progression_is_union_subset(SetFormula *f, bool f_negated);
     virtual bool regression_is_union_subset(SetFormula *f, bool f_negated);
 
-    SetFormulaType get_formula_type();
+    virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
 };
 

@@ -11,6 +11,8 @@ e 6 h p cnf 6 2 4 0 2 0 ;
 e 7 h p cnf 6 1 6 0 ;
 e 8 h p cnf 6 1 -4 -2 0 ;
 
+#e x b text.bdd 3 ;
+
 e 9 n 3
 e 10 n 4
 e 11 n 5

@@ -19,6 +19,7 @@ HEADERS = \
 	  setformulacompound.h \
 	  setformulabasic.h \
 	  setformulahorn.h \
+	  setformulabdd.h \
 	  proofchecker.h \
 
 SOURCES = verify.cc $(HEADERS:%.h=%.cc)
