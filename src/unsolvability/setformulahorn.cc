@@ -893,7 +893,7 @@ bool SetFormulaHorn::is_subset(SetFormula *f1, SetFormula *f2) {
         return false;
     }
     const SetFormulaHorn *f1_const = static_cast<SetFormulaHorn *>(f1);
-    const SetFormulaHorn *f2_const = static_cast<SetFormulaHorn *>(f1);
+    const SetFormulaHorn *f2_const = static_cast<SetFormulaHorn *>(f2);
     return SetFormulaHorn::implies_union(HornFormulaList(1,std::make_pair(this, false)),
                          f1_const, false, f2_const, false);
 

@@ -1,14 +1,66 @@
 e 0 c e
 e 1 c g
 e 2 c i
-e 3 n 0
 k 0 d 0 d1
 
-e 4 h p cnf 6 1 -1 0 ;
-e 5 h p cnf 6 2 -4 -5 0 -6 0 ;
-e 6 h p cnf 6 2 1 0 6 0 ;
-e 7 h p cnf 6 2 4 0 5 0 ;
-e 8 h p cnf 6 1 6 0 ;
-e 9 h p cnf 6 1 -4 -5 ;
 
+e 3 h p cnf 6 1 -1 0 ;
+e 4 h p cnf 6 2 -4 -2 0 -5 0 ;
+e 5 h p cnf 6 2 1 0 6 0 ;
+e 6 h p cnf 6 2 4 0 2 0 ;
+e 7 h p cnf 6 1 6 0 ;
+e 8 h p cnf 6 1 -4 -2 0 ;
 
+e 9 n 3
+e 10 n 4
+e 11 n 5
+e 12 n 6
+e 13 n 7
+e 14 n 8
+e 15 p 3
+e 16 p 4
+e 17 r 6
+e 18 r 7
+e 19 n 0
+k 1 s 5 7 b1
+k 2 s 3 11 b1
+k 3 s 14 6 b1
+k 4 s 13 11 b1
+e 20 u 5 3
+k 5 s 7 20 b2
+e 21 i 9 1
+k 6 s 21 5 b3
+e 22 i 8 1
+k 7 s 22 9 b3
+e 23 i 12 1
+k 8 s 23 19 b3
+e 24 u 3 0
+k 9 s 15 24 b4
+e 25 i 3 1
+k 10 s 25 0 b3
+k 11 d 25 d3 10 0
+k 12 d 3 d6 9 0 11
+e 26 u 4 3
+k 13 s 16 26 b4
+k 14 s 2 4 b1
+k 15 d 10 d7 13 12 14
+k 16 s 1 10 b1
+k 17 d 1 d3 16 15
+k 18 u d5 17
+e 27 u 4 11
+k 19 s 16 27 b4
+e 28 u 6 0
+k 20 s 17 28 b5
+k 21 s 2 12 b1
+k 22 d 6 d9 20 0 21
+e 29 u 7 6
+k 23 s 18 29 b5
+e 30 i 13 1
+k 24 s 30 0 b3
+k 25 d 30 d3 24 0
+k 26 d 13 d8 23 22 25
+k 27 s 2 13 b1
+k 28 d 2 d3 27 26
+k 29 u d4 28
+e 31 u 7 14
+k 30 s 18 31 b5

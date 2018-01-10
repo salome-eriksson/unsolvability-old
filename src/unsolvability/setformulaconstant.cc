@@ -9,11 +9,11 @@ SetFormulaConstant::SetFormulaConstant(std::ifstream &input, Task *task)
     : task(task) {
     std::string type;
     input >> type;
-    if(type.compare("e")) {
+    if(type.compare("e") == 0) {
         constanttype = ConstantType::EMPTY;
-    } else if(type.compare("i")) {
+    } else if(type.compare("i") == 0) {
         constanttype = ConstantType::INIT;
-    } else if(type.compare("g")) {
+    } else if(type.compare("g") == 0) {
         constanttype = ConstantType::GOAL;
     } else {
         std::cerr << "unknown constant type " << type << std::endl;

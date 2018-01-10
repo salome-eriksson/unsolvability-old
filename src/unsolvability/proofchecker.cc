@@ -16,21 +16,30 @@ ProofChecker::ProofChecker()
 
 }
 
-void ProofChecker::add_formula(SetFormula *formula, int index) {
-    assert(formulas.size() == index);
+void ProofChecker::add_formula(SetFormula *formula, FormulaIndex index) {
+    assert(index >= formulas.size());
+    if(index > formulas.size()) {
+        formulas.resize(index);
+    }
     formulas.push_back(formula);
+}
+
+void ProofChecker::add_kbentry(KBEntry *entry, KnowledgeIndex index) {
+    assert(index >= kbentries.size());
+    if(index > kbentries.size()) {
+        kbentries.resize(index);
+    }
+    kbentries.push_back(entry);
 }
 
 // KBEntry newki says that f=emptyset is dead
 bool ProofChecker::check_rule_D1(KnowledgeIndex newki, FormulaIndex fi) {
-    // TODO: is it a good idea to demand this? (concerns all methods)
-    assert(kbentries.size() == newki);
 
     SetFormulaConstant *f = dynamic_cast<SetFormulaConstant *>(formulas[fi]);
     if ((!f) || (f->get_constant_type() != ConstantType::EMPTY)) {
         return false;
     }
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
     return true;
 }
 
@@ -38,7 +47,6 @@ bool ProofChecker::check_rule_D1(KnowledgeIndex newki, FormulaIndex fi) {
 // KBEntry newki says that f=S \union S' is dead based on k1 (S is dead) and k2 (S' is dead)
 bool ProofChecker::check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2) {
-    assert(kbentries.size() == newki);
 
     // f represents left \cup right
     SetFormulaUnion *f = dynamic_cast<SetFormulaUnion *>(formulas[fi]);
@@ -60,7 +68,7 @@ bool ProofChecker::check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
     return true;
 }
 
@@ -68,7 +76,6 @@ bool ProofChecker::check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
 // KBEntry newki says that f=S is dead based on k1 (S \subseteq S') and k2 (S' is dead)
 bool ProofChecker::check_rule_D3(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2) {
-    assert(kbentries.size() == newki);
 
     // check if k1 says that f is a subset of "x" (x can be anything)
     if ((kbentries[ki1]->get_kbentry_type() != KBType::SUBSET) ||
@@ -83,13 +90,13 @@ bool ProofChecker::check_rule_D3(KnowledgeIndex newki, FormulaIndex fi,
        (kbentries[ki2]->get_first() != xi)) {
         return false;
     }
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
+    return true;
 }
 
 
 // KBEntry newki says that the task is unsolvable based on k ({I} is dead)
 bool ProofChecker::check_rule_D4(KnowledgeIndex newki, KnowledgeIndex ki) {
-    assert(kbentries.size() == newki);
 
     // check that k says that {I} is dead
     if (kbentries[ki]->get_kbentry_type() != KBType::DEAD) {
@@ -101,14 +108,13 @@ bool ProofChecker::check_rule_D4(KnowledgeIndex newki, KnowledgeIndex ki) {
         return false;
     }
 
-    kbentries.push_back(new KBEntryUnsolvable());
+    add_kbentry(new KBEntryUnsolvable(), newki);
     unsolvability_proven = true;
     return true;
 }
 
 // KBEntry newki says that the task is unsolvable based on k (S_G(\Pi) is dead)
 bool ProofChecker::check_rule_D5(KnowledgeIndex newki, KnowledgeIndex ki) {
-    assert(kbentries.size() == newki);
 
     // check that k says that S_G(\Pi) is dead
     if (kbentries[ki]->get_kbentry_type() != KBType::DEAD) {
@@ -120,7 +126,7 @@ bool ProofChecker::check_rule_D5(KnowledgeIndex newki, KnowledgeIndex ki) {
         return false;
     }
 
-    kbentries.push_back(new KBEntryUnsolvable());
+    add_kbentry(new KBEntryUnsolvable(), newki);
     unsolvability_proven = true;
     return true;
 }
@@ -130,7 +136,6 @@ bool ProofChecker::check_rule_D5(KnowledgeIndex newki, KnowledgeIndex ki) {
 // k2 (S' is dead) and k3 (S \cap S_G(\Pi) is dead)
 bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3) {
-    assert(kbentries.size() == newki);
 
     // check if k1 says that S[A] \subseteq S \cup S'
     if (kbentries[ki1]->get_kbentry_type() != KBType::SUBSET) {
@@ -173,7 +178,7 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
     return true;
 }
 
@@ -182,7 +187,6 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
 // k2 (S' is dead) and k3 ({I} \subseteq S_not)
 bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3) {
-    assert(kbentries.size() == newki);
 
     // check if fi corresponds to s_not
     SetFormulaNegation *s_not = dynamic_cast<SetFormulaNegation *>(formulas[fi]);
@@ -231,7 +235,7 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
     return true;
 }
 
@@ -240,7 +244,6 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
 // k2 (S' is dead) and k3  (S_not \cap S_G(\Pi) is dead)
 bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3) {
-    assert(kbentries.size() == newki);
 
     // check if fi corresponds to s_not
     SetFormulaNegation *s_not = dynamic_cast<SetFormulaNegation *>(formulas[fi]);
@@ -290,7 +293,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
     return true;
 }
 
@@ -299,7 +302,6 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
 // k2 (S' is dead) and k3 ({I} \subseteq S_not)
 bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3) {
-    assert(kbentries.size() == newki);
 
     // check if k1 says that [A]S \subseteq S \cup S'
     if(kbentries[ki1]->get_kbentry_type() != KBType::SUBSET) {
@@ -343,7 +345,7 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    kbentries.push_back(new KBEntryDead(fi));
+    add_kbentry(new KBEntryDead(fi), newki);
     return true;
 }
 
@@ -351,7 +353,6 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
 // KBEntry newki says that S'_not[A] \subseteq S_not based on k ([A]S \subseteq S')
 bool ProofChecker::check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
                                 KnowledgeIndex ki) {
-    assert(kbentries.size() == newki);
 
     // check that f1 represents S'_not[A] and f2 S_not
     SetFormulaProgression *sp_not_prog =
@@ -379,7 +380,7 @@ bool ProofChecker::check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, Formul
     if(!s_reg || s_reg->get_subformula_index() != si || kbentries[ki]->get_second() != spi) {
         return false;
     }
-    kbentries.push_back(new KBEntrySubset(fi1, fi2));
+    add_kbentry(new KBEntrySubset(fi1, fi2), newki);
     return true;
 }
 
@@ -387,7 +388,6 @@ bool ProofChecker::check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, Formul
 // KBEntry newki says that [A]S'_not \subseteq S_not based on k (S[A] \subseteq S')
 bool ProofChecker::check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
                                 KnowledgeIndex ki) {
-    assert(kbentries.size() == newki);
 
     //check that f1 represents [A]S'_not and f_2 S_not
     SetFormulaRegression *sp_not_reg =
@@ -415,14 +415,13 @@ bool ProofChecker::check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, Formul
     if(!s_prog || s_prog->get_subformula_index() != si || kbentries[ki]->get_second() != spi) {
         return false;
     }
-    kbentries.push_back(new KBEntrySubset(fi1, fi2));
+    add_kbentry(new KBEntrySubset(fi1, fi2), newki);
     return true;
 }
 
 
 // check if L \subseteq L'
 bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    assert(kbentries.size() == newki);
 
     FormulaIndex l_resolved = fi1;
     FormulaIndex lp_resolved = fi2;
@@ -442,7 +441,7 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
     }
 
     if(formulas[l_resolved]->is_subset(formulas[lp_resolved], left_negated, right_negated)) {
-        kbentries.push_back(new KBEntrySubset(fi1, fi2));
+        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
         return true;
     }
     return false;
@@ -450,18 +449,18 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
 
 // check if X \subseteq X' \cup X''
 bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    assert(kbentries.size() == newki);
 
     // check if fi2 represents X' \cup X''
     SetFormulaUnion *xp_cup_xpp = dynamic_cast<SetFormulaUnion *>(formulas[fi2]);
     if(!xp_cup_xpp) {
+        std::cerr << "trying to apply B2 when right side is not a union" << std::endl;
         return false;
     }
     FormulaIndex xpi = xp_cup_xpp->get_left_index();
     FormulaIndex xppi = xp_cup_xpp->get_right_index();
 
     if(formulas[fi1]->is_subset(formulas[xpi], formulas[xppi])) {
-        kbentries.push_back(new KBEntrySubset(fi1, fi2));
+        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
         return true;
     }
     return false;
@@ -469,7 +468,6 @@ bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, Fo
 
 // check if L \cap S_G(\Pi) \subseteq L'
 bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    assert(kbentries.size() == newki);
 
     // check if fi1 represents L \cap S_G(\Pi)
     SetFormulaIntersection *l_cap_goal = dynamic_cast<SetFormulaIntersection *>(formulas[fi1]);
@@ -500,7 +498,7 @@ bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, Fo
     }
 
     if(formulas[l_resolved]->intersection_with_goal_is_subset(formulas[lp_resolved], left_negated, right_negated)) {
-        kbentries.push_back(new KBEntrySubset(fi1, fi2));
+        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
         return true;
     }
     return false;
@@ -509,7 +507,6 @@ bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, Fo
 
 // check if X[A] \subseteq X \cup L
 bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    assert(kbentries.size() == newki);
 
     // check if fi1 represents X[A]
     SetFormulaProgression *x_prog = dynamic_cast<SetFormulaProgression *>(formulas[fi1]);
@@ -534,7 +531,7 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
     }
 
     if(formulas[xi]->progression_is_union_subset(formulas[l_resolved], negated)) {
-        kbentries.push_back(new KBEntrySubset(fi1, fi2));
+        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
         return true;
     }
     return false;
@@ -543,7 +540,6 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
 
 // check if [A]X \subseteq X \cup L
 bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    assert(kbentries.size() == newki);
 
     // check if fi1 represents [A]X
     SetFormulaRegression *x_reg = dynamic_cast<SetFormulaRegression *>(formulas[fi1]);
@@ -568,7 +564,7 @@ bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, Fo
     }
 
     if(formulas[xi]->regression_is_union_subset(formulas[l_resolved], negated)) {
-        kbentries.push_back(new KBEntrySubset(fi1, fi2));
+        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
         return true;
     }
     return false;
