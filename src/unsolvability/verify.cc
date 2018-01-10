@@ -68,6 +68,7 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
 void read_in_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
     KnowledgeIndex knowledge_index;
     in >> knowledge_index;
+    std::cout << "checking knowledge #" << knowledge_index << std::endl;
     bool successful;
 
     std::string type;
@@ -205,6 +206,10 @@ int main(int argc, char** argv) {
             read_in_expression(certstream, proofchecker, task);
         } else if(input.compare("k") == 0) {
             read_in_knowledge(certstream, proofchecker);
+        } else if(input.at(0) == '#') {
+            std::cout << "comment: " << input;
+            std::getline(certstream, input);
+            std::cout<< input << std::endl;
         } else {
             std::cerr << "unknown start of line: " << input << std::endl;
             exit_with(ExitCode::CRITICAL_ERROR);

@@ -63,7 +63,8 @@ private:
 public:
     ProofChecker();
 
-    void add_formula(SetFormula *formula, int index);
+    void add_formula(SetFormula *formula, FormulaIndex index);
+    void add_kbentry(KBEntry *entry, KnowledgeIndex index);
 
     // TODO: rather ints? or vectors? or the entire line and add parsing?
     bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);
