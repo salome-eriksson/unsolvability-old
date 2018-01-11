@@ -260,7 +260,7 @@ bool SetFormulaBDD::regression_is_union_subset(SetFormula *f, bool f_negated) {
     possible_predecessors += *(bdd);
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD pred = (bdd->Permute(&prime_permutation[0]) * util->actionformulas[i]);
+        BDD pred = bdd->Permute(&prime_permutation[0]) * util->actionformulas[i];
         if(!pred.Leq(possible_predecessors)) {
             return false;
         }

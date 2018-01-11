@@ -11,8 +11,6 @@ e 6 h p cnf 6 2 4 0 2 0 ;
 e 7 h p cnf 6 1 6 0 ;
 e 8 h p cnf 6 1 -4 -2 0 ;
 
-#e x b text.bdd 3 ;
-
 e 9 n 3
 e 10 n 4
 e 11 n 5
@@ -66,3 +64,68 @@ k 28 d 2 d3 27 26
 k 29 u d4 28
 e 31 u 7 14
 k 30 s 18 31 b5
+
+
+# BDDs
+
+e 32 b testbdds.bdd 0 ;
+e 33 b testbdds.bdd 1 ;
+e 34 b testbdds.bdd 2 ;
+e 35 b testbdds.bdd 3 ;
+e 36 b testbdds.bdd 4 ;
+e 37 b testbdds.bdd 5 ;
+
+e 38 n 32
+e 39 n 33
+e 40 n 34
+e 41 n 35
+e 42 n 36
+e 43 n 37
+e 44 p 32
+e 45 p 33
+e 46 r 35
+e 47 r 36
+e 48 n 0
+k 31 s 34 36 b1
+k 32 s 32 40 b1
+k 33 s 43 35 b1
+k 34 s 42 40 b1
+e 49 u 34 32
+k 35 s 36 49 b2
+e 50 i 38 1
+k 36 s 50 34 b3
+e 51 i 37 1
+k 37 s 51 38 b3
+e 52 i 41 1
+k 38 s 52 48 b3
+e 53 u 32 0
+k 39 s 44 53 b4
+e 54 i 32 1
+k 40 s 54 0 b3
+k 41 d 54 d3 40 0
+k 42 d 32 d6 39 0 41
+e 55 u 33 32
+k 43 s 45 55 b4
+k 44 s 2 33 b1
+k 45 d 39 d7 43 42 44
+k 46 s 1 39 b1
+k 47 d 1 d3 46 45
+k 48 u d5 47
+e 56 u 33 40
+k 49 s 45 56 b4
+e 57 u 35 0
+k 50 s 46 57 b5
+k 51 s 2 41 b1
+k 52 d 35 d9 50 0 51
+e 58 u 36 35
+k 53 s 47 58 b5
+e 59 i 42 1
+k 54 s 59 0 b3
+k 55 d 59 d3 54 0
+k 56 d 42 d8 53 52 55
+k 57 s 2 42 b1
+k 58 d 2 d3 57 56
+k 59 u d4 58
+e 60 u 36 43
+k 60 s 47 60 b5
+
