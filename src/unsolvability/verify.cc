@@ -14,6 +14,53 @@
 #include "setformula.h"
 #include "setformulacompound.h"
 #include "setformulahorn.h"
+#include "setformulabdd.h"
+
+// TODO: remove this method
+#include "cuddObj.hh"
+#include "dddmp.h"
+void build_bdds_for_testcase() {
+    std::cout << "creating bdds" << std::endl;
+    Cudd manager = Cudd(6,0);
+    std::vector<int> permutation { 3, 5, 0, 2, 4, 1 };
+
+    BDD a = manager.bddVar(permutation[0]);
+    BDD b = manager.bddVar(permutation[1]);
+    BDD c = manager.bddVar(permutation[2]);
+    BDD d = manager.bddVar(permutation[3]);
+    BDD g = manager.bddVar(permutation[4]);
+    BDD e = manager.bddVar(permutation[5]);
+    std::vector<BDD> bdds;
+
+    bdds.push_back(!a);
+    bdds.push_back((!d + !b) * !g);
+    bdds.push_back(a * e);
+    bdds.push_back(d * b);
+    bdds.push_back(e);
+    bdds.push_back(!d + !b);
+
+    //dump bdds in file
+    std::cout << "dumping bdds" << std::endl;
+    std::string filename = "testbdds.bdd";
+    DdNode** bdd_arr = new DdNode*[bdds.size()];
+    for(int i = 0; i < bdds.size(); ++i) {
+        bdd_arr[i] = bdds[i].getNode();
+    }
+    FILE *fp;
+    fp = fopen(filename.c_str(), "a");
+    std::stringstream ss;
+    ss << permutation[0];
+    for(int i = 1; i < permutation.size(); ++i) {
+        ss << " " << permutation[i];
+    }
+    ss << "\n";
+    std::string varorder = ss.str();
+    fputs(varorder.c_str(), fp);
+
+    Dddmp_cuddBddArrayStore(manager.getManager(), NULL, bdds.size(), &bdd_arr[0], NULL,
+                            NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
+    fclose(fp);
+}
 
 
 void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
@@ -24,8 +71,7 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
     SetFormula *expression;
 
     if(type.compare("b") == 0) {
-        std::cerr << "not implemented yet" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
+        expression = new SetFormulaBDD(in, task);
     } else if(type.compare("h") == 0) {
         expression = new SetFormulaHorn(in, task);
     } else if(type.compare("t") == 0) {
