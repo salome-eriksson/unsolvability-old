@@ -5,6 +5,7 @@
 #include "dddmp.h"
 
 #include "global_funcs.h"
+#include "setformulahorn.h"
 
 BDDUtil::BDDUtil() {
 
@@ -145,8 +146,43 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
     }
     switch (f->get_formula_type()) {
     case SetFormulaType::HORN: {
-        std::cerr << "not implemented yet";
-        return false;
+        if(negated || f_negated) {
+            std::cerr << "L \\subseteq L' not supported for BDD formula L and ";
+            std::cerr << "Horn formula L' if one of them is negated" << std::endl;
+            return false;
+        }
+
+        const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
+        for(int i : f_horn->get_forced_false()) {
+            BDD tmp = !(util->manager.bddVar(util->varorder[i]*2));
+            if(!((*bdd).Leq(tmp))) {
+                std::cout << "forced false " << i << std::endl;
+                return false;
+            }
+        }
+
+        for(int i = 0; i < f_horn->get_forced_true().size(); ++i) {
+            BDD tmp = (util->manager.bddVar(util->varorder[i]*2));
+            if(!((*bdd).Leq(tmp))) {
+                std::cout << "forced true " << i << std::endl;
+                return false;
+            }
+        }
+
+        for(int i = 0; i < f_horn->get_size(); ++i) {
+            BDD tmp = util->manager.bddZero();
+            for(int j : f_horn->get_left_vars(i)) {
+                tmp += !(util->manager.bddVar(util->varorder[j]*2));
+            }
+            if(f_horn->get_right(i) != -1) {
+                tmp += (util->manager.bddVar(util->varorder[i]*2));
+            }
+            if(!((*bdd).Leq(tmp))) {
+                std::cout << "clause " << i << std::endl;
+                return false;
+            }
+        }
+        return true;
         break;
     }
     case SetFormulaType::BDD: {
