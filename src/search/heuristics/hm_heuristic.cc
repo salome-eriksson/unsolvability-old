@@ -262,7 +262,7 @@ void HMHeuristic::dump_table() const {
 
 
 void HMHeuristic::setup_unsolvability_proof() {
-    certificate_directory = UnsolvabilityManager::getInstance().get_directory();
+    /*certificate_directory = UnsolvabilityManager::getInstance().get_directory();
     certificate_stmtfile.open(certificate_directory + "stmt_hm.txt");
     certificate_formulafile.open(certificate_directory + "horn_hm.txt");
     fact_to_variable.resize(g_variable_domain.size());
@@ -272,7 +272,7 @@ void HMHeuristic::setup_unsolvability_proof() {
         for(int j = 0; j < g_variable_domain[i]; ++j) {
             fact_to_variable[i][j] = count++;
         }
-    }
+    }*/
 }
 
 void HMHeuristic::dump_mutexes() {
@@ -285,8 +285,8 @@ void HMHeuristic::dump_mutexes() {
     }
 }
 
-void HMHeuristic::prove_state_dead(const GlobalState &state, ofstream &rules) {
-    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
+std::pair<int,int> HMHeuristic::prove_superset_dead(const GlobalState &) {
+    /*UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
     int setid = unsolvmgr.get_new_setid();
@@ -311,19 +311,8 @@ void HMHeuristic::prove_state_dead(const GlobalState &state, ofstream &rules) {
     rules << "PD:" << setid << ";" << unsolvmgr.get_truesetid() << " not\n";
     rules << "sD:";
     unsolvmgr.dump_state(state,rules);
-    rules << ";" << setid << "\n";
-}
-
-void HMHeuristic::dump_certificate_info(ofstream &infofile) {
-    infofile << "Statements:Horn\n";
-    infofile << certificate_directory << "horn_hm.txt\n";
-    infofile << "composite formulas begin\n";
-    infofile << "composite formulas end\n";
-    infofile << certificate_directory << "stmt_hm.txt\n";
-    infofile << "Statements:Horn end\n";
-
-    certificate_stmtfile.close();
-    certificate_formulafile.close();
+    rules << ";" << setid << "\n";*/
+    return std::make_pair(-1,-1);
 }
 
 

@@ -108,8 +108,14 @@ public:
     }
 
     virtual void setup_unsolvability_proof() {}
-    virtual void prove_state_dead(const GlobalState &, std::ofstream &) {}
-    virtual void dump_certificate_info(std::ofstream &) {}
+    // first int is the setid, second is the knowledgeid that set is dead
+    virtual std::pair<int,int> prove_superset_dead(const GlobalState &) {
+        return std::make_pair(-1,-1);
+    }
+    /* this method is currently only used for heuristics that use BDDs
+     * in order to dump all BDDs in one file
+     */
+    virtual void finish_unsolvability_proof() {}
 };
 
 #endif

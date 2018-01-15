@@ -46,8 +46,7 @@ MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
       max_states_before_merge(opts.get<int>("max_states_before_merge")),
       shrink_threshold_before_merge(opts.get<int>("threshold_before_merge")),
       verbosity(static_cast<Verbosity>(opts.get_enum("verbosity"))),
-      starting_peak_memory(-1), certificate_id(0),
-      mas_representation(nullptr) {
+      starting_peak_memory(-1), mas_representation(nullptr) {
     assert(max_states_before_merge > 0);
     assert(max_states >= max_states_before_merge);
     assert(shrink_threshold_before_merge <= max_states_before_merge);
@@ -400,53 +399,49 @@ void MergeAndShrinkHeuristic::handle_shrink_limit_options_defaults(Options &opts
 }
 
 void MergeAndShrinkHeuristic::setup_unsolvability_proof() {
-    certificate_directory = UnsolvabilityManager::getInstance().get_directory();
-    certificate_stmtfile.open(certificate_directory + "stmt_mas.txt");
+    setid = -1;
 }
 
-void MergeAndShrinkHeuristic::prove_state_dead(const GlobalState &state, std::ofstream &rules) {
+std::pair<int,int> MergeAndShrinkHeuristic::prove_superset_dead(const GlobalState &state) {
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
-    if(certificate_id == 0) {
+    if(setid < 0) {
         CuddBDD certificate(cudd_manager, false);
         std::vector<CuddBDD> dummy_vector;
         mas_representation->get_unsolvability_certificate(&certificate, dummy_vector, false);
-        std::vector<CuddBDD *>bdds(1,&certificate);
+        std::vector<CuddBDD>bdds(1,certificate);
 
-        cudd_manager->dumpBDDs(bdds,certificate_directory + "bdds_mas.txt");
+        std::stringstream ss;
+        ss << UnsolvabilityManager::getInstance().get_directory() << this;
+        cudd_manager->dumpBDDs(bdds, ss.str());
 
-        certificate_id = unsolvmgr.get_new_setid();
+        setid = unsolvmgr.get_new_setid();
+        std::ofstream &certstream = unsolvmgr.get_stream();
 
-        certificate_stmtfile << "sub:" << certificate_id << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-        certificate_stmtfile << "prog:" << certificate_id << ";" << unsolvmgr.get_emptysetid() << "\n";
-        rules << "SD:" << certificate_id << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-        rules << "PD:" << certificate_id << ";" << unsolvmgr.get_emptysetid() << "\n";
+        certstream << "e " << setid << " b " << ss.str() << " 0 ;\n";
+        int progid = unsolvmgr.get_new_setid();
+        certstream << "e " << progid << " p " << setid << "\n";
+        int union_set_empty = unsolvmgr.get_new_setid();;
+        certstream << "e " << union_set_empty << " u "
+                   << setid << " " << unsolvmgr.get_emptysetid() << "\n";
+
+        int k_prog = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b4\n";
+
+        int set_and_goal = unsolvmgr.get_new_setid();
+        certstream << "e " << set_and_goal << " i "
+                   << setid << " " << unsolvmgr.get_goalsetid() << "\n";
+        int k_set_and_goal_empty = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_set_and_goal_empty << " s "
+                   << set_and_goal << " " << unsolvmgr.get_emptysetid() << " b3\n";
+        int k_set_and_goal_dead = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
+                   << " d3 " << k_set_and_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
+
+        k_set_dead = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
+                   << unsolvmgr.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
     }
-    certificate_stmtfile << "in:";
-    unsolvmgr.dump_state(state, certificate_stmtfile);
-    certificate_stmtfile << ";" << certificate_id << "\n";
-    rules << "sD:";
-    unsolvmgr.dump_state(state, rules);
-    rules << ";" << certificate_id << "\n";
-
-}
-
-void MergeAndShrinkHeuristic::dump_certificate_info(std::ofstream &infofile) {
-    infofile << "Statements:BDD\n";
-    const std::vector<std::vector<int>> *fact_to_var = cudd_manager->get_fact_to_var();
-    for(size_t i = 0; i < fact_to_var->size(); ++i) {
-        for(size_t j = 0; j < fact_to_var->at(i).size(); ++j) {
-            infofile << fact_to_var->at(i).at(j) << " ";
-        }
-    }
-    infofile << "\b\n";
-    infofile << certificate_id << "\n";
-    infofile << certificate_directory << "bdds_mas.txt\n";
-    infofile << "composite formulas begin\n";
-    infofile << "composite formulas end\n";
-    infofile << certificate_directory << "stmt_mas.txt\n";
-    infofile << "Statements:BDD end\n";
-
-    certificate_stmtfile.close();
+    return std::make_pair(setid, k_set_dead);
 }
 
 

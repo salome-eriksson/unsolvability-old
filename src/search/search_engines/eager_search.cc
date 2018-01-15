@@ -23,6 +23,7 @@
 #include <set>
 #include <fstream>
 #include <stdlib.h>
+#include <math.h>
 
 using namespace std;
 static inline int get_op_index(const GlobalOperator *op) {
@@ -336,11 +337,12 @@ void add_pruning_option(OptionParser &parser) {
 }
 
 
-// TODO: refactor this method, it looks horrible
 void EagerSearch::write_unsolvability_certificate() {
     double writing_start = utils::g_timer();
 
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
+    std::ofstream &certstream = unsolvmgr.get_stream();
+    unsolvmgr.write_task_file();
 
     // TODO: asking if the initial node is new seems wrong, but that is
     // how the search handles a dead initial state
@@ -356,40 +358,36 @@ void EagerSearch::write_unsolvability_certificate() {
             }
         }
         assert(h != nullptr);
-        std::ofstream rulefile;
-        std::ofstream infofile;
-        rulefile.open(unsolvmgr.get_directory() + "rules.txt");
-        h->prove_state_dead(init_state, rulefile);
-        rulefile << "UI\n";
-        rulefile.close();
+        std::pair<int,int> superset = h->prove_superset_dead(init_state);
+        int knowledge_init_subset = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << knowledge_init_subset << " s " <<  unsolvmgr.get_initsetid()
+                   << " " << superset.first << " d1\n";
+        int knowledge_init_dead = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << knowledge_init_dead << " d " << unsolvmgr.get_initsetid()
+                   << " d3 " << knowledge_init_subset << " " << superset.second << "\n";
 
-        infofile.open(unsolvmgr.get_directory() + "certificate.txt");
-        infofile << "statesets:" << unsolvmgr.get_directory() << "statesets.txt\n";
-        infofile << "rules:" << unsolvmgr.get_directory() << "rules.txt\n";
-        h->dump_certificate_info(infofile);
-        infofile.close();
-        CuddManager manager;
-        manager.writeTaskFile();
+        certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u d4 "
+                   << knowledge_init_dead << "\n";
+
         double writing_end = utils::g_timer();
         std::cout << "Time for writing unsolvability certificate: "
                   << writing_end - writing_start << std::endl;
         return;
     }
 
-    std::ofstream statefile;
-    std::ofstream rulefile;
-    std::ofstream bddstmtfile;
-    std::ofstream infofile;
-
-    statefile.open(unsolvmgr.get_directory() + "statesets.txt");
-    rulefile.open(unsolvmgr.get_directory() + "rules.txt");
 
     CuddManager manager;
-    manager.writeTaskFile();
-    CuddBDD dead = CuddBDD(&manager, false);
+    std::vector<CuddBDD> bdds;
+    // 2*|DE|-1 for all dead ends, plus the expanded set
+    bdds.reserve(statistics.get_dead_ends()*2);
+
+    int old_union_setid = -1;
+    CuddBDD *old_union_bdd = nullptr;
+    int k_old_union_dead = -1;
+    std::string filename_search_bdds = unsolvmgr.get_directory() + "search.bdd";
+
     CuddBDD expanded = CuddBDD(&manager, false);
-    int stateset_id = unsolvmgr.get_new_setid();
-    statefile << stateset_id <<"\n";
+
     std::vector<bool> heuristic_used(heuristics.size(), false);
 
     for(const StateID id : state_registry) {
@@ -410,69 +408,115 @@ void EagerSearch::write_unsolvability_certificate() {
                 }
             }
             assert(h != nullptr);
-            h->prove_state_dead(state, rulefile);
-            // dump dead state in statefile
-            unsolvmgr.dump_state(state, statefile);
-            statefile << "\n";
-            dead.lor(statebdd);
+            std::pair<int,int> dead_superset = h->prove_superset_dead(state);
+
+            int expl_state_setid = unsolvmgr.get_new_setid();
+            certstream << "e " << expl_state_setid << " e ";
+            unsolvmgr.dump_state(state);
+            certstream << " ;\n";
+            int k_expl_state_subset = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_expl_state_subset << " s " << expl_state_setid << " "
+                       << dead_superset.first << " b1\n";
+            int k_expl_state_dead = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_expl_state_dead << " d " << expl_state_setid
+                       << " d3 " << k_expl_state_subset << " " << dead_superset.second << "\n";
+
+
+            bdds.push_back(statebdd);
+            CuddBDD *dead_state_bdd = &(bdds[bdds.size()-1]);
+
+            int bdd_state_setid = unsolvmgr.get_new_setid();
+            certstream << "e " << bdd_state_setid << " b " << filename_search_bdds << " "
+                       << bdds.size()-1 << " ;\n";
+            int k_bdd_state_subset = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_bdd_state_subset << " s " << bdd_state_setid << " "
+                       << expl_state_setid << " b1\n";
+            int k_bdd_state_dead = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_bdd_state_dead << " d " << bdd_state_setid
+                       << " d3 " << k_bdd_state_subset << " " << k_expl_state_dead << "\n";
+
+            // TODO: can we do this case of first dead end nicer?
+            if(!old_union_bdd) {
+                old_union_bdd = dead_state_bdd;
+                old_union_setid = bdd_state_setid;
+                k_old_union_dead = k_bdd_state_dead;
+            } else {
+                // show that implicit union (between new dead state and old dead ends) is dead
+                int impl_union = unsolvmgr.get_new_setid();
+                certstream << "e " << impl_union << " u "
+                           << bdd_state_setid << " " << old_union_setid << "\n";
+                int k_impl_union_dead = unsolvmgr.get_new_knowledgeid();
+                certstream << "k " << k_impl_union_dead << " d " << impl_union
+                           << " d2 " << k_bdd_state_dead << " " << k_old_union_dead << "\n";
+
+                // build new explicit union and show that it is dead
+                bdds.push_back(CuddBDD(*old_union_bdd));
+                CuddBDD *new_union_bdd = &(bdds[bdds.size()-1]);
+                new_union_bdd->lor(*dead_state_bdd);
+                int new_union_setid = unsolvmgr.get_new_setid();
+                certstream << "e " << new_union_setid << " b " << filename_search_bdds << " "
+                           << bdds.size()-1 << " ;\n";
+                int k_new_union_subset = unsolvmgr.get_new_knowledgeid();
+                certstream << "k " << k_new_union_subset << " s "
+                           << new_union_setid << " " << impl_union << " b2\n";
+                int k_new_union_dead = unsolvmgr.get_new_knowledgeid();
+                certstream << "k " << k_new_union_dead << " d " << new_union_setid << " d3 "
+                           << k_new_union_subset << " " << k_impl_union_dead << "\n";
+
+                old_union_bdd = new_union_bdd;
+                old_union_setid = new_union_setid;
+                k_old_union_dead = k_new_union_dead;
+            }
+
         } else if(search_space.get_node(state).is_closed()) {
             expanded.lor(statebdd);
         }
     }
-    statefile << "set end";
-    statefile.close();
 
-    int sexp_id = unsolvmgr.get_new_setid();
-    int sd_id = unsolvmgr.get_new_setid();
+    // old_union now contains all dead ends and expanded all expanded states
+    bdds.push_back(expanded);
+    int expanded_setid = unsolvmgr.get_new_setid();
+    certstream << "e " << expanded_setid << " b " << filename_search_bdds << " "
+               << bdds.size()-1 << " ;\n";
+    int expanded_progression_setid = unsolvmgr.get_new_setid();
+    certstream << "e " << expanded_progression_setid << " p " << expanded_setid;
+    int union_expanded_dead = unsolvmgr.get_new_setid();
+    certstream << "e " << union_expanded_dead << " u "
+               << expanded_setid << " " << old_union_setid << "\n";
 
-    bddstmtfile.open(unsolvmgr.get_directory() + "stmt_search.txt");
-    bddstmtfile << "exsub:" << sd_id << ";" << stateset_id << "\n";
-    bddstmtfile << "sub:" << sexp_id << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-    bddstmtfile << "prog:" << sexp_id << ";" << sd_id << "\n";
-    bddstmtfile << "init:" << sexp_id << "\n";
-    bddstmtfile.close();
+    int k_progression = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_progression << " s "
+               << expanded_progression_setid << " " << union_expanded_dead << " b4\n";
 
-    rulefile << "uD:" << stateset_id << "\n";
-    rulefile << "SD:" << sd_id << ";" << stateset_id << "\n";
-    rulefile << "SD:" << sexp_id << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-    rulefile << "PD:" << sexp_id << ";" << sd_id << "\n";
-    rulefile << "sD:";
-    unsolvmgr.dump_state(state_registry.get_initial_state(), rulefile);
-    rulefile << ";" << sexp_id << "\n";
-    rulefile << "UI\n";
-    rulefile.close();
+    int intersection_expanded_goal = unsolvmgr.get_new_setid();
+    certstream << "e " << intersection_expanded_goal << " i "
+               << expanded_setid << " " << unsolvmgr.get_goalsetid() << "\n";
+    int k_exp_goal_empty = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_exp_goal_empty << " s "
+               << intersection_expanded_goal << " " << unsolvmgr.get_emptysetid() << " b3\n";
+    int k_exp_goal_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_exp_goal_dead << " d " << intersection_expanded_goal
+               << " d3 " << k_exp_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
 
-    infofile.open(unsolvmgr.get_directory() + "certificate.txt");
-    infofile << "statesets:" << unsolvmgr.get_directory() << "statesets.txt\n";
-    infofile << "rules:" << unsolvmgr.get_directory() << "rules.txt\n";
-    // info for BDD statements from search
-    infofile << "Statements:BDD\n";
-    int count = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
-            infofile << count++ << " ";
-        }
-    }
-    infofile << "\b\n";
-    infofile << sexp_id << ";" << sd_id << "\n";
-    infofile << unsolvmgr.get_directory() << "bdds_search.txt\n";
-    infofile << "composite formulas begin\n";
-    infofile << sexp_id << " " << unsolvmgr.get_goalsetid() <<" ^\n";
-    infofile << "composite formulas end\n";
-    infofile << unsolvmgr.get_directory() << "stmt_search.txt\n";
-    infofile << "Statements:BDD end\n";
+    int k_exp_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_exp_dead << " d " << expanded_setid << " d6 "
+               << k_progression << k_old_union_dead << k_exp_goal_dead << "\n";
+
+    int k_init_in_exp = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_init_in_exp << " s "
+               << unsolvmgr.get_initsetid() << " " << expanded_setid << " b1\n";
+    int k_init_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_init_dead << " d " << unsolvmgr.get_initsetid() << " d3 "
+               << k_init_in_exp << " " << k_exp_dead << "\n";
+    certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u d4 " << k_init_dead << "\n";
 
     for(size_t i = 0; i < heuristics.size(); ++i) {
         if(heuristic_used[i]) {
-            heuristics[i]->dump_certificate_info(infofile);
+            heuristics[i]->finish_unsolvability_proof();
         }
     }
-    infofile.close();
 
-    std::vector<CuddBDD *> bdds;
-    bdds.push_back(&expanded);
-    bdds.push_back(&dead);
-    manager.dumpBDDs(bdds, unsolvmgr.get_directory() + "bdds_search.txt");
+    manager.dumpBDDs(bdds, filename_search_bdds);
 
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability certificate: "
