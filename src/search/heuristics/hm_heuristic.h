@@ -69,8 +69,7 @@ public:
 
     void dump_mutexes();
     virtual void setup_unsolvability_proof();
-    virtual void prove_state_dead(const GlobalState &state, std::ofstream &rules);
-    virtual void dump_certificate_info(std::ofstream &infofile);
+    virtual std::pair<int,int> prove_superset_dead(const GlobalState &state) override;
 };
 }
 

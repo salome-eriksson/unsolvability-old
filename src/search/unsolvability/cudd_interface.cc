@@ -208,76 +208,21 @@ const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {
     return &fact_to_var;
 }
 
-void CuddManager::writeTaskFile() const{
-    std::ofstream task_file;
-    task_file.open("task.txt");
-
-    int fact_amount = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        fact_amount += g_variable_domain[i];
-    }
-    task_file << "begin_atoms:" << fact_amount << "\n";
-    for(size_t i = 0; i < var_order.size(); ++i) {
-        int var = var_order[i];
-        for(size_t j = 0; j < g_fact_names[var].size(); ++j) {
-            task_file << g_fact_names[var][j] << "\n";
-        }
-    }
-    task_file << "end_atoms\n";
-
-    task_file << "begin_init\n";
-    for(size_t i = 0; i < g_fact_names.size(); ++i) {
-        task_file << fact_to_var[i][g_initial_state_data[i]] << "\n";
-    }
-    task_file << "end_init\n";
-
-    task_file << "begin_goal\n";
-    for(size_t i = 0; i < g_goal.size(); ++i) {
-        task_file << fact_to_var[g_goal[i].first][g_goal[i].second] << "\n";
-    }
-    task_file << "end_goal\n";
-
-
-    task_file << "begin_actions:" << g_operators.size() << "\n";
-    for(size_t op_index = 0;  op_index< g_operators.size(); ++op_index) {
-        const GlobalOperator& op = g_operators[op_index];
-        task_file << "begin_action\n"
-                  << op.get_name() << "\n"
-                  << "cost: "<< op.get_cost() <<"\n";
-        const std::vector<GlobalCondition>& pre = op.get_preconditions();
-        const std::vector<GlobalEffect>& post = op.get_effects();
-        for(size_t i = 0; i < pre.size(); ++i) {
-            task_file << "PRE:" << fact_to_var[pre[i].var][pre[i].val] << "\n";
-        }
-        for(size_t i = 0; i < post.size(); ++i) {
-            if(!post[i].conditions.empty()) {
-                std::cout << "CONDITIONAL EFFECTS, ABORT!";
-                task_file.close();
-                std::remove("task.txt");
-                utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
-            }
-            task_file << "ADD:" << fact_to_var[post[i].var][post[i].val] << "\n";
-            // all other facts from this FDR variable are set to false
-            // TODO: can we make this more compact / smarter?
-            for(int j = 0; j < g_variable_domain[post[i].var]; j++) {
-                if(j == post[i].val) {
-                    continue;
-                }
-                task_file << "DEL:" << fact_to_var[post[i].var][j] << "\n";
-            }
-        }
-        task_file << "end_action\n";
-    }
-    task_file << "end_actions\n";
-    task_file.close();
-}
-
-void CuddManager::dumpBDDs(std::vector<CuddBDD*> &bdds, std::string filename) const {
+void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, std::string filename) const {
     int size = bdds.size();
     DdNode** bdd_arr = new DdNode*[size];
     for(int i = 0; i < size; ++i) {
-        bdd_arr[i] = bdds[i]->bdd;
+        bdd_arr[i] = bdds[i].bdd;
     }
+    std::ofstream stream;
+    stream.open(filename);
+    for(size_t i = 0; i < fact_to_var.size(); ++i) {
+        for(size_t j = 0; j < fact_to_var[i].size(); ++j) {
+            stream << fact_to_var[i][j] << " ";
+        }
+    }
+    stream << "\n";
+    stream.close();
     FILE *fp;
     fp = fopen(filename.c_str(), "a");
     Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], NULL,

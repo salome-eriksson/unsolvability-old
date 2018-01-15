@@ -187,29 +187,16 @@ void RelaxationHeuristic::simplify() {
 
 void RelaxationHeuristic::setup_unsolvability_proof() {
     manager = new CuddManager();
-    certificate_directory = UnsolvabilityManager::getInstance().get_directory();
-    certificate_stmtfile.open(certificate_directory + "stmt_relax.txt");
+    std::stringstream ss;
+    ss << UnsolvabilityManager::getInstance().get_directory() << this << ".bdd";
+    bdd_filename = ss.str();
 }
 
-void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &rules) {
+std::pair<int,int> RelaxationHeuristic::prove_superset_dead(const GlobalState &state) {
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     //we need to redo the computation to get the unreachable facts
     compute_heuristic(state);
 
-    /*CuddBDD statebdd(manager, state);
-    for(size_t i = 0; i < bdds.size(); ++i) {
-        if(statebdd.isSubsetOf(*bdds[i])) {
-            certificate_stmtfile << "in:";
-            unsolvmgr.dump_state(state, certificate_stmtfile);
-            certificate_stmtfile << ";" << set_ids[i] << "\n";
-            rules << "sD:";
-            unsolvmgr.dump_state(state, rules);
-            rules << ";" << set_ids[i] << "\n";
-            return;
-        }
-    }*/
-
-    int setid = unsolvmgr.get_new_setid();
     std::vector<std::pair<int,int>> pos_vars;
     std::vector<std::pair<int,int>> neg_vars;
     for(size_t i = 0; i < propositions.size(); ++i) {
@@ -219,41 +206,38 @@ void RelaxationHeuristic::prove_state_dead(const GlobalState &state, ofstream &r
             }
         }
     }
-    bdds.push_back(new CuddBDD(manager, pos_vars,neg_vars));
-    set_ids.push_back(setid);
-    certificate_stmtfile << "sub:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-    certificate_stmtfile << "prog:" << setid << ";" << unsolvmgr.get_emptysetid() << "\n";
-    certificate_stmtfile << "in:";
-    unsolvmgr.dump_state(state,certificate_stmtfile);
-    certificate_stmtfile << ";" << setid << "\n";
+    bdds.push_back(CuddBDD(manager, pos_vars,neg_vars));
 
-    rules << "SD:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() <<"\n";
-    rules << "PD:" << setid << ";" << unsolvmgr.get_emptysetid() << "\n";
-    rules << "sD:";
-    unsolvmgr.dump_state(state,rules);
-    rules << ";" << setid << "\n";
+    std::ofstream &certstream = unsolvmgr.get_stream();
+    int setid = unsolvmgr.get_new_setid();
+    certstream << "e " << setid << " b " << bdd_filename << " " << bdds.size()-1 << " ;\n";
+    int progid = unsolvmgr.get_new_setid();
+    certstream << "e " << progid << " p " << setid << "\n";
+    int union_set_empty = unsolvmgr.get_new_setid();;
+    certstream << "e " << union_set_empty << " u "
+               << setid << " " << unsolvmgr.get_emptysetid() << "\n";
+
+    int k_prog = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b4\n";
+
+    int set_and_goal = unsolvmgr.get_new_setid();
+    certstream << "e " << set_and_goal << " i "
+               << setid << " " << unsolvmgr.get_goalsetid() << "\n";
+    int k_set_and_goal_empty = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_set_and_goal_empty << " s "
+               << set_and_goal << " " << unsolvmgr.get_emptysetid() << " b3\n";
+    int k_set_and_goal_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
+               << " d3 " << k_set_and_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
+
+    int k_set_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
+               << unsolvmgr.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
+
+    return std::make_pair(setid, k_set_dead);
 }
 
-void RelaxationHeuristic::dump_certificate_info(ofstream &infofile) {
-    manager->dumpBDDs(bdds,certificate_directory + "bdds_relax.txt");
-    infofile << "Statements:BDD\n";
-    const std::vector<std::vector<int>> *fact_to_var = manager->get_fact_to_var();
-    for(size_t i = 0; i < fact_to_var->size(); ++i) {
-        for(size_t j = 0; j < fact_to_var->at(i).size(); ++j) {
-            infofile << fact_to_var->at(i).at(j) << " ";
-        }
-    }
-    infofile << "\b\n";
-    for(size_t i = 0; i < set_ids.size(); ++i) {
-        infofile << set_ids[i] << ";";
-    }
-    infofile << "\n";
-    infofile << certificate_directory << "bdds_relax.txt\n";
-    infofile << "composite formulas begin\n";
-    infofile << "composite formulas end\n";
-    infofile << certificate_directory << "stmt_relax.txt\n";
-    infofile << "Statements:BDD end\n";
-
-    certificate_stmtfile.close();
+void RelaxationHeuristic::finish_unsolvability_proof() {
+    manager->dumpBDDs(bdds, bdd_filename);
 }
 }

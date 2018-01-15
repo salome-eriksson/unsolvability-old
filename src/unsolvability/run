@@ -1,8 +1,11 @@
 #!/bin/bash
 
-rm *.txt
+rm 0x*.bdd
+rm search.bdd
+rm task.txt
+rm certificate.txt
 
-PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob08.pddl
+PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob01.pddl
 #PDDL_FILE="/home/simsal00/pddls/unsolv-total/cave-diving/dom05.pddl /home/simsal00/pddls/unsolv-total/cave-diving/prob05.pddl"
 #PDDL_FILE=~/pddls/unsolv-total/cave-diving/prob05.pddl
 echo "-------------------------------------------------"

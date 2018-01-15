@@ -56,8 +56,8 @@ protected:
     std::vector<Proposition *> goal_propositions;
 
     CuddManager *manager;
-    std::vector<CuddBDD *> bdds;
-    std::vector<int> set_ids;
+    std::vector<CuddBDD> bdds;
+    std::string bdd_filename;
 
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;
@@ -67,8 +67,8 @@ public:
     virtual bool dead_ends_are_reliable() const;
 
     virtual void setup_unsolvability_proof();
-    virtual void prove_state_dead(const GlobalState &state, std::ofstream &rules);
-    virtual void dump_certificate_info(std::ofstream &infofile);
+    virtual std::pair<int,int> prove_superset_dead(const GlobalState &state) override;
+    virtual void finish_unsolvability_proof();
 };
 }
 
