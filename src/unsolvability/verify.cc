@@ -67,7 +67,6 @@ void build_bdds_for_testcase() {
 void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
     FormulaIndex expression_index;
     in >> expression_index;
-    std::cout << "reading in expression " << expression_index << std::endl;
     std::string type;
     in >> type;
     SetFormula *expression;
@@ -115,7 +114,6 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
 void read_in_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
     KnowledgeIndex knowledge_index;
     in >> knowledge_index;
-    std::cout << "checking knowledge #" << knowledge_index << std::endl;
     bool successful;
 
     std::string type;
