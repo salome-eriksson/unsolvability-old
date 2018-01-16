@@ -361,7 +361,7 @@ void EagerSearch::write_unsolvability_certificate() {
         std::pair<int,int> superset = h->prove_superset_dead(init_state);
         int knowledge_init_subset = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << knowledge_init_subset << " s " <<  unsolvmgr.get_initsetid()
-                   << " " << superset.first << " d1\n";
+                   << " " << superset.first << " b1\n";
         int knowledge_init_dead = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << knowledge_init_dead << " d " << unsolvmgr.get_initsetid()
                    << " d3 " << knowledge_init_subset << " " << superset.second << "\n";
