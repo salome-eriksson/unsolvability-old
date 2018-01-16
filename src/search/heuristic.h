@@ -59,10 +59,6 @@ protected:
     // Use task_proxy to access task information.
     TaskProxy task_proxy;
 
-    std::string certificate_directory;
-    std::ofstream certificate_stmtfile;
-    std::ofstream certificate_formulafile;
-
     enum {DEAD_END = -1, NO_VALUE = -2};
 
     // TODO: Call with State directly once all heuristics support it.

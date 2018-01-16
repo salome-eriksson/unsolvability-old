@@ -812,8 +812,9 @@ bool SetFormulaHorn::implies_union(const HornFormulaList &formulas,
             }
             restrictions[neg_var+left_offset] = 1;
         }
-        int r = union_right->get_right(i);
+        int r = union_left->get_right(i);
         if (!covered && r != -1) {
+            std::cout << r << std::endl;
             if (formulas_solution_partial[r+left_offset] == 1 || restrictions[r+left_offset] == 1) {
                 covered = true;
             } else {
