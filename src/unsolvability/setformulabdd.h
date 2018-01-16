@@ -50,6 +50,8 @@ public:
 
     virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
+
+    bool contains(const Cube &statecube) const;
 };
 
 #endif // SETFORMULABDD_H

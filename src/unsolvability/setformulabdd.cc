@@ -6,6 +6,7 @@
 
 #include "global_funcs.h"
 #include "setformulahorn.h"
+#include "setformulaexplicit.h"
 
 BDDUtil::BDDUtil() {
 
@@ -68,6 +69,7 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
     emptyformula = new SetFormulaBDD(this, emptybdd);
 }
 
+// TODO: returning a new object is not a very safe way (see for example contains())
 BDD *BDDUtil::build_bdd_from_cube(const Cube &cube) {
     std::vector<int> local_cube(cube.size()*2,2);
     for(size_t i = 0; i < cube.size(); ++i) {
@@ -156,7 +158,6 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         for(int i : f_horn->get_forced_false()) {
             BDD tmp = !(util->manager.bddVar(util->varorder[i]*2));
             if(!((*bdd).Leq(tmp))) {
-                std::cout << "forced false " << i << std::endl;
                 return false;
             }
         }
@@ -164,7 +165,6 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         for(int i = 0; i < f_horn->get_forced_true().size(); ++i) {
             BDD tmp = (util->manager.bddVar(util->varorder[i]*2));
             if(!((*bdd).Leq(tmp))) {
-                std::cout << "forced true " << i << std::endl;
                 return false;
             }
         }
@@ -178,7 +178,6 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
                 tmp += (util->manager.bddVar(util->varorder[i]*2));
             }
             if(!((*bdd).Leq(tmp))) {
-                std::cout << "clause " << i << std::endl;
                 return false;
             }
         }
@@ -202,10 +201,40 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         std::cerr << "not implemented yet";
         return false;
         break;
-    case SetFormulaType::EXPLICIT:
-        std::cerr << "not implemented yet";
-        return false;
+    case SetFormulaType::EXPLICIT: {
+        if(negated || f_negated) {
+            std::cerr << "L \\subseteq L' not supported for BDD formula L and ";
+            std::cerr << "explicit formula L' if one of them is negated" << std::endl;
+            return false;
+        }
+
+        SetFormulaExplicit *f_explicit = static_cast<SetFormulaExplicit *>(f);
+
+        int* bdd_model;
+        // TODO: find a better way to find out how many variables we have
+        Cube statecube(util->varorder.size(),-1);
+        CUDD_VALUE_TYPE value_type;
+        DdManager *ddmgr = util->manager.getManager();
+        DdNode *ddnode = bdd->getNode();
+        DdGen * cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
+        /* the models gotten with FirstCube and NextCube can contain don't cares,
+         * but SetFormulaBDD::contains can handle this
+         */
+        do{
+            for(int i = 0; i < statecube.size(); ++i) {
+                statecube[i] = bdd_model[2*util->varorder[i]];
+            }
+            if(!f_explicit->contains(statecube)) {
+                std::cout << "SetFormulaExplicit does not contain the following cube:";
+                for(int i = 0; i < statecube.size(); ++i) {
+                    std::cout << statecube[i] << " ";
+                } std::cout << std::endl;
+                return false;
+            }
+        } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
+        return true;
         break;
+    }
     default:
         std::cerr << "X \\subseteq X' is not supported for BDD formula X "
                      "and non-basic or constant formula X'" << std::endl;
@@ -237,8 +266,8 @@ bool SetFormulaBDD::intersection_with_goal_is_subset(SetFormula *f, bool negated
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for BDD Formula L";
-        std::cerr <<"and non-BDD formula L'" << std::endl;
+        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for BDD Formula L ";
+        std::cerr << "and non-BDD formula L'" << std::endl;
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
@@ -251,6 +280,7 @@ bool SetFormulaBDD::intersection_with_goal_is_subset(SetFormula *f, bool negated
     if(f_negated) {
         right = !right;
     }
+    return left.Leq(right);
 }
 
 
@@ -258,8 +288,8 @@ bool SetFormulaBDD::progression_is_union_subset(SetFormula *f, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "X[a] \\subseteq X \\land L is not supported for BDD Formula X";
-        std::cerr <<"and non-BDD formula L" << std::endl;
+        std::cerr << "X[a] \\subseteq X \\land L is not supported for BDD Formula X ";
+        std::cerr << "and non-BDD formula L" << std::endl;
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
@@ -284,8 +314,8 @@ bool SetFormulaBDD::regression_is_union_subset(SetFormula *f, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "X[a] \\subseteq X \\land L is not supported for BDD Formula X";
-        std::cerr <<"and non-BDD formula L" << std::endl;
+        std::cerr << "X[a] \\subseteq X \\land L is not supported for BDD Formula X ";
+        std::cerr << "and non-BDD formula L" << std::endl;
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
@@ -325,4 +355,11 @@ SetFormulaBasic *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formu
         return nullptr;
         break;
     }
+}
+
+bool SetFormulaBDD::contains(const Cube &statecube) const {
+    BDD *tmp = util->build_bdd_from_cube(statecube);
+    bool ret = (*tmp).Leq(*bdd);
+    delete tmp;
+    return ret;
 }

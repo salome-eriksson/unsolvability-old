@@ -15,6 +15,7 @@
 #include "setformulacompound.h"
 #include "setformulahorn.h"
 #include "setformulabdd.h"
+#include "setformulaexplicit.h"
 
 // TODO: remove this method
 #include "cuddObj.hh"
@@ -66,6 +67,7 @@ void build_bdds_for_testcase() {
 void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
     FormulaIndex expression_index;
     in >> expression_index;
+    std::cout << "reading in expression " << expression_index << std::endl;
     std::string type;
     in >> type;
     SetFormula *expression;
@@ -78,8 +80,7 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
         std::cerr << "not implemented yet" << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     } else if(type.compare("e") == 0) {
-        std::cerr << "not implemented yet" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
+        expression = new SetFormulaExplicit(in, task);
     } else if(type.compare("c") == 0) {
         expression = new SetFormulaConstant(in, task);
     } else if(type.compare("n") == 0) {

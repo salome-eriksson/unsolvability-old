@@ -473,13 +473,19 @@ void EagerSearch::write_unsolvability_certificate() {
         }
     }
 
-    // old_union now contains all dead ends and expanded all expanded states
+    // "old_union" now contains all dead ends (possibly empty) and "expanded" all expanded states
+
+    // no dead ends --> use empty set
+    if(!old_union_bdd) {
+        old_union_setid = unsolvmgr.get_emptysetid();
+        k_old_union_dead = unsolvmgr.get_k_empty_dead();
+    }
     bdds.push_back(expanded);
     int expanded_setid = unsolvmgr.get_new_setid();
     certstream << "e " << expanded_setid << " b " << filename_search_bdds << " "
                << bdds.size()-1 << " ;\n";
     int expanded_progression_setid = unsolvmgr.get_new_setid();
-    certstream << "e " << expanded_progression_setid << " p " << expanded_setid;
+    certstream << "e " << expanded_progression_setid << " p " << expanded_setid << "\n";
     int union_expanded_dead = unsolvmgr.get_new_setid();
     certstream << "e " << union_expanded_dead << " u "
                << expanded_setid << " " << old_union_setid << "\n";
@@ -500,7 +506,7 @@ void EagerSearch::write_unsolvability_certificate() {
 
     int k_exp_dead = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_exp_dead << " d " << expanded_setid << " d6 "
-               << k_progression << k_old_union_dead << k_exp_goal_dead << "\n";
+               << k_progression << " " << k_old_union_dead << " " << k_exp_goal_dead << "\n";
 
     int k_init_in_exp = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_init_in_exp << " s "
