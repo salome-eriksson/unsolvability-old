@@ -9,6 +9,7 @@
 #include <cassert>
 #include <limits>
 #include <set>
+#include <sstream>
 
 using namespace std;
 
@@ -262,57 +263,75 @@ void HMHeuristic::dump_table() const {
 
 
 void HMHeuristic::setup_unsolvability_proof() {
-    /*certificate_directory = UnsolvabilityManager::getInstance().get_directory();
-    certificate_stmtfile.open(certificate_directory + "stmt_hm.txt");
-    certificate_formulafile.open(certificate_directory + "horn_hm.txt");
     fact_to_variable.resize(g_variable_domain.size());
-    int count = 0;
+    strips_varamount = 0;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
         fact_to_variable[i].resize(g_variable_domain[i]);
         for(int j = 0; j < g_variable_domain[i]; ++j) {
-            fact_to_variable[i][j] = count++;
+            // we want the variables to start with 1 since that is how the DIMACS format works
+            fact_to_variable[i][j] = ++strips_varamount;
         }
-    }*/
-}
+    }
 
-void HMHeuristic::dump_mutexes() {
+    mutexamount = 0;
+    std::stringstream ss;
     for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
+        for(int j = 0; j < g_variable_domain[i]-1; ++j) {
             for(int k = j+1; k < g_variable_domain[i]; ++k) {
-                certificate_formulafile << fact_to_variable[i][j] << " " << fact_to_variable[i][k] << ",-1|";
+                ss << "-" << fact_to_variable[i][j] << " -" << fact_to_variable[i][k] << " 0 ";
+                mutexamount++;
             }
         }
     }
+    mutexes = ss.str();
 }
 
-std::pair<int,int> HMHeuristic::prove_superset_dead(const GlobalState &) {
-    /*UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
+std::pair<int,int> HMHeuristic::prove_superset_dead(const GlobalState &state) {
+    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     //we need to redo the computation to get the unreachable facts
-    compute_heuristic(state);
-    int setid = unsolvmgr.get_new_setid();
-    certificate_formulafile << setid << ":";
-    dump_mutexes();
+    compute_heuristic(state);    
+
+    int clauseamount = mutexamount;
+    std::stringstream tuples;
     for(auto &elem : hm_table) {
         if (elem.second == numeric_limits<int>::max()) {
             for(size_t i = 0; i < elem.first.size(); ++i) {
-                certificate_formulafile << fact_to_variable[elem.first[i].var][elem.first[i].value] << " ";
+                tuples << "-" << fact_to_variable[elem.first[i].var][elem.first[i].value] << " ";
             }
-            certificate_formulafile << ",-1|";
+            tuples << "0 ";
+            clauseamount++;
         }
     }
-    certificate_formulafile << "\n";
-    certificate_stmtfile << "sub:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() << "\n";
-    certificate_stmtfile << "prog:" << setid << ";" << unsolvmgr.get_truesetid() <<" not\n";
-    certificate_stmtfile << "in:";
-    unsolvmgr.dump_state(state,certificate_stmtfile);
-    certificate_stmtfile << ";" << setid << "\n";
 
-    rules << "SD:" << setid << " " << unsolvmgr.get_goalsetid() << " ^;" << unsolvmgr.get_emptysetid() <<"\n";
-    rules << "PD:" << setid << ";" << unsolvmgr.get_truesetid() << " not\n";
-    rules << "sD:";
-    unsolvmgr.dump_state(state,rules);
-    rules << ";" << setid << "\n";*/
-    return std::make_pair(-1,-1);
+    int setid = unsolvmgr.get_new_setid();
+    std::ofstream &certstream = unsolvmgr.get_stream();
+    certstream << "e " << setid << " h p cnf " << strips_varamount << " " << clauseamount << " ";
+    certstream << mutexes << tuples.str() << ";\n";
+
+    int progid = unsolvmgr.get_new_setid();
+    certstream << "e " << progid << " p " << setid << "\n";
+    int union_set_empty = unsolvmgr.get_new_setid();;
+    certstream << "e " << union_set_empty << " u "
+               << setid << " " << unsolvmgr.get_emptysetid() << "\n";
+
+    int k_prog = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b4\n";
+
+    int set_and_goal = unsolvmgr.get_new_setid();
+    certstream << "e " << set_and_goal << " i "
+               << setid << " " << unsolvmgr.get_goalsetid() << "\n";
+    int k_set_and_goal_empty = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_set_and_goal_empty << " s "
+               << set_and_goal << " " << unsolvmgr.get_emptysetid() << " b3\n";
+    int k_set_and_goal_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
+               << " d3 " << k_set_and_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
+
+    int k_set_dead = unsolvmgr.get_new_knowledgeid();
+    certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
+               << unsolvmgr.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
+
+    return std::make_pair(setid, k_set_dead);
 }
 
 

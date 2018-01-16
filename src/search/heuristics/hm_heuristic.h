@@ -34,6 +34,9 @@ class HMHeuristic : public Heuristic {
     bool was_updated;
 
     std::vector<std::vector<int>> fact_to_variable;
+    int strips_varamount;
+    std::string mutexes;
+    int mutexamount;
 
     // auxiliary methods
     void init_hm_table(const Tuple &t);
@@ -67,7 +70,6 @@ public:
 
     virtual bool dead_ends_are_reliable() const;
 
-    void dump_mutexes();
     virtual void setup_unsolvability_proof();
     virtual std::pair<int,int> prove_superset_dead(const GlobalState &state) override;
 };
