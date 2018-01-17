@@ -24,6 +24,7 @@
 #include <fstream>
 #include <stdlib.h>
 #include <math.h>
+#include <array>
 
 using namespace std;
 static inline int get_op_index(const GlobalOperator *op) {
@@ -379,18 +380,25 @@ void EagerSearch::write_unsolvability_certificate() {
         return;
     }
 
+    struct MergeTreeEntry {
+        int de_pos_begin;
+        int setid;
+        int k_set_dead;
+        int depth;
+    };
 
     CuddManager manager;
-    std::vector<CuddBDD> bdds;
+    std::vector<StateID> dead_ends;
     // 2*|DE|-1 for all dead ends, plus the expanded set
-    bdds.reserve(statistics.get_dead_ends()*2);
+    dead_ends.reserve(statistics.get_dead_ends());
 
-    int old_union_setid = -1;
-    CuddBDD *old_union_bdd = nullptr;
-    int k_old_union_dead = -1;
-    std::string filename_search_bdds = unsolvmgr.get_directory() + "search.bdd";
+    std::vector<MergeTreeEntry> merge_tree;
+    merge_tree.resize(log2(statistics.get_dead_ends())+2);
+    // mt_pos is the index of the first unused entry of merge_tree
+    int mt_pos = 0;
 
     CuddBDD expanded = CuddBDD(&manager, false);
+    CuddBDD dead = CuddBDD(&manager, false);
 
     std::vector<bool> heuristic_used(heuristics.size(), false);
 
@@ -398,6 +406,10 @@ void EagerSearch::write_unsolvability_certificate() {
         const GlobalState &state = state_registry.lookup_state(id);
         CuddBDD statebdd = CuddBDD(&manager, state);
         if (search_space.get_node(state).is_dead_end()) {
+
+            dead.lor(statebdd);
+            dead_ends.push_back(id);
+
             // find the heuristic that evaluated the state to be a dead end
             EvaluationContext eval_context(state,nullptr,false);
             Heuristic *h = nullptr;
@@ -414,6 +426,7 @@ void EagerSearch::write_unsolvability_certificate() {
             assert(h != nullptr);
             std::pair<int,int> dead_superset = h->prove_superset_dead(state);
 
+            // prove that an explicit set only containing dead end is dead
             int expl_state_setid = unsolvmgr.get_new_setid();
             certstream << "e " << expl_state_setid << " e ";
             unsolvmgr.dump_state(state);
@@ -425,51 +438,47 @@ void EagerSearch::write_unsolvability_certificate() {
             certstream << "k " << k_expl_state_dead << " d " << expl_state_setid
                        << " d3 " << k_expl_state_subset << " " << dead_superset.second << "\n";
 
+            merge_tree[mt_pos].de_pos_begin = dead_ends.size()-1;
+            merge_tree[mt_pos].setid = expl_state_setid;
+            merge_tree[mt_pos].k_set_dead = k_expl_state_dead;
+            merge_tree[mt_pos].depth = 0;
+            mt_pos++;
 
-            bdds.push_back(statebdd);
-            CuddBDD *dead_state_bdd = &(bdds[bdds.size()-1]);
+            // merge the last 2 sets to a new one if they have the same depth in the merge tree
+            while(mt_pos > 1 && merge_tree[mt_pos-1].depth == merge_tree[mt_pos-2].depth) {
+                MergeTreeEntry &mte_left = merge_tree[mt_pos-2];
+                MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
 
-            int bdd_state_setid = unsolvmgr.get_new_setid();
-            certstream << "e " << bdd_state_setid << " b " << filename_search_bdds << " "
-                       << bdds.size()-1 << " ;\n";
-            int k_bdd_state_subset = unsolvmgr.get_new_knowledgeid();
-            certstream << "k " << k_bdd_state_subset << " s " << bdd_state_setid << " "
-                       << expl_state_setid << " b1\n";
-            int k_bdd_state_dead = unsolvmgr.get_new_knowledgeid();
-            certstream << "k " << k_bdd_state_dead << " d " << bdd_state_setid
-                       << " d3 " << k_bdd_state_subset << " " << k_expl_state_dead << "\n";
-
-            // TODO: can we do this case of first dead end nicer?
-            if(!old_union_bdd) {
-                old_union_bdd = dead_state_bdd;
-                old_union_setid = bdd_state_setid;
-                k_old_union_dead = k_bdd_state_dead;
-            } else {
-                // show that implicit union (between new dead state and old dead ends) is dead
+                // show that implicit union between the two sets is dead
                 int impl_union = unsolvmgr.get_new_setid();
                 certstream << "e " << impl_union << " u "
-                           << bdd_state_setid << " " << old_union_setid << "\n";
+                           << mte_left.setid << " " << mte_right.setid << "\n";
                 int k_impl_union_dead = unsolvmgr.get_new_knowledgeid();
                 certstream << "k " << k_impl_union_dead << " d " << impl_union
-                           << " d2 " << k_bdd_state_dead << " " << k_old_union_dead << "\n";
+                           << " d2 " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
+
 
                 // build new explicit union and show that it is dead
-                bdds.push_back(CuddBDD(*old_union_bdd));
-                CuddBDD *new_union_bdd = &(bdds[bdds.size()-1]);
-                new_union_bdd->lor(*dead_state_bdd);
-                int new_union_setid = unsolvmgr.get_new_setid();
-                certstream << "e " << new_union_setid << " b " << filename_search_bdds << " "
-                           << bdds.size()-1 << " ;\n";
-                int k_new_union_subset = unsolvmgr.get_new_knowledgeid();
-                certstream << "k " << k_new_union_subset << " s "
-                           << new_union_setid << " " << impl_union << " b2\n";
-                int k_new_union_dead = unsolvmgr.get_new_knowledgeid();
-                certstream << "k " << k_new_union_dead << " d " << new_union_setid << " d3 "
-                           << k_new_union_subset << " " << k_impl_union_dead << "\n";
+                int union_setid = unsolvmgr.get_new_setid();
+                certstream << "e " << union_setid << " e ";
+                for(int i = mte_left.de_pos_begin;
+                    i < mte_left.de_pos_begin + 2*(1 << mte_left.depth); ++i) {
+                    unsolvmgr.dump_state(state_registry.lookup_state(dead_ends[i]));
+                    certstream << " ";
+                }
+                certstream << ";\n";
+                int k_union_subset = unsolvmgr.get_new_knowledgeid();
+                certstream << "k " << k_union_subset << " s "
+                           << union_setid << " " << impl_union << " b2\n";
+                int k_union_dead = unsolvmgr.get_new_knowledgeid();
+                certstream << "k " << k_union_dead << " d " << union_setid << " d3 "
+                           << k_union_subset << " " << k_impl_union_dead << "\n";
 
-                old_union_bdd = new_union_bdd;
-                old_union_setid = new_union_setid;
-                k_old_union_dead = k_new_union_dead;
+                // the left entry represents the merged entry while the right entry will be considered deleted
+                mte_left.depth++;
+                mte_left.setid = union_setid;
+                mte_left.k_set_dead = k_union_dead;
+                mt_pos--;
             }
 
         } else if(search_space.get_node(state).is_closed()) {
@@ -477,14 +486,70 @@ void EagerSearch::write_unsolvability_certificate() {
         }
     }
 
-    // "old_union" now contains all dead ends (possibly empty) and "expanded" all expanded states
+    std::vector<CuddBDD> bdds;
+    std::string filename_search_bdds = unsolvmgr.get_directory() + "search.bdd";
+    int de_setid, k_de_dead;
 
     // no dead ends --> use empty set
-    if(!old_union_bdd) {
-        old_union_setid = unsolvmgr.get_emptysetid();
-        k_old_union_dead = unsolvmgr.get_k_empty_dead();
+    if(dead_ends.size() == 0) {
+        de_setid = unsolvmgr.get_emptysetid();
+        k_de_dead = unsolvmgr.get_k_empty_dead();
+    } else {
+        // if the merge tree is not a complete binary tree, we first need to shrink it up to size 1
+        // TODO: this is copy paste from above...
+        while(mt_pos > 1) {
+            MergeTreeEntry &mte_left = merge_tree[mt_pos-2];
+            MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
+
+            // show that implicit union between the two sets is dead
+            int impl_union = unsolvmgr.get_new_setid();
+            certstream << "e " << impl_union << " u "
+                       << mte_left.setid << " " << mte_right.setid << "\n";
+            int k_impl_union_dead = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_impl_union_dead << " d " << impl_union
+                       << " d2 " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
+
+            // build new explicit union and show that it is dead
+            int union_setid = unsolvmgr.get_new_setid();
+            certstream << "e " << union_setid << " e ";
+            for(size_t i = mte_left.de_pos_begin; i < dead_ends.size(); ++i) {
+                unsolvmgr.dump_state(state_registry.lookup_state(dead_ends[i]));
+                certstream << " ";
+            }
+            certstream << ";\n";
+            int k_union_subset = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_union_subset << " s "
+                       << union_setid << " " << impl_union << " b2\n";
+            int k_union_dead = unsolvmgr.get_new_knowledgeid();
+            certstream << "k " << k_union_dead << " d " << union_setid << " d3 "
+                       << k_union_subset << " " << k_impl_union_dead << "\n";
+
+            mt_pos--;
+            merge_tree[mt_pos-1].depth++;
+            merge_tree[mt_pos-1].setid = union_setid;
+            merge_tree[mt_pos-1].k_set_dead = k_union_dead;
+        }
+        bdds.push_back(dead);
+
+        // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
+        int bdd_dead_setid = unsolvmgr.get_new_setid();
+        certstream << "e " << bdd_dead_setid << " b " << filename_search_bdds
+                   << " " << bdds.size()-1 << " ;\n";
+
+        int k_bdd_subset_expl = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_bdd_subset_expl << " s "
+                   << bdd_dead_setid << " " << merge_tree[0].setid << " b1\n";
+        int k_bdd_dead = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_bdd_dead << " d " << bdd_dead_setid
+                   << " d3 " << k_bdd_subset_expl << " " << merge_tree[0].k_set_dead << "\n";
+
+        de_setid = bdd_dead_setid;
+        k_de_dead = k_bdd_dead;
     }
+
     bdds.push_back(expanded);
+
+    // show that expanded states only lead to themselves and dead states
     int expanded_setid = unsolvmgr.get_new_setid();
     certstream << "e " << expanded_setid << " b " << filename_search_bdds << " "
                << bdds.size()-1 << " ;\n";
@@ -492,7 +557,7 @@ void EagerSearch::write_unsolvability_certificate() {
     certstream << "e " << expanded_progression_setid << " p " << expanded_setid << "\n";
     int union_expanded_dead = unsolvmgr.get_new_setid();
     certstream << "e " << union_expanded_dead << " u "
-               << expanded_setid << " " << old_union_setid << "\n";
+               << expanded_setid << " " << de_setid << "\n";
 
     int k_progression = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_progression << " s "
@@ -510,7 +575,7 @@ void EagerSearch::write_unsolvability_certificate() {
 
     int k_exp_dead = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_exp_dead << " d " << expanded_setid << " d6 "
-               << k_progression << " " << k_old_union_dead << " " << k_exp_goal_dead << "\n";
+               << k_progression << " " << k_de_dead << " " << k_exp_goal_dead << "\n";
 
     int k_init_in_exp = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_init_in_exp << " s "
