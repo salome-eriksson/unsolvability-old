@@ -217,9 +217,7 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         DdManager *ddmgr = util->manager.getManager();
         DdNode *ddnode = bdd->getNode();
         DdGen * cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
-        /* the models gotten with FirstCube and NextCube can contain don't cares,
-         * but SetFormulaBDD::contains can handle this
-         */
+        // TODO: can the models contain don't cares?
         do{
             for(int i = 0; i < statecube.size(); ++i) {
                 statecube[i] = bdd_model[2*util->varorder[i]];

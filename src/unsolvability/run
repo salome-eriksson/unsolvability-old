@@ -5,7 +5,7 @@ rm search.bdd
 rm task.txt
 rm certificate.txt
 
-PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob06.pddl
+PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob07.pddl
 #PDDL_FILE=~/pddls/unsolv-total/document-transfer/prob09.pddl
 #PDDL_FILE="/home/simsal00/pddls/unsolv-total/cave-diving/dom05.pddl /home/simsal00/pddls/unsolv-total/cave-diving/prob05.pddl"
 #PDDL_FILE=~/pddls/unsolv-total/chessboard-pebbling/prob03.pddl
