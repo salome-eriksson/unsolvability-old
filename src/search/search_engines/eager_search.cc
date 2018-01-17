@@ -342,7 +342,6 @@ void EagerSearch::write_unsolvability_certificate() {
 
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     std::ofstream &certstream = unsolvmgr.get_stream();
-    unsolvmgr.write_task_file();
 
     // TODO: asking if the initial node is new seems wrong, but that is
     // how the search handles a dead initial state
@@ -372,6 +371,11 @@ void EagerSearch::write_unsolvability_certificate() {
         double writing_end = utils::g_timer();
         std::cout << "Time for writing unsolvability certificate: "
                   << writing_end - writing_start << std::endl;
+
+        // writing the task file at the end minimizes the chances that both task and cert
+        // file are there but the planner could not finish writing them
+        unsolvmgr.write_task_file();
+
         return;
     }
 
@@ -523,6 +527,10 @@ void EagerSearch::write_unsolvability_certificate() {
     }
 
     manager.dumpBDDs(bdds, filename_search_bdds);
+
+    // writing the task file at the end minimizes the chances that both task and cert
+    // file are there but the planner could not finish writing them
+    unsolvmgr.write_task_file();
 
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability certificate: "
