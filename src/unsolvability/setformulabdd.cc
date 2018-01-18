@@ -35,10 +35,13 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
 
     // first line contains variable order
     varorder.reserve(task->get_number_of_facts());
-    // TODO: what is a good value here?
-    char line[500];
-    fgets(line, sizeof(line), fp);
-    std::stringstream ss(line);
+
+    // TODO: maybe we can do this reading in the fist line nicer
+    std::stringstream ss;
+    char c;
+    while((c = fgetc (fp)) != '\n') {
+        ss << c;
+    }
     int n;
     while (ss >> n){
         varorder.push_back(n);
