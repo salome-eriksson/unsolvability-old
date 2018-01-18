@@ -369,14 +369,15 @@ void EagerSearch::write_unsolvability_certificate() {
         certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u d4 "
                    << knowledge_init_dead << "\n";
 
-        double writing_end = utils::g_timer();
-        std::cout << "Time for writing unsolvability certificate: "
-                  << writing_end - writing_start << std::endl;
+        h->finish_unsolvability_proof();
 
         // writing the task file at the end minimizes the chances that both task and cert
         // file are there but the planner could not finish writing them
         unsolvmgr.write_task_file();
 
+        double writing_end = utils::g_timer();
+        std::cout << "Time for writing unsolvability certificate: "
+                  << writing_end - writing_start << std::endl;
         return;
     }
 
