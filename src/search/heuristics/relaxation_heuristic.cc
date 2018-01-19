@@ -193,24 +193,41 @@ void RelaxationHeuristic::setup_unsolvability_proof() {
 }
 
 std::pair<int,int> RelaxationHeuristic::prove_superset_dead(const GlobalState &state) {
-    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
-    //we need to redo the computation to get the unreachable facts
-    compute_heuristic(state);
 
-    std::vector<std::pair<int,int>> pos_vars;
-    std::vector<std::pair<int,int>> neg_vars;
-    for(size_t i = 0; i < propositions.size(); ++i) {
-        for(size_t j = 0; j < propositions[i].size(); ++j) {
-            if(propositions[i][j].cost == -1) {
-                neg_vars.push_back(std::make_pair(i,j));
-            }
+    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
+    int bddindex = -1;
+
+    // first check if the state is contained in an existing BDD already
+    CuddBDD statebdd(manager, state);
+    for(size_t i = 0; i < bdds.size(); ++i) {
+        if(statebdd.isSubsetOf(bdds[i])) {
+            bddindex = i;
+            break;
         }
     }
-    bdds.push_back(CuddBDD(manager, pos_vars,neg_vars));
+
+    if(bddindex == -1) {
+        //we need to redo the computation to get the unreachable facts
+        compute_heuristic(state);
+
+        std::vector<std::pair<int,int>> pos_vars;
+        std::vector<std::pair<int,int>> neg_vars;
+        for(size_t i = 0; i < propositions.size(); ++i) {
+            for(size_t j = 0; j < propositions[i].size(); ++j) {
+                if(propositions[i][j].cost == -1) {
+                    neg_vars.push_back(std::make_pair(i,j));
+                }
+            }
+        }
+        bdds.push_back(CuddBDD(manager, pos_vars,neg_vars));
+        bddindex = bdds.size()-1;
+    }
+
+    assert(bddindex >= 0);
 
     std::ofstream &certstream = unsolvmgr.get_stream();
     int setid = unsolvmgr.get_new_setid();
-    certstream << "e " << setid << " b " << bdd_filename << " " << bdds.size()-1 << " ;\n";
+    certstream << "e " << setid << " b " << bdd_filename << " " << bddindex << " ;\n";
     int progid = unsolvmgr.get_new_setid();
     certstream << "e " << progid << " p " << setid << "\n";
     int union_set_empty = unsolvmgr.get_new_setid();;
