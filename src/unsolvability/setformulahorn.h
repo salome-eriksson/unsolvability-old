@@ -14,12 +14,15 @@ typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> 
 class HornUtil {
     friend class SetFormulaHorn;
 private:
+    Task *task;
     SetFormulaHorn *emptyformula;
     SetFormulaHorn *initformula;
     SetFormulaHorn *goalformula;
     SetFormulaHorn *trueformula;
     std::vector<SetFormulaHorn *> actionformulas;
     HornUtil(Task *task);
+
+    void build_actionformulas();
 };
 
 

@@ -12,6 +12,7 @@ class SetFormulaBDD;
 class BDDUtil {
     friend class SetFormulaBDD;
 private:
+    Task *task;
     Cudd manager;
     std::vector<int> varorder;
     SetFormulaBDD *emptyformula;
@@ -23,6 +24,7 @@ private:
 
     BDD *build_bdd_from_cube(const Cube &cube);
     BDD build_bdd_for_action(const Action &a);
+    void build_actionformulas();
 
     BDD *get_bdd(int index);
 public:

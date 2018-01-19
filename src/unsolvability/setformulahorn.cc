@@ -7,7 +7,8 @@
 
 #include "global_funcs.h"
 
-HornUtil::HornUtil(Task *task) {
+HornUtil::HornUtil(Task *task)
+    : task(task) {
     int varamount = task->get_number_of_facts();
     std::vector<std::pair<std::vector<int>,int>> clauses;
     // this is the maximum amount of clauses the formulas need
@@ -39,8 +40,12 @@ HornUtil::HornUtil(Task *task) {
         }
     }
     initformula = new SetFormulaHorn(clauses, varamount);
+}
 
-    // insert action formulas
+void HornUtil::build_actionformulas() {
+    int varamount = task->get_number_of_facts();
+    std::vector<std::pair<std::vector<int>,int>> clauses;
+
     actionformulas.reserve(task->get_number_of_actions());
     for(int actionsize = 0; actionsize < task->get_number_of_actions(); ++actionsize) {
         clauses.clear();
@@ -951,6 +956,10 @@ bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) 
     //dummy initialization for actionformula
     list.push_back(std::make_pair(nullptr, false));
 
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
+
     for(int i = 0; i < util->actionformulas.size(); ++i) {
         list[list.size()-1] = std::make_pair(util->actionformulas[i],false);
         if(f_negated) {
@@ -983,6 +992,11 @@ bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
     }
     //dummy initialization for actionformula
     list.push_back(std::make_pair(nullptr, false));
+
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
+
 
     for(int i = 0; i< util->actionformulas.size(); ++i) {
         list[list.size()-1] = std::make_pair(util->actionformulas[i], false);

@@ -13,7 +13,7 @@ BDDUtil::BDDUtil() {
 }
 
 BDDUtil::BDDUtil(Task *task, std::string filename)
-    : manager(Cudd(task->get_number_of_facts()*2,0)) {
+    : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
 
 
     manager.setTimeoutHandler(exit_timeout);
@@ -59,12 +59,6 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
     }
     FREE(tmpArray);
 
-    // set up special formulas
-    actionformulas.reserve(task->get_number_of_actions());
-    for(int i = 0; i < task->get_number_of_actions(); ++i) {
-        actionformulas.push_back(build_bdd_for_action(task->get_action(i)));
-    }
-
     // insert BDDs for initial state, goal and empty set
     initformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_initial_state()));
     goalformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_goal()));
@@ -105,6 +99,13 @@ BDD BDDUtil::build_bdd_for_action(const Action &a) {
         }
     }
     return ret;
+}
+
+void BDDUtil::build_actionformulas() {
+    actionformulas.reserve(task->get_number_of_actions());
+    for(int i = 0; i < task->get_number_of_actions(); ++i) {
+        actionformulas.push_back(build_bdd_for_action(task->get_action(i)));
+    }
 }
 
 BDD *BDDUtil::get_bdd(int index) {
@@ -301,6 +302,10 @@ bool SetFormulaBDD::progression_is_union_subset(SetFormula *f, bool f_negated) {
     possible_successors += *(bdd);
     possible_successors = possible_successors.Permute(&prime_permutation[0]);
 
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
+
     for(int i = 0; i < util->actionformulas.size(); ++i) {
         BDD succ = *(bdd) * util->actionformulas[i];
         if(!succ.Leq(possible_successors)) {
@@ -325,6 +330,10 @@ bool SetFormulaBDD::regression_is_union_subset(SetFormula *f, bool f_negated) {
         possible_predecessors = !possible_predecessors;
     }
     possible_predecessors += *(bdd);
+
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
         BDD pred = bdd->Permute(&prime_permutation[0]) * util->actionformulas[i];
