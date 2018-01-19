@@ -9,7 +9,7 @@
 
 
 ExplicitUtil::ExplicitUtil(Task *task)
-    : manager(Cudd(task->get_number_of_facts()*2,0)) {
+    : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
 
 
     manager.setTimeoutHandler(exit_timeout);
@@ -20,12 +20,6 @@ ExplicitUtil::ExplicitUtil(Task *task)
     int compose[task->get_number_of_facts()];
     for(int i = 0; i < task->get_number_of_facts(); ++i) {
         compose[i] = 2*i;
-    }
-
-    // set up special formulas
-    actionformulas.reserve(task->get_number_of_actions());
-    for(int i = 0; i < task->get_number_of_actions(); ++i) {
-        actionformulas.push_back(build_bdd_for_action(task->get_action(i)));
     }
 
     // insert BDDs for initial state, goal and empty set
@@ -71,6 +65,13 @@ BDD ExplicitUtil::build_bdd_for_action(const Action &a) {
         }
     }
     return ret;
+}
+
+void ExplicitUtil::setup_actionformulas() {
+    actionformulas.reserve(task->get_number_of_actions());
+    for(int i = 0; i < task->get_number_of_actions(); ++i) {
+        actionformulas.push_back(build_bdd_for_action(task->get_action(i)));
+    }
 }
 
 ExplicitUtil *SetFormulaExplicit::util = nullptr;
@@ -253,6 +254,10 @@ bool SetFormulaExplicit::progression_is_union_subset(SetFormula *f, bool f_negat
     possible_successors += set;
     possible_successors = possible_successors.Permute(&util->prime_permutation[0]);
 
+    if(util->actionformulas.size() == 0) {
+        util->setup_actionformulas();
+    }
+
     for(int i = 0; i < util->actionformulas.size(); ++i) {
         BDD succ = set * util->actionformulas[i];
         if(!succ.Leq(possible_successors)) {
@@ -277,6 +282,10 @@ bool SetFormulaExplicit::regression_is_union_subset(SetFormula *f, bool f_negate
         possible_predecessors = !possible_predecessors;
     }
     possible_predecessors += set;
+
+    if(util->actionformulas.size() == 0) {
+        util->setup_actionformulas();
+    }
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
         BDD pred = set.Permute(&util->prime_permutation[0]) * util->actionformulas[i];

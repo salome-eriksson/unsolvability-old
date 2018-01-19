@@ -13,6 +13,7 @@ class SetFormulaExplicit;
 class ExplicitUtil {
     friend class SetFormulaExplicit;
 private:
+    Task *task;
     Cudd manager;
     std::vector<int> prime_permutation;
     SetFormulaExplicit *emptyformula;
@@ -23,6 +24,7 @@ private:
 
     BDD build_bdd_from_cube(const Cube &cube);
     BDD build_bdd_for_action(const Action &a);
+    void setup_actionformulas();
 };
 
 class SetFormulaExplicit : public SetFormulaBasic
