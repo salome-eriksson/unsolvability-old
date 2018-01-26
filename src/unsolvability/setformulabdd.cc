@@ -145,6 +145,10 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     assert(tmp.compare(";") == 0);
 }
 
+SetFormulaBDD::~SetFormulaBDD() {
+    *bdd = util->manager.bddZero();
+}
+
 
 bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {

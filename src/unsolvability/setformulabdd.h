@@ -43,6 +43,7 @@ private:
     SetFormulaBDD(BDDUtil *util, BDD *bdd);
 public:
     SetFormulaBDD(std::ifstream &input, Task *task);
+    ~SetFormulaBDD();
 
     virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
     virtual bool is_subset(SetFormula *f1, SetFormula *f2);
