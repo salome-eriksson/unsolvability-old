@@ -54,10 +54,20 @@ public:
     virtual KBType get_kbentry_type() { return KBType::UNSOLVABLE; }
 };
 
+struct FormulaEntry {
+    SetFormula *fpointer;
+    int last_occ;
+    FormulaEntry(SetFormula *fpointer_, int last_occ_)
+        :fpointer(fpointer_), last_occ(last_occ_) {}
+    FormulaEntry()
+        :fpointer(nullptr), last_occ(-1) {}
+};
+
 class ProofChecker
 {
 private:
-    std::deque<SetFormula *> formulas;
+    // pointer to set and KnowledgeIndex on which the set is needed for the last time
+    std::deque<FormulaEntry> formulas;
     std::deque<KBEntry *> kbentries;
     bool unsolvability_proven;
 public:
@@ -65,6 +75,7 @@ public:
 
     void add_formula(SetFormula *formula, FormulaIndex index);
     void add_kbentry(KBEntry *entry, KnowledgeIndex index);
+    void first_pass(std::string certfile);
 
     // TODO: rather ints? or vectors? or the entire line and add parsing?
     bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);

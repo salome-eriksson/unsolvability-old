@@ -239,12 +239,14 @@ int main(int argc, char** argv) {
         certificate_file += old_certificate_file.substr(8);
     }
 
+    ProofChecker proofchecker;
+    proofchecker.first_pass(certificate_file);
+
     std::ifstream certstream;
     certstream.open(certificate_file);
     if(!certstream.is_open()) {
         exit_with(ExitCode::NO_CERTIFICATE_FILE);
     }
-    ProofChecker proofchecker;
     std::string input;
     while(certstream >> input) {
         if(input.compare("e") == 0) {
