@@ -38,7 +38,7 @@ void ProofChecker::first_pass(std::string certfile) {
     certstream.open(certfile);
     std::string input;
     int mainsetid, set1, set2, kid;
-    char c;
+    std::vector<int> constant_formulas;
 
     while(certstream >> input) {
 
@@ -57,6 +57,9 @@ void ProofChecker::first_pass(std::string certfile) {
                 compound_sets.push_back(std::make_pair(mainsetid, std::make_pair(set1, -1)));
                 // we don't need to skip to next line since we are at the end already
             } else {
+                if(input == "c") {
+                    constant_formulas.push_back(mainsetid);
+                }
                 // skip to next line
                 certstream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             }
@@ -73,8 +76,8 @@ void ProofChecker::first_pass(std::string certfile) {
             if (input == "s") {
                 certstream >> set1;
                 certstream >> set2;
-                certstream.get(c);
-                if(c == 'b') {
+                certstream >> input;
+                if(input.at(0) == 'b') {
                     formulas[set1].last_occ = kid;
                     formulas[set2].last_occ = kid;
                 }
@@ -85,6 +88,11 @@ void ProofChecker::first_pass(std::string certfile) {
     }
 
     certstream.close();
+
+    // constant formulas should never be deleted
+    for(size_t i = 0; i < constant_formulas.size(); ++i) {
+        formulas[constant_formulas[i]].last_occ = std::numeric_limits<std::streamsize>::max();
+    }
 
     /* Set the last usage of formulas that occur as subformula as the max of it's last occurence
      * and the last occurence of the compound formula.
@@ -531,6 +539,7 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {l_resolved, lp_resolved}) {
         if(formulas[index].last_occ == newki) {
+            std::cout << "dsfds" << std::endl;
             delete formulas[index].fpointer;
         }
     }
