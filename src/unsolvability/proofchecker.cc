@@ -539,7 +539,6 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {l_resolved, lp_resolved}) {
         if(formulas[index].last_occ == newki) {
-            std::cout << "dsfds" << std::endl;
             delete formulas[index].fpointer;
         }
     }
