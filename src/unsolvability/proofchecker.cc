@@ -80,6 +80,7 @@ void ProofChecker::first_pass(std::string certfile) {
                 if(input.at(0) == 'b') {
                     formulas[set1].last_occ = kid;
                     formulas[set2].last_occ = kid;
+                    continue;
                 }
             }
             // skip to next line
@@ -88,11 +89,6 @@ void ProofChecker::first_pass(std::string certfile) {
     }
 
     certstream.close();
-
-    // constant formulas should never be deleted
-    for(size_t i = 0; i < constant_formulas.size(); ++i) {
-        formulas[constant_formulas[i]].last_occ = std::numeric_limits<std::streamsize>::max();
-    }
 
     /* Set the last usage of formulas that occur as subformula as the max of it's last occurence
      * and the last occurence of the compound formula.
@@ -110,6 +106,11 @@ void ProofChecker::first_pass(std::string certfile) {
         }
     }
 
+
+    // constant formulas should never be deleted
+    for(size_t i = 0; i < constant_formulas.size(); ++i) {
+        formulas[constant_formulas[i]].last_occ = -1;
+    }
 }
 
 // KBEntry newki says that f=emptyset is dead
@@ -539,7 +540,9 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {l_resolved, lp_resolved}) {
         if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
+            //SetFormula *p = formulas[index].fpointer;
+            //delete p;
+            formulas[index].fpointer = nullptr;
         }
     }
     return ret;
@@ -566,7 +569,9 @@ bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {fi1, xpi, xppi}) {
         if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
+            SetFormula *p = formulas[index].fpointer;
+            delete p;
+            formulas[index].fpointer = nullptr;
         }
     }
     return ret;
@@ -612,7 +617,9 @@ bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {l_resolved, lp_resolved}) {
         if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
+            SetFormula *p = formulas[index].fpointer;
+            delete p;
+            formulas[index].fpointer = nullptr;
         }
     }
     return ret;
@@ -653,7 +660,9 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {xi, l_resolved}) {
         if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
+            SetFormula *p = formulas[index].fpointer;
+            delete p;
+            formulas[index].fpointer = nullptr;
         }
     }
     return ret;
@@ -694,7 +703,9 @@ bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // delete formulas that are not needed anymore
     for(int index : {xi, l_resolved}) {
         if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
+            SetFormula *p = formulas[index].fpointer;
+            delete p;
+            formulas[index].fpointer = nullptr;
         }
     }
     return ret;
