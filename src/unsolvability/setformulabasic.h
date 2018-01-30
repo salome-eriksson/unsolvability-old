@@ -8,6 +8,7 @@ class SetFormulaBasic : public SetFormula
 {
 public:
     SetFormulaBasic();
+    virtual ~SetFormulaBasic() {}
 
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula) = 0;
 };

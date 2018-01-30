@@ -48,6 +48,7 @@ public:
     // TODO: this is currently only used for a dummy initialization
     SetFormulaHorn(Task *task);
     SetFormulaHorn(std::ifstream &input, Task *task);
+    virtual ~SetFormulaHorn() {}
 
     int get_size() const;
     int get_varamount() const;
