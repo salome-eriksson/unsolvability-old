@@ -7,6 +7,7 @@ class SetFormulaCompound : public SetFormula
 {
 public:
     SetFormulaCompound();
+    virtual ~SetFormulaCompound() {}
 
     virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
     virtual bool is_subset(SetFormula *f1, SetFormula *f2);
@@ -23,6 +24,7 @@ private:
     FormulaIndex subformula_index;
 public:
     SetFormulaNegation(FormulaIndex subformula_index);
+    virtual ~SetFormulaNegation() {}
 
     FormulaIndex get_subformula_index();
 
@@ -35,6 +37,7 @@ private:
     FormulaIndex right_index;
 public:
     SetFormulaIntersection(FormulaIndex left_index, FormulaIndex right_index);
+    virtual ~SetFormulaIntersection() {}
 
     FormulaIndex get_left_index();
     FormulaIndex get_right_index();
@@ -48,6 +51,7 @@ private:
     FormulaIndex right_index;
 public:
     SetFormulaUnion(FormulaIndex left_index, FormulaIndex right_index);
+    virtual ~SetFormulaUnion() {}
 
     FormulaIndex get_left_index();
     FormulaIndex get_right_index();
@@ -60,6 +64,7 @@ private:
     FormulaIndex subformula_index;
 public:
     SetFormulaProgression(FormulaIndex subformula_index);
+    virtual ~SetFormulaProgression() {}
 
     FormulaIndex get_subformula_index();
 
@@ -71,6 +76,7 @@ private:
     FormulaIndex subformula_index;
 public:
     SetFormulaRegression(FormulaIndex subformula_index);
+    virtual ~SetFormulaRegression() {}
 
     FormulaIndex get_subformula_index();
 

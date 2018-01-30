@@ -20,6 +20,7 @@ private:
     SetFormulaBDD *goalformula;
     std::vector<BDD> actionformulas;
     std::vector<BDD> bdds;
+    std::vector<int> bdd_pointer_counter;
     BDDUtil(Task *task, std::string filename);
 
     BDD *build_bdd_from_cube(const Cube &cube);
@@ -27,6 +28,7 @@ private:
     void build_actionformulas();
 
     BDD *get_bdd(int index);
+    void remove_reference(int index);
 public:
     BDDUtil();
 };
@@ -39,11 +41,12 @@ private:
     static std::vector<int> prime_permutation;
     BDDUtil *util;
     BDD *bdd;
+    int bdd_index;
 
     SetFormulaBDD(BDDUtil *util, BDD *bdd);
 public:
     SetFormulaBDD(std::ifstream &input, Task *task);
-    ~SetFormulaBDD();
+    virtual ~SetFormulaBDD();
 
     virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
     virtual bool is_subset(SetFormula *f1, SetFormula *f2);

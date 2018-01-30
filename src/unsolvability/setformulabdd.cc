@@ -59,6 +59,8 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
     }
     FREE(tmpArray);
 
+    bdd_pointer_counter.resize(bdds.size(),0);
+
     // insert BDDs for initial state, goal and empty set
     initformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_initial_state()));
     goalformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_goal()));
@@ -110,7 +112,15 @@ void BDDUtil::build_actionformulas() {
 
 BDD *BDDUtil::get_bdd(int index) {
     assert(index >= 0 && index < bdds.size());
+    bdd_pointer_counter[index]++;
     return &(bdds[index]);
+}
+
+void BDDUtil::remove_reference(int index) {
+    bdd_pointer_counter[index]--;
+    if(bdd_pointer_counter[index] == 0) {
+        bdds[index] = manager.bddZero();
+    }
 }
 
 std::unordered_map<std::string, BDDUtil> SetFormulaBDD::utils;
@@ -124,8 +134,7 @@ SetFormulaBDD::SetFormulaBDD(BDDUtil *util, BDD *bdd)
 SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     std::string filename;
     input >> filename;
-    int index;
-    input >> index;
+    input >> bdd_index;
     if(utils.find(filename) == utils.end()) {
         if(utils.empty()) {
             prime_permutation.resize(task->get_number_of_facts()*2, -1);
@@ -136,7 +145,7 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
         }
         utils[filename] = BDDUtil(task, filename);
     }
-    bdd = utils[filename].get_bdd(index);
+    bdd = utils[filename].get_bdd(bdd_index);
     util = &(utils[filename]);
     assert(bdd != nullptr);
 
@@ -146,7 +155,7 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
 }
 
 SetFormulaBDD::~SetFormulaBDD() {
-    *bdd = util->manager.bddZero();
+    util->remove_reference(bdd_index);
 }
 
 

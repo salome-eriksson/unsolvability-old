@@ -30,6 +30,7 @@ class SetFormula
 {
 public:
     SetFormula();
+    virtual ~SetFormula() {}
 
     virtual bool is_subset(SetFormula *f, bool negated, bool f_negated) = 0;
     virtual bool is_subset(SetFormula *f1, SetFormula *f2) = 0;

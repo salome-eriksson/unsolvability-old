@@ -36,6 +36,7 @@ private:
     SetFormulaExplicit(BDD bdd);
 public:
     SetFormulaExplicit(std::ifstream &input, Task *task);
+    virtual ~SetFormulaExplicit() {}
 
     virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
     virtual bool is_subset(SetFormula *f1, SetFormula *f2);
