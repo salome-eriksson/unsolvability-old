@@ -22,15 +22,15 @@
 #include "dddmp.h"
 void build_bdds_for_testcase() {
     std::cout << "creating bdds" << std::endl;
-    Cudd manager = Cudd(6,0);
+    Cudd tmpmanager = Cudd(6,0);
     std::vector<int> permutation { 3, 5, 0, 2, 4, 1 };
 
-    BDD a = manager.bddVar(permutation[0]);
-    BDD b = manager.bddVar(permutation[1]);
-    BDD c = manager.bddVar(permutation[2]);
-    BDD d = manager.bddVar(permutation[3]);
-    BDD g = manager.bddVar(permutation[4]);
-    BDD e = manager.bddVar(permutation[5]);
+    BDD a = tmpmanager.bddVar(permutation[0]);
+    BDD b = tmpmanager.bddVar(permutation[1]);
+    BDD c = tmpmanager.bddVar(permutation[2]);
+    BDD d = tmpmanager.bddVar(permutation[3]);
+    BDD g = tmpmanager.bddVar(permutation[4]);
+    BDD e = tmpmanager.bddVar(permutation[5]);
     std::vector<BDD> bdds;
 
     bdds.push_back(!a);
@@ -58,7 +58,7 @@ void build_bdds_for_testcase() {
     std::string varorder = ss.str();
     fputs(varorder.c_str(), fp);
 
-    Dddmp_cuddBddArrayStore(manager.getManager(), NULL, bdds.size(), &bdd_arr[0], NULL,
+    Dddmp_cuddBddArrayStore(tmpmanager.getManager(), NULL, bdds.size(), &bdd_arr[0], NULL,
                             NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
     fclose(fp);
 }

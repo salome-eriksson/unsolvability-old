@@ -13,7 +13,6 @@ class BDDUtil {
     friend class SetFormulaBDD;
 private:
     Task *task;
-    Cudd manager;
     std::vector<int> varorder;
     SetFormulaBDD *emptyformula;
     SetFormulaBDD *initformula;
