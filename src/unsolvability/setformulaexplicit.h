@@ -14,7 +14,6 @@ class ExplicitUtil {
     friend class SetFormulaExplicit;
 private:
     Task *task;
-    Cudd manager;
     std::vector<int> prime_permutation;
     SetFormulaExplicit *emptyformula;
     SetFormulaExplicit *initformula;

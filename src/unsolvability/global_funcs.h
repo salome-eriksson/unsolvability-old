@@ -1,8 +1,11 @@
 #ifndef GLOBAL_FUNCS_H
 #define GLOBAL_FUNCS_H
 
+
+
 #include <iostream>
 #include <vector>
+#include "cuddObj.hh"
 
 #include "timer.h"
 #include "task.h"
@@ -10,6 +13,7 @@
 extern Timer timer;
 extern int g_timeout;
 extern std::vector<std::vector<int>> hex;
+extern Cudd manager;
 
 enum class ExitCode {
     CERTIFICATE_VALID = 0,

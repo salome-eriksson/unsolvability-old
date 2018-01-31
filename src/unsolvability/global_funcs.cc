@@ -13,6 +13,7 @@
 Timer timer;
 int g_timeout;
 std::vector<std::vector<int>> hex;
+Cudd manager;
 
 // TODO: this is ugly, we rely on verify to call this function before reading states
 void setup_hex() {

@@ -13,12 +13,7 @@ BDDUtil::BDDUtil() {
 }
 
 BDDUtil::BDDUtil(Task *task, std::string filename)
-    : task(task), manager(Cudd(task->get_number_of_facts()*2,0)) {
-
-
-    manager.setTimeoutHandler(exit_timeout);
-    manager.InstallOutOfMemoryHandler(exit_oom);
-    manager.UnregisterOutOfMemoryCallback();
+    : task(task) {
 
     // move variables so the primed versions are in between
     int compose[task->get_number_of_facts()];
@@ -173,26 +168,26 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
 
         const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
         for(int i : f_horn->get_forced_false()) {
-            BDD tmp = !(util->manager.bddVar(util->varorder[i]*2));
+            BDD tmp = !(manager.bddVar(util->varorder[i]*2));
             if(!((*bdd).Leq(tmp))) {
                 return false;
             }
         }
 
         for(int i = 0; i < f_horn->get_forced_true().size(); ++i) {
-            BDD tmp = (util->manager.bddVar(util->varorder[i]*2));
+            BDD tmp = (manager.bddVar(util->varorder[i]*2));
             if(!((*bdd).Leq(tmp))) {
                 return false;
             }
         }
 
         for(int i = 0; i < f_horn->get_size(); ++i) {
-            BDD tmp = util->manager.bddZero();
+            BDD tmp = manager.bddZero();
             for(int j : f_horn->get_left_vars(i)) {
-                tmp += !(util->manager.bddVar(util->varorder[j]*2));
+                tmp += !(manager.bddVar(util->varorder[j]*2));
             }
             if(f_horn->get_right(i) != -1) {
-                tmp += (util->manager.bddVar(util->varorder[i]*2));
+                tmp += (manager.bddVar(util->varorder[i]*2));
             }
             if(!((*bdd).Leq(tmp))) {
                 return false;
@@ -231,9 +226,9 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         // TODO: find a better way to find out how many variables we have
         Cube statecube(util->varorder.size(),-1);
         CUDD_VALUE_TYPE value_type;
-        DdManager *ddmgr = util->manager.getManager();
+        DdManager *ddmgr = manager.getManager();
         DdNode *ddnode = bdd->getNode();
-        DdGen * cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
+        DdGen *cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
         // TODO: can the models contain don't cares?
         do{
             for(int i = 0; i < statecube.size(); ++i) {
@@ -244,9 +239,11 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
                 for(int i = 0; i < statecube.size(); ++i) {
                     std::cout << statecube[i] << " ";
                 } std::cout << std::endl;
+                Cudd_GenFree(cubegen);
                 return false;
             }
         } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
+        Cudd_GenFree(cubegen);
         return true;
         break;
     }
