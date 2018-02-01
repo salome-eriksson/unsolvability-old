@@ -19,7 +19,6 @@ private:
     SetFormulaBDD *goalformula;
     std::vector<BDD> actionformulas;
     std::vector<BDD> bdds;
-    std::vector<int> bdd_pointer_counter;
     BDDUtil(Task *task, std::string filename);
 
     BDD *build_bdd_from_cube(const Cube &cube);
@@ -27,7 +26,6 @@ private:
     void build_actionformulas();
 
     BDD *get_bdd(int index);
-    void remove_reference(int index);
 public:
     BDDUtil();
 };

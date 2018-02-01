@@ -54,8 +54,6 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
     }
     FREE(tmpArray);
 
-    bdd_pointer_counter.resize(bdds.size(),0);
-
     // insert BDDs for initial state, goal and empty set
     initformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_initial_state()));
     goalformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_goal()));
@@ -107,15 +105,7 @@ void BDDUtil::build_actionformulas() {
 
 BDD *BDDUtil::get_bdd(int index) {
     assert(index >= 0 && index < bdds.size());
-    bdd_pointer_counter[index]++;
     return &(bdds[index]);
-}
-
-void BDDUtil::remove_reference(int index) {
-    bdd_pointer_counter[index]--;
-    if(bdd_pointer_counter[index] == 0) {
-        bdds[index] = manager.bddZero();
-    }
 }
 
 std::unordered_map<std::string, BDDUtil> SetFormulaBDD::utils;
@@ -150,7 +140,11 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
 }
 
 SetFormulaBDD::~SetFormulaBDD() {
-    util->remove_reference(bdd_index);
+    /*
+     * this will decrease the reference counter for the original BDD within the
+     * Cudd Library, which then will take care of actually deleting the BDD
+     */
+    (*bdd) = manager.bddZero();
 }
 
 

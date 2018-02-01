@@ -411,7 +411,7 @@ std::pair<int,int> MergeAndShrinkHeuristic::prove_superset_dead(const GlobalStat
         std::vector<CuddBDD>bdds(1,certificate);
 
         std::stringstream ss;
-        ss << UnsolvabilityManager::getInstance().get_directory() << this;
+        ss << UnsolvabilityManager::getInstance().get_directory() << this << ".bdd";
         cudd_manager->dumpBDDs(bdds, ss.str());
 
         setid = unsolvmgr.get_new_setid();

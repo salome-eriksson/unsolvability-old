@@ -196,12 +196,14 @@ std::pair<int,int> RelaxationHeuristic::prove_superset_dead(const GlobalState &s
 
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     int bddindex = -1;
+    int setid = -1;
 
     // first check if the state is contained in an existing BDD already
     CuddBDD statebdd(manager, state);
     for(size_t i = 0; i < bdds.size(); ++i) {
         if(statebdd.isSubsetOf(bdds[i])) {
             bddindex = i;
+            setid = setids[i];
             break;
         }
     }
@@ -219,14 +221,15 @@ std::pair<int,int> RelaxationHeuristic::prove_superset_dead(const GlobalState &s
                 }
             }
         }
+        bddindex = bdds.size();
         bdds.push_back(CuddBDD(manager, pos_vars,neg_vars));
-        bddindex = bdds.size()-1;
+        setid = unsolvmgr.get_new_setid();
+        setids.push_back(setid);
     }
 
-    assert(bddindex >= 0);
+    assert(bddindex >= 0 && setid >= 0);
 
     std::ofstream &certstream = unsolvmgr.get_stream();
-    int setid = unsolvmgr.get_new_setid();
     certstream << "e " << setid << " b " << bdd_filename << " " << bddindex << " ;\n";
     int progid = unsolvmgr.get_new_setid();
     certstream << "e " << progid << " p " << setid << "\n";

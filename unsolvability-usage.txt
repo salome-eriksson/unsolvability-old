@@ -102,14 +102,16 @@ set expression #3 and #5).
 
 The description for BDDs must be stored in a different file called
 <bdd_filename> (created by the dddmp library). It stores an array of bdds,
-thus the <bdd_index> referes to the concrete BDD.
+thus the <bdd_index> refers to the concrete BDD.
+IMPORTANT: each BDD in the file can only be referred to by *ONE* setid,
+since the BDD will be deleted when this setid is no longer needed!
 
 Horn and 2CNF formulas are described in the DIMACS format (without comments
 or using newline characters). The structure is as follows: "p cnf <#var>
 <#clauses> <clause> 0 ... 0 <clause>", where each clause is a list of positive
 or negative integers separated by space characters. A positive integer
 x refers to variable (x-1) (DIMACS starts counting at 1), and a negative
-integer y to the negation of variable (y-1).
+integer -y to the negation of variable (y-1).
 (Example: "p cnf 3 2 2 -1 0 3" represents the formula ((b \lor ¬a) \land (c)) )
 
 Explicit sets are described by a list of STRIPS states, separated by
