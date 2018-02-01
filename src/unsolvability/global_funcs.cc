@@ -214,7 +214,7 @@ void exit_with(ExitCode code) {
 }
 
 
-
+// TODO: why size_t arg? I think it is for using it with the Cudd manager
 void exit_oom(size_t) {
     print_peak_memory_reentrant();
     write_reentrant_str(1,"abort time ");
@@ -229,8 +229,8 @@ void exit_oom(size_t) {
     exit_with(ExitCode::OUT_OF_MEMORY);
 }
 
+// TODO: why string arg? I think it is for using it with the Cudd manager
 void exit_timeout(std::string) {
-    std::cout << "exit_timeout" << std::endl;
     std::cout << "abort memory: " << get_peak_memory_in_kb() << "KB" << std::endl;
     std::cout << "abort time: " << timer << std::endl;
     exit_with(ExitCode::TIMEOUT);

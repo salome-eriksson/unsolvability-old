@@ -14,9 +14,11 @@ enum class KBType {
     UNSOLVABLE
 };
 
+// TODO: virtual get_first() and get_second() methods are somewhat hacky
+// but it saves us dynamic casts
 class KBEntry {
 public:
-    static const int INDEXNONE = -1;
+    static const FormulaIndex INDEXNONE = -1;
     KBEntry();
     virtual FormulaIndex get_first() = 0;
     virtual FormulaIndex get_second() = 0;
@@ -56,9 +58,10 @@ public:
 
 struct FormulaEntry {
     SetFormula *fpointer;
-    int last_occ;
-    FormulaEntry(SetFormula *fpointer_, int last_occ_)
-        :fpointer(fpointer_), last_occ(last_occ_) {}
+    // the last KnowledgeIndex where we need the actual set representation
+    KnowledgeIndex last_occ;
+    FormulaEntry(SetFormula *fpointer, int last_occ)
+        :fpointer(fpointer), last_occ(last_occ) {}
     FormulaEntry()
         :fpointer(nullptr), last_occ(-1) {}
 };
@@ -66,18 +69,17 @@ struct FormulaEntry {
 class ProofChecker
 {
 private:
-    // pointer to set and KnowledgeIndex on which the set is needed for the last time
     std::deque<FormulaEntry> formulas;
     std::deque<KBEntry *> kbentries;
     bool unsolvability_proven;
+
+    void add_kbentry(KBEntry *entry, KnowledgeIndex index);
 public:
     ProofChecker();
 
     void add_formula(SetFormula *formula, FormulaIndex index);
-    void add_kbentry(KBEntry *entry, KnowledgeIndex index);
     void first_pass(std::string certfile);
 
-    // TODO: rather ints? or vectors? or the entire line and add parsing?
     bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);
     bool check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
                      KnowledgeIndex ki1, KnowledgeIndex ki2);
