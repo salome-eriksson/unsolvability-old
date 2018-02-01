@@ -3,9 +3,7 @@
 #include <string>
 #include <sstream>
 #include <cassert>
-#include <stdlib.h>
-#include <iomanip>
-
+#include <limits>
 
 #include "global_funcs.h"
 #include "task.h"
@@ -17,90 +15,45 @@
 #include "setformulabdd.h"
 #include "setformulaexplicit.h"
 
-// TODO: remove this method
-#include "cuddObj.hh"
-#include "dddmp.h"
-void build_bdds_for_testcase() {
-    std::cout << "creating bdds" << std::endl;
-    Cudd tmpmanager = Cudd(6,0);
-    std::vector<int> permutation { 3, 5, 0, 2, 4, 1 };
-
-    BDD a = tmpmanager.bddVar(permutation[0]);
-    BDD b = tmpmanager.bddVar(permutation[1]);
-    BDD c = tmpmanager.bddVar(permutation[2]);
-    BDD d = tmpmanager.bddVar(permutation[3]);
-    BDD g = tmpmanager.bddVar(permutation[4]);
-    BDD e = tmpmanager.bddVar(permutation[5]);
-    std::vector<BDD> bdds;
-
-    bdds.push_back(!a);
-    bdds.push_back((!d + !b) * !g);
-    bdds.push_back(a * e);
-    bdds.push_back(d * b);
-    bdds.push_back(e);
-    bdds.push_back(!d + !b);
-
-    //dump bdds in file
-    std::cout << "dumping bdds" << std::endl;
-    std::string filename = "testbdds.bdd";
-    DdNode** bdd_arr = new DdNode*[bdds.size()];
-    for(int i = 0; i < bdds.size(); ++i) {
-        bdd_arr[i] = bdds[i].getNode();
-    }
-    FILE *fp;
-    fp = fopen(filename.c_str(), "a");
-    std::stringstream ss;
-    ss << permutation[0];
-    for(int i = 1; i < permutation.size(); ++i) {
-        ss << " " << permutation[i];
-    }
-    ss << "\n";
-    std::string varorder = ss.str();
-    fputs(varorder.c_str(), fp);
-
-    Dddmp_cuddBddArrayStore(tmpmanager.getManager(), NULL, bdds.size(), &bdd_arr[0], NULL,
-                            NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
-    fclose(fp);
-}
-
 
 void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
     FormulaIndex expression_index;
     in >> expression_index;
     std::string type;
+    // read in expression type
     in >> type;
     SetFormula *expression;
 
-    if(type.compare("b") == 0) {
+    if(type == "b") {
         expression = new SetFormulaBDD(in, task);
-    } else if(type.compare("h") == 0) {
+    } else if(type == "h") {
         expression = new SetFormulaHorn(in, task);
-    } else if(type.compare("t") == 0) {
+    } else if(type == "t") {
         std::cerr << "not implemented yet" << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
-    } else if(type.compare("e") == 0) {
+    } else if(type == "e") {
         expression = new SetFormulaExplicit(in, task);
-    } else if(type.compare("c") == 0) {
+    } else if(type == "c") {
         expression = new SetFormulaConstant(in, task);
-    } else if(type.compare("n") == 0) {
+    } else if(type == "n") {
         FormulaIndex subformulaindex;
         in >> subformulaindex;
         expression = new SetFormulaNegation(subformulaindex);
-    } else if(type.compare("i") == 0) {
+    } else if(type == "i") {
         FormulaIndex left, right;
         in >> left;
         in >> right;
         expression = new SetFormulaIntersection(left, right);
-    } else if(type.compare("u") == 0) {
+    } else if(type == "u") {
         FormulaIndex left, right;
         in >> left;
         in >> right;
         expression = new SetFormulaUnion(left, right);
-    } else if(type.compare("p") == 0) {
+    } else if(type == "p") {
         FormulaIndex subformulaindex;
         in >> subformulaindex;
         expression = new SetFormulaProgression(subformulaindex);
-    } else if(type.compare("r") == 0) {
+    } else if(type == "r") {
         FormulaIndex subformulaindex;
         in >> subformulaindex;
         expression = new SetFormulaRegression(subformulaindex);
@@ -111,97 +64,103 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
     proofchecker.add_formula(expression, expression_index);
 }
 
-void read_in_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
+void read_and_check_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
     KnowledgeIndex knowledge_index;
     in >> knowledge_index;
-    bool successful;
+    bool knowledge_is_correct = false;
 
-    std::string type;
-    in >> type;
-    if(type.compare("s") == 0) {
+    std::string word;
+    // read in knowledge type
+    in >> word;
+    if(word == "s") {
+        // subset knowledge requires two setids with the semantics "left is subset of right"
         FormulaIndex left, right;
         in >> left;
         in >> right;
-        in >> type;
-        if(type.compare("b1") == 0) {
-            successful = proofchecker.check_statement_B1(knowledge_index, left, right);
-        } else if(type.compare("b2") == 0) {
-            successful = proofchecker.check_statement_B2(knowledge_index, left, right);
-        } else if(type.compare("b3") == 0) {
-            successful = proofchecker.check_statement_B3(knowledge_index, left, right);
-        } else if(type.compare("b4") == 0) {
-            successful = proofchecker.check_statement_B4(knowledge_index, left, right);
-        } else if(type.compare("b5") == 0) {
-            successful = proofchecker.check_statement_B5(knowledge_index, left, right);
-        } else if(type.compare("d10") == 0) {
+        // read in with which basic statement or derivation rule this knowledge should be checked
+        in >> word;
+        if(word == "b1") {
+            knowledge_is_correct = proofchecker.check_statement_B1(knowledge_index, left, right);
+        } else if(word == "b2") {
+            knowledge_is_correct = proofchecker.check_statement_B2(knowledge_index, left, right);
+        } else if(word == "b3") {
+            knowledge_is_correct = proofchecker.check_statement_B3(knowledge_index, left, right);
+        } else if(word == "b4") {
+            knowledge_is_correct = proofchecker.check_statement_B4(knowledge_index, left, right);
+        } else if(word == "b5") {
+            knowledge_is_correct = proofchecker.check_statement_B5(knowledge_index, left, right);
+        } else if(word == "d10") {
             KnowledgeIndex old_knowledge_index;
             in >> old_knowledge_index;
-            successful = proofchecker.check_rule_D10(knowledge_index, left, right, old_knowledge_index);
-        } else if(type.compare("d11") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D10(knowledge_index, left, right, old_knowledge_index);
+        } else if(word == "d11") {
             KnowledgeIndex old_knowledge_index;
             in >> old_knowledge_index;
-            successful = proofchecker.check_rule_D11(knowledge_index, left, right, old_knowledge_index);
+            knowledge_is_correct = proofchecker.check_rule_D11(knowledge_index, left, right, old_knowledge_index);
         } else {
-            std::cerr << "unknown justification for subset knowledge " << type << std::endl;
+            std::cerr << "unknown justification for subset knowledge " << word << std::endl;
             exit_with(ExitCode::CRITICAL_ERROR);
         }
-    } else if(type.compare("d") == 0) {
+    } else if(word == "d") {
+        // dead knowledge requires one setid telling which set is dead
         FormulaIndex dead_index;
         in >> dead_index;
-        in >> type;
-        if(type.compare("d1") == 0) {
-            successful = proofchecker.check_rule_D1(knowledge_index, dead_index);
-        } else if(type.compare("d2") == 0) {
+        // read in with which derivation rule this knowledge should be checked
+        in >> word;
+        if(word == "d1") {
+            knowledge_is_correct = proofchecker.check_rule_D1(knowledge_index, dead_index);
+        } else if(word == "d2") {
             KnowledgeIndex ki1, ki2;
             in >> ki1;
             in >> ki2;
-            successful = proofchecker.check_rule_D2(knowledge_index, dead_index, ki1, ki2);
-        } else if(type.compare("d3") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D2(knowledge_index, dead_index, ki1, ki2);
+        } else if(word == "d3") {
             KnowledgeIndex ki1, ki2;
             in >> ki1;
             in >> ki2;
-            successful = proofchecker.check_rule_D3(knowledge_index, dead_index, ki1, ki2);
-        } else if(type.compare("d6") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D3(knowledge_index, dead_index, ki1, ki2);
+        } else if(word == "d6") {
             KnowledgeIndex ki1, ki2, ki3;
             in >> ki1;
             in >> ki2;
             in >> ki3;
-            successful = proofchecker.check_rule_D6(knowledge_index, dead_index, ki1, ki2, ki3);
-        } else if(type.compare("d7") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D6(knowledge_index, dead_index, ki1, ki2, ki3);
+        } else if(word == "d7") {
             KnowledgeIndex ki1, ki2, ki3;
             in >> ki1;
             in >> ki2;
             in >> ki3;
-            successful = proofchecker.check_rule_D7(knowledge_index, dead_index, ki1, ki2, ki3);
-        } else if(type.compare("d8") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D7(knowledge_index, dead_index, ki1, ki2, ki3);
+        } else if(word == "d8") {
             KnowledgeIndex ki1, ki2, ki3;
             in >> ki1;
             in >> ki2;
             in >> ki3;
-            successful = proofchecker.check_rule_D8(knowledge_index, dead_index, ki1, ki2, ki3);
-        } else if(type.compare("d9") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D8(knowledge_index, dead_index, ki1, ki2, ki3);
+        } else if(word == "d9") {
             KnowledgeIndex ki1, ki2, ki3;
             in >> ki1;
             in >> ki2;
             in >> ki3;
-            successful = proofchecker.check_rule_D9(knowledge_index, dead_index, ki1, ki2, ki3);
+            knowledge_is_correct = proofchecker.check_rule_D9(knowledge_index, dead_index, ki1, ki2, ki3);
         }
-    } else if(type.compare("u") == 0) {
-        in >> type;
-        if(type.compare("d4") == 0) {
+    } else if(word == "u") {
+        // read in with which derivation rule unsolvability should be proven
+        in >> word;
+        if(word == "d4") {
             KnowledgeIndex ki;
             in >> ki;
-            successful = proofchecker.check_rule_D4(knowledge_index, ki);
-        } else if(type.compare("d5") == 0) {
+            knowledge_is_correct = proofchecker.check_rule_D4(knowledge_index, ki);
+        } else if(word == "d5") {
             KnowledgeIndex ki;
             in >> ki;
-            successful = proofchecker.check_rule_D5(knowledge_index, ki);
+            knowledge_is_correct = proofchecker.check_rule_D5(knowledge_index, ki);
         }
     } else {
-        std::cerr << "unknown knowledge type " << type << std::endl;
+        std::cerr << "unknown knowledge type " << word << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }
-    if(!successful) {
+    if(!knowledge_is_correct) {
         std::cerr << "check for knowledge #" << knowledge_index << " NOT successful!" << std::endl;
     }
 }
@@ -217,7 +176,7 @@ int main(int argc, char** argv) {
     setup_hex();
     std::string task_file = argv[1];
     std::string certificate_file = argv[2];
-    int x = 0;
+    int x = std::numeric_limits<int>::max();
     if(argc == 4) {
         std::istringstream ss(argv[3]);
         if (!(ss >> x) || x < 0) {
@@ -249,14 +208,20 @@ int main(int argc, char** argv) {
     }
     std::string input;
     while(certstream >> input) {
+        // check if timeout is reached
+        // TODO: we currently only check timeout here and in the Cudd manager. Is this sufficient?
+        if(timer() > g_timeout) {
+            exit_timeout("");
+        }
+
         if(input.compare("e") == 0) {
             read_in_expression(certstream, proofchecker, task);
         } else if(input.compare("k") == 0) {
-            read_in_knowledge(certstream, proofchecker);
+            read_and_check_knowledge(certstream, proofchecker);
         } else if(input.at(0) == '#') {
-            std::cout << "comment: " << input;
+            // comment - ignore
+            // TODO: is this safe even if the line conssits only of "#"? Or will it skip a line?
             std::getline(certstream, input);
-            std::cout<< input << std::endl;
         } else {
             std::cerr << "unknown start of line: " << input << std::endl;
             exit_with(ExitCode::CRITICAL_ERROR);
