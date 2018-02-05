@@ -879,8 +879,8 @@ bool SetFormulaHorn::is_subset(SetFormula *f, bool negated, bool f_negated) {
         return false;
         break;
     default:
-        std::cerr << "X \\subseteq X' is not supported for Horn formula X "
-                     "and non-basic or constant formula X'" << std::endl;
+        std::cerr << "L \\subseteq L' is not supported for Horn formula L "
+                     "and non-basic or constant formula L'" << std::endl;
         return false;
         break;
     }
@@ -909,7 +909,7 @@ bool SetFormulaHorn::intersection_with_goal_is_subset(SetFormula *f, bool negate
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for Horn Formula L";
+        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for Horn formula L";
         std::cerr <<"and non-Horn formula L'" << std::endl;
         return false;
     }
@@ -942,7 +942,7 @@ bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) 
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "X[A] \\subseteq X \\cup L is not supported for Horn Formula X";
+        std::cerr << "X[A] \\subseteq X \\cup L is not supported for Horn formula X";
         std::cerr << "and non-Horn formula L" << std::endl;
         return false;
     }
@@ -979,7 +979,7 @@ bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "[A]X \\subseteq X \\cup L is not supported for Horn Formula X";
+        std::cerr << "[A]X \\subseteq X \\cup L is not supported for Horn formula X";
         std::cerr << "and non-Horn formula L" << std::endl;
         return false;
     }
