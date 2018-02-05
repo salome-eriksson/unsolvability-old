@@ -185,8 +185,8 @@ bool SetFormulaExplicit::is_subset(SetFormula *f, bool negated, bool f_negated) 
         break;
     }
     default:
-        std::cerr << "X \\subseteq X' is not supported for explicit formula X "
-                     "and non-basic or constant formula X'" << std::endl;
+        std::cerr << "L \\subseteq L' is not supported for explicit formula L "
+                     "and non-basic or constant formula L'" << std::endl;
         return false;
         break;
     }
@@ -216,7 +216,7 @@ bool SetFormulaExplicit::intersection_with_goal_is_subset(SetFormula *f, bool ne
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for explicit Formula L ";
+        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for explicit formula L ";
         std::cerr << "and non-explicit formula L'" << std::endl;
         return false;
     }
@@ -238,7 +238,7 @@ bool SetFormulaExplicit::progression_is_union_subset(SetFormula *f, bool f_negat
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "X[a] \\subseteq X \\land L is not supported for explicit Formula X ";
+        std::cerr << "X[A] \\subseteq X \\land L is not supported for explicit formula X ";
         std::cerr << "and non-explicit formula L" << std::endl;
         return false;
     }
@@ -268,7 +268,7 @@ bool SetFormulaExplicit::regression_is_union_subset(SetFormula *f, bool f_negate
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
         f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
     } else if(f->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "X[a] \\subseteq X \\land L is not supported for explicit Formula X ";
+        std::cerr << "[A]X \\subseteq X \\land L is not supported for explicit formula X ";
         std::cerr << "and non-explicit formula L" << std::endl;
         return false;
     }

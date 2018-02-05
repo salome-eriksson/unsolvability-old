@@ -15,8 +15,7 @@ enum class SetFormulaType {
     PROGRESSION,
     REGRESSION
 };
-// TODO: can this be done nicer?
-extern std::vector<std::string> setformulatype_strings;
+
 
 enum class ConstantType {
     EMPTY,

@@ -76,7 +76,7 @@ void ProofChecker::first_pass(std::string certfile) {
             }
 
             if(mainsetid >= formulas.size()) {
-                formulas.resize(mainsetid+1);
+                formulas.resize(mainsetid+1, FormulaEntry(nullptr, -1));
             }
         } else if(input == "k") {
             certstream >> kid;
