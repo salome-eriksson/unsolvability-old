@@ -198,35 +198,33 @@ std::pair<int,int> RelaxationHeuristic::prove_superset_dead(const GlobalState &s
     int bddindex = -1;
     int setid = -1;
 
-    // first check if the state is contained in an existing BDD already
+    /*
+     * If the state is contained in an existing BDD already, then we can use
+     * that one to show that the state is dead
+     */
     CuddBDD statebdd(manager, state);
     for(size_t i = 0; i < bdds.size(); ++i) {
         if(statebdd.isSubsetOf(bdds[i])) {
-            bddindex = i;
-            setid = setids[i];
-            break;
+            return set_and_knowledge_ids[i];
         }
     }
 
-    if(bddindex == -1) {
-        //we need to redo the computation to get the unreachable facts
-        compute_heuristic(state);
+    //we need to redo the computation to get the unreachable facts
+    compute_heuristic(state);
 
-        std::vector<std::pair<int,int>> pos_vars;
-        std::vector<std::pair<int,int>> neg_vars;
-        for(size_t i = 0; i < propositions.size(); ++i) {
-            for(size_t j = 0; j < propositions[i].size(); ++j) {
-                if(propositions[i][j].cost == -1) {
-                    neg_vars.push_back(std::make_pair(i,j));
-                }
+    std::vector<std::pair<int,int>> pos_vars;
+    std::vector<std::pair<int,int>> neg_vars;
+    for(size_t i = 0; i < propositions.size(); ++i) {
+        for(size_t j = 0; j < propositions[i].size(); ++j) {
+            if(propositions[i][j].cost == -1) {
+                neg_vars.push_back(std::make_pair(i,j));
             }
         }
-        bddindex = bdds.size();
-        bdds.push_back(CuddBDD(manager, pos_vars,neg_vars));
-        setid = unsolvmgr.get_new_setid();
-        setids.push_back(setid);
     }
+    bddindex = bdds.size();
+    bdds.push_back(CuddBDD(manager, pos_vars,neg_vars));
 
+    setid = unsolvmgr.get_new_setid();
     assert(bddindex >= 0 && setid >= 0);
 
     std::ofstream &certstream = unsolvmgr.get_stream();
@@ -254,7 +252,8 @@ std::pair<int,int> RelaxationHeuristic::prove_superset_dead(const GlobalState &s
     certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
                << unsolvmgr.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
 
-    return std::make_pair(setid, k_set_dead);
+    set_and_knowledge_ids.push_back(std::make_pair(setid, k_set_dead));
+    return set_and_knowledge_ids[set_and_knowledge_ids.size()-1];
 }
 
 void RelaxationHeuristic::finish_unsolvability_proof() {
