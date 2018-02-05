@@ -57,8 +57,11 @@ protected:
 
     CuddManager *manager;
     std::vector<CuddBDD> bdds;
-    // the setids correspond to the BDD in the bdds vector
-    std::vector<int> setids;
+    /*
+     * the first int is a setid which corresponds to the BDD in the bdds vector
+     * the second int is a knowledgeid which corresponds to the knowledge that setid is dead
+     */
+    std::vector<std::pair<int,int>> set_and_knowledge_ids;
     std::string bdd_filename;
 
     Proposition *get_proposition(const FactProxy &fact);
