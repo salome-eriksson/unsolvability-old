@@ -4,7 +4,12 @@
 #include <vector>
 #include <string>
 
-//Cube has 3 valid values: 0 - false, 1 - true, 2 - don't care
+/* A Cube represents a state and has 3 valid values:
+ *  - 0: false
+ *  - 1: true
+ *  - 2: don't care
+ * When Cubes are passed as parameters, they always follow the default variable order
+ */
 typedef std::vector<int> Cube;
 
 struct Action {

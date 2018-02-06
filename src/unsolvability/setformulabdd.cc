@@ -8,57 +8,112 @@
 #include "setformulahorn.h"
 #include "setformulaexplicit.h"
 
-BDDUtil::BDDUtil() {
+BDDUtil::BDDUtil()
+    :task(nullptr), initformula(nullptr), goalformula(nullptr), emptyformula(nullptr) {
 
 }
 
 BDDUtil::BDDUtil(Task *task, std::string filename)
     : task(task) {
 
-    // move variables so the primed versions are in between
+    /*
+     * The dumped BDDs only contain the original variables.
+     * Since we need also primed variables for checking
+     * statements B4 and B5 (pro/regression), we move the
+     * variables in such a way that a primed variable always
+     * occurs directly after its unprimed version
+     * (Example: a a' b b' c c')
+     */
     int compose[task->get_number_of_facts()];
     for(int i = 0; i < task->get_number_of_facts(); ++i) {
         compose[i] = 2*i;
     }
 
-    // read in bdd file
+    // we need to read in the file as FILE* since dddmp uses this
     FILE *fp;
     fp = fopen(filename.c_str(), "r");
     if(!fp) {
-        std::cerr << "could not open bdd file" << std::endl;
+        std::cerr << "could not open bdd file " << filename << std::endl;
     }
 
-    // first line contains variable order
+    // the first line contains the variable order, separated by space
     varorder.reserve(task->get_number_of_facts());
-
-    // TODO: maybe we can do this reading in the fist line nicer
+    // read in line char by char into a stringstream
     std::stringstream ss;
     char c;
     while((c = fgetc (fp)) != '\n') {
         ss << c;
     }
+    // read out the same line from the string stream int by int
+    // TODO: what happens if it cannot interpret the next word as int?
     int n;
     while (ss >> n){
         varorder.push_back(n);
     }
     assert(varorder.size() == task->get_number_of_facts());
 
+    /* read in the BDDs into an array of DdNodes. The parameters are as follows:
+     *  - manager
+     *  - how to match roots: we want them to be matched by id
+     *  - root names: only needed when you want to match roots by name
+     *  - how to match variables: since we want to permute the BDDs in order to
+     *    allow primed variables in between the original one, we take COMPOSEIDS
+     *  - varnames: needed if you want to match vars according to names
+     *  - varmatchauxids: needed if you want to match vars according to auxidc
+     *  - varcomposeids: the variable permutation if you want to permute the BDDs
+     *  - mode: if the file was dumped in text or in binary mode
+     *  - filename
+     *  - FILE*
+     *  - Pointer to array where the DdNodes should be saved to
+     */
+
     DdNode **tmpArray;
     int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
         DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
 
+    /*for(int i =0 ; i < 1000; ++i) {
+        DdNode **bla;
+        FILE *fpp;
+        fpp = fopen(filename.c_str(), "r");
+        while((c = fgetc(fpp)) != '\n') {}
+        int n =Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
+            DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fpp,&bla);
+
+        for (int i=0; i<n; i++) {
+            Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
+        }
+        fclose(fpp);
+        free(bla);
+    }*/
+
+    // store the BDDs in the wrapper class BDD from cudd rather than storing the raw DdNodes
     bdds.reserve(nRoots);
     for (int i=0; i<nRoots; i++) {
         bdds.push_back(BDD(manager,tmpArray[i]));
         Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
     }
-    FREE(tmpArray);
+    //FREE(tmpArray);
 
     // insert BDDs for initial state, goal and empty set
     initformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_initial_state()));
     goalformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_goal()));
     BDD *emptybdd = new BDD(manager.bddZero());
     emptyformula = new SetFormulaBDD(this, emptybdd);
+}
+
+BDDUtil::~BDDUtil() {
+    /*if(initformula) {
+        delete initformula->bdd;
+        delete initformula;
+    }
+    if(goalformula) {
+        delete goalformula->bdd;
+        delete goalformula;
+    }
+    if(emptyformula) {
+        delete emptyformula->bdd;
+        delete emptyformula;
+    }*/
 }
 
 // TODO: returning a new object is not a very safe way (see for example contains())
@@ -128,7 +183,7 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
               prime_permutation[(2*i)+1] = 2*i;
             }
         }
-        utils[filename] = BDDUtil(task, filename);
+        utils.emplace(filename, BDDUtil(task, filename));
     }
     bdd = utils[filename].get_bdd(bdd_index);
     util = &(utils[filename]);
@@ -145,6 +200,7 @@ SetFormulaBDD::~SetFormulaBDD() {
      * Cudd Library, which then will take care of actually deleting the BDD
      */
     (*bdd) = manager.bddZero();
+    util = nullptr;
 }
 
 
