@@ -63,7 +63,7 @@ void ExplicitUtil::build_actionformulas() {
     }
 }
 
-ExplicitUtil *SetFormulaExplicit::util = nullptr;
+std::unique_ptr<ExplicitUtil> SetFormulaExplicit::util;
 
 SetFormulaExplicit::SetFormulaExplicit() {
 
@@ -76,7 +76,7 @@ SetFormulaExplicit::SetFormulaExplicit(BDD set)
 
 SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
     if(!util) {
-        util = new ExplicitUtil(task);
+        util = std::unique_ptr<ExplicitUtil>(new ExplicitUtil(task));
     }
     set = manager.bddZero();
     std::string s;
