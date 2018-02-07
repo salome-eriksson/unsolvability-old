@@ -10,29 +10,24 @@
 
 ExplicitUtil::ExplicitUtil(Task *task)
     : task(task) {
-    // move variables so the primed versions are in between
-    int compose[task->get_number_of_facts()];
-    for(int i = 0; i < task->get_number_of_facts(); ++i) {
-        compose[i] = 2*i;
-    }
 
-    // insert BDDs for initial state, goal and empty set
-    initformula = new SetFormulaExplicit(build_bdd_from_cube(task->get_initial_state()));
-    goalformula = new SetFormulaExplicit(build_bdd_from_cube(task->get_goal()));
-    emptyformula = new SetFormulaExplicit(BDD(manager.bddZero()));
-
-    // this shuffels a BDD to represent the primed variables
+    // TODO: move this to where the manager is declared
     prime_permutation.resize(task->get_number_of_facts()*2, -1);
     for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
       prime_permutation[2*i] = (2*i)+1;
       prime_permutation[(2*i)+1] = 2*i;
     }
+
+    initformula = SetFormulaExplicit(build_bdd_from_cube(task->get_initial_state()));
+    goalformula = SetFormulaExplicit(build_bdd_from_cube(task->get_goal()));
+    emptyformula = SetFormulaExplicit(BDD(manager.bddZero()));
+
 }
 
 BDD ExplicitUtil::build_bdd_from_cube(const Cube &cube) {
     std::vector<int> local_cube(cube.size()*2,2);
     for(size_t i = 0; i < cube.size(); ++i) {
-        //permute both accounting for primed variables
+        // permute accounting for primed variables
         local_cube[i*2] = cube[i];
     }
     return BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), &local_cube[0]));
@@ -61,7 +56,7 @@ BDD ExplicitUtil::build_bdd_for_action(const Action &a) {
     return ret;
 }
 
-void ExplicitUtil::setup_actionformulas() {
+void ExplicitUtil::build_actionformulas() {
     actionformulas.reserve(task->get_number_of_actions());
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
         actionformulas.push_back(build_bdd_for_action(task->get_action(i)));
@@ -69,6 +64,10 @@ void ExplicitUtil::setup_actionformulas() {
 }
 
 ExplicitUtil *SetFormulaExplicit::util = nullptr;
+
+SetFormulaExplicit::SetFormulaExplicit() {
+
+}
 
 SetFormulaExplicit::SetFormulaExplicit(BDD set)
     : set(set) {
@@ -144,9 +143,7 @@ bool SetFormulaExplicit::is_subset(SetFormula *f, bool negated, bool f_negated) 
         // TODO: find a better way to find out how many variables we have
         Cube statecube(util->prime_permutation.size()/2,-1);
         CUDD_VALUE_TYPE value_type;
-        DdManager *ddmgr = manager.getManager();
-        DdNode *ddnode = set.getNode();
-        DdGen *cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
+        DdGen *cubegen = Cudd_FirstCube(manager.getManager(), set.getNode(), &bdd_model, &value_type);
         /* the models gotten with FirstCube and NextCube can contain don't cares,
          * but SetFormulaBDD::contains can handle this
          */
@@ -225,7 +222,7 @@ bool SetFormulaExplicit::intersection_with_goal_is_subset(SetFormula *f, bool ne
     if(negated) {
         left = !left;
     }
-    left = left * util->goalformula->set;
+    left = left * util->goalformula.set;
     BDD right = f_expl->set;
     if(f_negated) {
         right = !right;
@@ -251,7 +248,7 @@ bool SetFormulaExplicit::progression_is_union_subset(SetFormula *f, bool f_negat
     possible_successors = possible_successors.Permute(&util->prime_permutation[0]);
 
     if(util->actionformulas.size() == 0) {
-        util->setup_actionformulas();
+        util->build_actionformulas();
     }
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
@@ -280,7 +277,7 @@ bool SetFormulaExplicit::regression_is_union_subset(SetFormula *f, bool f_negate
     possible_predecessors += set;
 
     if(util->actionformulas.size() == 0) {
-        util->setup_actionformulas();
+        util->build_actionformulas();
     }
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
@@ -300,13 +297,13 @@ SetFormulaType SetFormulaExplicit::get_formula_type() {
 SetFormulaBasic *SetFormulaExplicit::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
-        return util->emptyformula;
+        return &(util->emptyformula);
         break;
     case ConstantType::INIT:
-        return util->initformula;
+        return &(util->initformula);
         break;
     case ConstantType::GOAL:
-        return util->goalformula;
+        return &(util->goalformula);
         break;
     default:
         std::cerr << "Unknown Constant type: " << std::endl;
