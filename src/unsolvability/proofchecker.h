@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <deque>
+#include <memory>
 
 typedef int KnowledgeIndex;
 
@@ -57,27 +58,28 @@ public:
 };
 
 struct FormulaEntry {
-    SetFormula *fpointer;
+    std::unique_ptr<SetFormula> fpointer;
     // the last KnowledgeIndex where we need the actual set representation
     KnowledgeIndex last_occ;
-    FormulaEntry(SetFormula *fpointer, int last_occ)
-        :fpointer(fpointer), last_occ(last_occ) {}
+    FormulaEntry(std::unique_ptr<SetFormula> fpointer, int last_occ)
+        : fpointer(std::move(fpointer)), last_occ(last_occ) {}
     FormulaEntry()
-        :fpointer(nullptr), last_occ(-1) {}
+        : last_occ(-1) {}
 };
 
 class ProofChecker
 {
 private:
     std::deque<FormulaEntry> formulas;
-    std::deque<KBEntry *> kbentries;
+    std::deque<std::unique_ptr<KBEntry>> kbentries;
     bool unsolvability_proven;
 
-    void add_kbentry(KBEntry *entry, KnowledgeIndex index);
+    void add_kbentry(std::unique_ptr<KBEntry> entry, KnowledgeIndex index);
+    void remove_formulas_if_obsolete(std::vector<int> indices, int current_ki);
 public:
     ProofChecker();
 
-    void add_formula(SetFormula *formula, FormulaIndex index);
+    void add_formula(std::unique_ptr<SetFormula> formula, FormulaIndex index);
     void first_pass(std::string certfile);
 
     bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);
