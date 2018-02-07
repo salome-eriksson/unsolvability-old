@@ -20,18 +20,26 @@ ProofChecker::ProofChecker()
 
 }
 
-void ProofChecker::add_kbentry(KBEntry *entry, KnowledgeIndex index) {
+void ProofChecker::add_kbentry(std::unique_ptr<KBEntry> entry, KnowledgeIndex index) {
     assert(index >= kbentries.size());
     if(index > kbentries.size()) {
         kbentries.resize(index);
     }
-    kbentries.push_back(entry);
+    kbentries.push_back(std::move(entry));
 }
 
-void ProofChecker::add_formula(SetFormula *formula, FormulaIndex index) {
+void ProofChecker::add_formula(std::unique_ptr<SetFormula> formula, FormulaIndex index) {
     // first_pass() will guarantee that the entry for this index exists already
-    assert(formulas[index].fpointer == nullptr);
-    formulas[index].fpointer = formula;
+    assert(!formulas[index].fpointer);
+    formulas[index].fpointer = std::move(formula);
+}
+
+void ProofChecker::remove_formulas_if_obsolete(std::vector<int> indices, int current_ki) {
+    for(int index: indices) {
+        if(formulas[index].last_occ == current_ki) {
+            formulas[index].fpointer.reset();
+        }
+    }
 }
 
 /*
@@ -76,7 +84,7 @@ void ProofChecker::first_pass(std::string certfile) {
             }
 
             if(mainsetid >= formulas.size()) {
-                formulas.resize(mainsetid+1, FormulaEntry(nullptr, -1));
+                formulas.resize(mainsetid+1);
             }
         } else if(input == "k") {
             certstream >> kid;
@@ -128,13 +136,13 @@ void ProofChecker::first_pass(std::string certfile) {
 // KBEntry newki says that f=emptyset is dead
 bool ProofChecker::check_rule_D1(KnowledgeIndex newki, FormulaIndex fi) {
 
-    SetFormulaConstant *f = dynamic_cast<SetFormulaConstant *>(formulas[fi].fpointer);
+    SetFormulaConstant *f = dynamic_cast<SetFormulaConstant *>(formulas[fi].fpointer.get());
     if ((!f) || (f->get_constant_type() != ConstantType::EMPTY)) {
         std::cerr << "Error when applying rule D1: set expression #" << fi
                   << " is not the constant empty set." << std::endl;
         return false;
     }
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -142,10 +150,10 @@ bool ProofChecker::check_rule_D1(KnowledgeIndex newki, FormulaIndex fi) {
 // KBEntry newki says that f=S \union S' is dead based on k1 (S is dead) and k2 (S' is dead)
 bool ProofChecker::check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
                                KnowledgeIndex ki1, KnowledgeIndex ki2) {
-    assert(kbentries[ki1] != nullptr && kbentries[ki2] != nullptr);
+    assert(kbentries[ki1] && kbentries[ki2]);
 
     // f represents left \cup right
-    SetFormulaUnion *f = dynamic_cast<SetFormulaUnion *>(formulas[fi].fpointer);
+    SetFormulaUnion *f = dynamic_cast<SetFormulaUnion *>(formulas[fi].fpointer.get());
     if (!f) {
         std::cerr << "Error when applying rule D2: set expression #" << fi
                   << "is not a union." << std::endl;
@@ -155,8 +163,8 @@ bool ProofChecker::check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
     FormulaIndex righti = f->get_right_index();
 
     // check if k1 says that left is dead
-    if ((kbentries[ki1]->get_kbentry_type() != KBType::DEAD) ||
-        (kbentries[ki1]->get_first() != lefti)) {
+    if ((kbentries[ki1].get()->get_kbentry_type() != KBType::DEAD) ||
+        (kbentries[ki1].get()->get_first() != lefti)) {
         std::cerr << "Error when applying rule D2: Knowledge #" << ki1
                   << "does not state that set expression #" << lefti
                   << " is dead." << std::endl;
@@ -164,15 +172,15 @@ bool ProofChecker::check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
     }
 
     // check if k2 says that right is dead
-    if ((kbentries[ki2]->get_kbentry_type() != KBType::DEAD) ||
-        (kbentries[ki2]->get_first() != righti)) {
+    if ((kbentries[ki2].get()->get_kbentry_type() != KBType::DEAD) ||
+        (kbentries[ki2].get()->get_first() != righti)) {
         std::cerr << "Error when applying rule D2: Knowledge #" << ki2
                   << "does not state that set expression #" << righti
                   << " is dead." << std::endl;
         return false;
     }
 
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -202,7 +210,7 @@ bool ProofChecker::check_rule_D3(KnowledgeIndex newki, FormulaIndex fi,
                   << " does not state that " << xi << " is dead." << std::endl;
         return false;
     }
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -218,14 +226,14 @@ bool ProofChecker::check_rule_D4(KnowledgeIndex newki, KnowledgeIndex ki) {
         return false;
     }
     SetFormulaConstant *init =
-            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki]->get_first()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki]->get_first()].fpointer.get());
     if ((!init) || (init->get_constant_type() != ConstantType::INIT)) {
         std::cerr << "Error when applying rule D4: knowledge #" << ki
                   << " does not state that the constant initial set is dead." << std::endl;
         return false;
     }
 
-    add_kbentry(new KBEntryUnsolvable(), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryUnsolvable()), newki);
     unsolvability_proven = true;
     return true;
 }
@@ -241,14 +249,14 @@ bool ProofChecker::check_rule_D5(KnowledgeIndex newki, KnowledgeIndex ki) {
         return false;
     }
     SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki]->get_first()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki]->get_first()].fpointer.get());
     if ( (!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
         std::cerr << "Error when applying rule D5: knowledge #" << ki
                   << " does not state that the constant goal set is dead." << std::endl;
         return false;
     }
 
-    add_kbentry(new KBEntryUnsolvable(), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryUnsolvable()), newki);
     unsolvability_proven = true;
     return true;
 }
@@ -268,7 +276,7 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check if the left side of k1 is S[A]
     SetFormulaProgression *s_prog =
-            dynamic_cast<SetFormulaProgression *>(formulas[kbentries[ki1]->get_first()].fpointer);
+            dynamic_cast<SetFormulaProgression *>(formulas[kbentries[ki1]->get_first()].fpointer.get());
     if ((!s_prog) || (s_prog->get_subformula_index() != fi)) {
         std::cerr << "Error when applying rule D6: the left side of subset knowledge #" << ki1
                   << " is not the progression of set expression #" << fi << "." << std::endl;
@@ -276,7 +284,7 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
-            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer);
+            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
     if((!s_cup_sp) || (s_cup_sp->get_left_index() != fi)) {
         std::cerr << "Error when applying rule D6: the right side of subset knowledge #" << ki1
                   << " is not a union of set expression #" << fi
@@ -301,7 +309,7 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
     SetFormulaIntersection *s_and_goal =
-            dynamic_cast<SetFormulaIntersection *>(formulas[kbentries[ki3]->get_first()].fpointer);
+            dynamic_cast<SetFormulaIntersection *>(formulas[kbentries[ki3]->get_first()].fpointer.get());
     // check if left side of s_and goal is S
     if ((!s_and_goal) || (s_and_goal->get_left_index() != fi)) {
         std::cerr << "Error when applying rule D6: the set expression declared dead in knowledge #"
@@ -310,7 +318,7 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
     SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[s_and_goal->get_right_index()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[s_and_goal->get_right_index()].fpointer.get());
     if((!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
         std::cerr << "Error when applying rule D6: the set expression declared dead in knowledge #"
                   << ki3 << " is not an intersection with the constant goal set on the right side."
@@ -318,7 +326,7 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -330,7 +338,7 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
     assert(kbentries[ki1] != nullptr && kbentries[ki2] != nullptr && kbentries[ki3] != nullptr);
 
     // check if fi corresponds to s_not
-    SetFormulaNegation *s_not = dynamic_cast<SetFormulaNegation *>(formulas[fi].fpointer);
+    SetFormulaNegation *s_not = dynamic_cast<SetFormulaNegation *>(formulas[fi].fpointer.get());
     if(!s_not) {
         std::cerr << "Error when applying rule D7: set expression #" << fi
                   << " is not a negation." << std::endl;
@@ -346,7 +354,7 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check if the left side of k1 is S[A]
     SetFormulaProgression *s_prog =
-            dynamic_cast<SetFormulaProgression *>(formulas[kbentries[ki1]->get_first()].fpointer);
+            dynamic_cast<SetFormulaProgression *>(formulas[kbentries[ki1]->get_first()].fpointer.get());
     if ((!s_prog) || (s_prog->get_subformula_index() != si)) {
         std::cerr << "Error when applying rule D7: the left side of subset knowledge #" << ki1
                   << " is not the progression of set expression #" << si << "." << std::endl;
@@ -354,7 +362,7 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
-            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer);
+            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
     if((!s_cup_sp) || (s_cup_sp->get_left_index() != si)) {
         std::cerr << "Error when applying rule D7: the right side of subset knowledge #" << ki1
                   << " is not a union of set expression #" << si
@@ -380,7 +388,7 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check that left side of k3 is {I}
     SetFormulaConstant *init =
-            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki3]->get_first()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki3]->get_first()].fpointer.get());
     if((!init) || (init->get_constant_type() != ConstantType::INIT)) {
         std::cerr << "Error when applying rule D7: the left side of subset knowledge #" << ki3
                   << " is not the constant initial set." << std::endl;
@@ -393,7 +401,7 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -405,7 +413,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
     assert(kbentries[ki1] != nullptr && kbentries[ki2] != nullptr && kbentries[ki3] != nullptr);
 
     // check if fi corresponds to s_not
-    SetFormulaNegation *s_not = dynamic_cast<SetFormulaNegation *>(formulas[fi].fpointer);
+    SetFormulaNegation *s_not = dynamic_cast<SetFormulaNegation *>(formulas[fi].fpointer.get());
     if(!s_not) {
         std::cerr << "Error when applying rule D8: set expression #" << fi
                   << " is not a negation." << std::endl;
@@ -421,7 +429,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check if the left side of k1 is [A]S
     SetFormulaRegression *s_reg =
-            dynamic_cast<SetFormulaRegression *>(formulas[kbentries[ki1]->get_first()].fpointer);
+            dynamic_cast<SetFormulaRegression *>(formulas[kbentries[ki1]->get_first()].fpointer.get());
     if ((!s_reg) || (s_reg->get_subformula_index() != si)) {
         std::cerr << "Error when applying rule D8: the left side of subset knowledge #" << ki1
                   << " is not the regression of set expression #" << si << "." << std::endl;
@@ -429,7 +437,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
-            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer);
+            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
     if((!s_cup_sp) || (s_cup_sp->get_left_index() != si)) {
         std::cerr << "Error when applying rule D8: the right side of subset knowledge #" << ki1
                   << " is not a union of set expression #" << si
@@ -454,7 +462,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
     SetFormulaIntersection *s_not_and_goal =
-            dynamic_cast<SetFormulaIntersection *>(formulas[kbentries[ki3]->get_first()].fpointer);
+            dynamic_cast<SetFormulaIntersection *>(formulas[kbentries[ki3]->get_first()].fpointer.get());
     // check if left side of s_not_and goal is S_not
     if ((!s_not_and_goal) || (s_not_and_goal->get_left_index() != fi)) {
         std::cerr << "Error when applying rule D8: the set expression declared dead in knowledge #"
@@ -463,7 +471,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
     SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[s_not_and_goal->get_right_index()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[s_not_and_goal->get_right_index()].fpointer.get());
     if((!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
         std::cerr << "Error when applying rule D8: the set expression declared dead in knowledge #"
                   << ki3 << " is not an intersection with the constant goal set on the right side."
@@ -471,7 +479,7 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
         return false;
     }
 
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -490,7 +498,7 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check if the left side of k1 is [A]S
     SetFormulaRegression *s_reg =
-            dynamic_cast<SetFormulaRegression *>(formulas[kbentries[ki1]->get_first()].fpointer);
+            dynamic_cast<SetFormulaRegression *>(formulas[kbentries[ki1]->get_first()].fpointer.get());
     if ((!s_reg) || (s_reg->get_subformula_index() != fi)) {
         std::cerr << "Error when applying rule D9: the left side of subset knowledge #" << ki1
                   << " is not the regression of set expression #" << fi << "." << std::endl;
@@ -498,7 +506,7 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
-            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer);
+            dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
     if((!s_cup_sp) || (s_cup_sp->get_left_index() != fi)) {
         std::cerr << "Error when applying rule D9: the right side of subset knowledge #" << ki1
                   << " is not a union of set expression #" << fi
@@ -524,7 +532,7 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check that left side of k3 is {I}
     SetFormulaConstant *init =
-            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki3]->get_first()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[kbentries[ki3]->get_first()].fpointer.get());
     if((!init) || (init->get_constant_type() != ConstantType::INIT)) {
         std::cerr << "Error when applying rule D9: the left side of subset knowledge #" << ki3
                   << " is not the constant initial set." << std::endl;
@@ -532,14 +540,14 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
     }
     // check that right side of k3 is S_not
     SetFormulaNegation *s_not =
-            dynamic_cast<SetFormulaNegation *>(formulas[kbentries[ki3]->get_second()].fpointer);
+            dynamic_cast<SetFormulaNegation *>(formulas[kbentries[ki3]->get_second()].fpointer.get());
     if((!s_not) || s_not->get_subformula_index() != fi) {
         std::cerr << "Error when applying rule D9: the right side of subset knowledge #" << ki3
                   << " is not the negation of set expression #" << fi << "." << std::endl;
         return false;
     }
 
-    add_kbentry(new KBEntryDead(fi), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntryDead(fi)), newki);
     return true;
 }
 
@@ -551,21 +559,21 @@ bool ProofChecker::check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, Formul
 
     // check that f1 represents S'_not[A] and f2 S_not
     SetFormulaProgression *sp_not_prog =
-            dynamic_cast<SetFormulaProgression *>(formulas[fi1].fpointer);
+            dynamic_cast<SetFormulaProgression *>(formulas[fi1].fpointer.get());
     if(!sp_not_prog) {
         std::cerr << "Error when applying rule D10: set expression #" << fi1
                   << " is not a progression." << std::endl;
         return false;
     }
     SetFormulaNegation *sp_not =
-            dynamic_cast<SetFormulaNegation *>(formulas[sp_not_prog->get_subformula_index()].fpointer);
+            dynamic_cast<SetFormulaNegation *>(formulas[sp_not_prog->get_subformula_index()].fpointer.get());
     if(!sp_not) {
         std::cerr << "Error when applying rule D10: set expression #" << fi1
                   << " is not the progression of a negation." << std::endl;
         return false;
     }
     SetFormulaNegation *s_not =
-            dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer);
+            dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer.get());
     if(!s_not) {
         std::cerr << "Error when applying rule D10: set expression #" << fi2
                   << " is not a negation." << std::endl;
@@ -582,14 +590,14 @@ bool ProofChecker::check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, Formul
         return false;
     }
     SetFormulaRegression *s_reg =
-            dynamic_cast<SetFormulaRegression *>(formulas[kbentries[ki]->get_first()].fpointer);
+            dynamic_cast<SetFormulaRegression *>(formulas[kbentries[ki]->get_first()].fpointer.get());
     if(!s_reg || s_reg->get_subformula_index() != si || kbentries[ki]->get_second() != spi) {
         std::cerr << "Error when applying rule D10: knowledge #" << ki
                   << " does not state that the regression of set expression #" << si
                   << " is a subset of set expression #" << spi << "." << std::endl;
         return false;
     }
-    add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
     return true;
 }
 
@@ -601,21 +609,21 @@ bool ProofChecker::check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, Formul
 
     //check that f1 represents [A]S'_not and f_2 S_not
     SetFormulaRegression *sp_not_reg =
-            dynamic_cast<SetFormulaRegression *>(formulas[fi1].fpointer);
+            dynamic_cast<SetFormulaRegression *>(formulas[fi1].fpointer.get());
     if(!sp_not_reg) {
         std::cerr << "Error when applying rule D11: set expression #" << fi1
                   << " is not a regression." << std::endl;
         return false;
     }
     SetFormulaNegation *sp_not =
-            dynamic_cast<SetFormulaNegation *>(formulas[sp_not_reg->get_subformula_index()].fpointer);
+            dynamic_cast<SetFormulaNegation *>(formulas[sp_not_reg->get_subformula_index()].fpointer.get());
     if(!sp_not) {
         std::cerr << "Error when applying rule D11: set expression #" << fi1
                   << " is not the regression of a negation." << std::endl;
         return false;
     }
     SetFormulaNegation *s_not =
-            dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer);
+            dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer.get());
     if(!s_not) {
         std::cerr << "Error when applying rule D11: set expression #" << fi2
                   << " is not a negation." << std::endl;
@@ -632,14 +640,14 @@ bool ProofChecker::check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, Formul
         return false;
     }
     SetFormulaProgression *s_prog =
-            dynamic_cast<SetFormulaProgression *>(formulas[kbentries[ki]->get_first()].fpointer);
+            dynamic_cast<SetFormulaProgression *>(formulas[kbentries[ki]->get_first()].fpointer.get());
     if(!s_prog || s_prog->get_subformula_index() != si || kbentries[ki]->get_second() != spi) {
         std::cerr << "Error when applying rule D11: knowledge #" << ki
                   << " does not state that the progression of set expression #" << si
                   << " is a subset of set expression #" << spi << "." << std::endl;
         return false;
     }
-    add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
     return true;
 }
 
@@ -654,32 +662,27 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // resolve negated formulas and instead pass bools if the formulas are negated
     bool left_negated = false;
     bool right_negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[fi1].fpointer);
+    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[fi1].fpointer.get());
     if(neg) {
         l_resolved = neg->get_subformula_index();
         left_negated = true;
     }
-    neg = dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer);
+    neg = dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer.get());
     if(neg) {
         lp_resolved = neg->get_subformula_index();
         right_negated = true;
     }
 
-    if(formulas[l_resolved].fpointer->is_subset(formulas[lp_resolved].fpointer, left_negated, right_negated)) {
-        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    if(formulas[l_resolved].fpointer->is_subset(formulas[lp_resolved].fpointer.get(), left_negated, right_negated)) {
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
         ret = true;
     } else {
         std::cerr << "Error when checking statement B1: set expression #" << fi1
                   << " is not a subset of set expression #" << fi2 << "." << std::endl;
     }
 
-    // delete formulas that are not needed anymore
-    for(int index : {l_resolved, lp_resolved}) {
-        if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
-            formulas[index].fpointer = nullptr;
-        }
-    }
+    // TODO: move?
+    remove_formulas_if_obsolete({l_resolved, lp_resolved}, newki);
     return ret;
 }
 
@@ -688,7 +691,7 @@ bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, Fo
     bool ret = false;
 
     // check if fi2 represents X' \cup X''
-    SetFormulaUnion *xp_cup_xpp = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer);
+    SetFormulaUnion *xp_cup_xpp = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer.get());
     if(!xp_cup_xpp) {
         std::cerr << "Error when checking statement B2: set expression #" << fi2
                   << " is not a union." << std::endl;
@@ -697,21 +700,16 @@ bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, Fo
     FormulaIndex xpi = xp_cup_xpp->get_left_index();
     FormulaIndex xppi = xp_cup_xpp->get_right_index();
 
-    if(formulas[fi1].fpointer->is_subset(formulas[xpi].fpointer, formulas[xppi].fpointer)) {
-        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    if(formulas[fi1].fpointer->is_subset(formulas[xpi].fpointer.get(), formulas[xppi].fpointer.get())) {
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
         ret = true;
     } else {
         std::cerr << "Error when checking statement B2: set expression #" << fi1
                   << " is not a subset of set expression #" << fi2 << "." << std::endl;
     }
 
-    // delete formulas that are not needed anymore
-    for(int index : {fi1, xpi, xppi}) {
-        if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
-            formulas[index].fpointer = nullptr;
-        }
-    }
+    // TODO: move?
+    remove_formulas_if_obsolete({fi1, xpi, xppi}, newki);
     return ret;
 }
 
@@ -720,14 +718,14 @@ bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, Fo
     bool ret = false;
 
     // check if fi1 represents L \cap S_G(\Pi)
-    SetFormulaIntersection *l_cap_goal = dynamic_cast<SetFormulaIntersection *>(formulas[fi1].fpointer);
+    SetFormulaIntersection *l_cap_goal = dynamic_cast<SetFormulaIntersection *>(formulas[fi1].fpointer.get());
     if(!l_cap_goal) {
         std::cerr << "Error when checking statement B3: set expression #" << fi1
                   << " is not an intersection." << std::endl;
         return false;
     }
     SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[l_cap_goal->get_right_index()].fpointer);
+            dynamic_cast<SetFormulaConstant *>(formulas[l_cap_goal->get_right_index()].fpointer.get());
     if(!goal) {
         std::cerr << "Error when checking statement B3: set expression #" << fi1
                   << " is not an intersection with the constant goal on the right side." << std::endl;
@@ -740,32 +738,27 @@ bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, Fo
     // resolve negated formulas and instead pass bools if the formulas are negated
     bool left_negated = false;
     bool right_negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer);
+    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer.get());
     if(neg) {
         l_resolved = neg->get_subformula_index();
         left_negated = true;
     }
-    neg = dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer);
+    neg = dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer.get());
     if(neg) {
         lp_resolved = neg->get_subformula_index();
         right_negated = true;
     }
 
-    if(formulas[l_resolved].fpointer->intersection_with_goal_is_subset(formulas[lp_resolved].fpointer, left_negated, right_negated)) {
-        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    if(formulas[l_resolved].fpointer->intersection_with_goal_is_subset(formulas[lp_resolved].fpointer.get(), left_negated, right_negated)) {
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
         ret = true;
     } else {
         std::cerr << "Error when checking statement B3: set expression #" << fi1
                   << " is not a subset of set expression #" << fi2 << "." << std::endl;
     }
 
-    // delete formulas that are not needed anymore
-    for(int index : {l_resolved, lp_resolved}) {
-        if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
-            formulas[index].fpointer = nullptr;
-        }
-    }
+    // TODO: move?
+    remove_formulas_if_obsolete({l_resolved, lp_resolved}, newki);
     return ret;
 }
 
@@ -775,7 +768,7 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
     bool ret = false;
 
     // check if fi1 represents X[A]
-    SetFormulaProgression *x_prog = dynamic_cast<SetFormulaProgression *>(formulas[fi1].fpointer);
+    SetFormulaProgression *x_prog = dynamic_cast<SetFormulaProgression *>(formulas[fi1].fpointer.get());
     if(!x_prog) {
         std::cerr << "Error when checking statement B4: set expression #" << fi1
                   << " is not a progression." << std::endl;
@@ -784,7 +777,7 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
     FormulaIndex xi = x_prog->get_subformula_index();
 
     //check if fi2 represents X \cup L
-    SetFormulaUnion *x_cup_l = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer);
+    SetFormulaUnion *x_cup_l = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer.get());
     if((!x_cup_l) || (x_cup_l->get_left_index() != xi)) {
         std::cerr << "Error when checking statemnt B4: set expression #" << fi2
                   << " is not a union with set expression #" << xi << " on the left side." << std::endl;
@@ -794,27 +787,22 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
 
     //resolve negated formula and instead pass bool if the formula is negated
     bool negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer);
+    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer.get());
     if(neg) {
         l_resolved = neg->get_subformula_index();
         negated = true;
     }
 
-    if(formulas[xi].fpointer->progression_is_union_subset(formulas[l_resolved].fpointer, negated)) {
-        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    if(formulas[xi].fpointer->progression_is_union_subset(formulas[l_resolved].fpointer.get(), negated)) {
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
         ret = true;
     } else {
 
         std::cerr << "Error when checking statement B4: set expression #" << fi1
                   << " is not a subset of set expression #" << fi2 << "." << std::endl;    }
 
-    // delete formulas that are not needed anymore
-    for(int index : {xi, l_resolved}) {
-        if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
-            formulas[index].fpointer = nullptr;
-        }
-    }
+    // TODO: move?
+    remove_formulas_if_obsolete({xi, l_resolved}, newki);
     return ret;
 }
 
@@ -824,7 +812,7 @@ bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, Fo
     bool ret = false;
 
     // check if fi1 represents [A]X
-    SetFormulaRegression *x_reg = dynamic_cast<SetFormulaRegression *>(formulas[fi1].fpointer);
+    SetFormulaRegression *x_reg = dynamic_cast<SetFormulaRegression *>(formulas[fi1].fpointer.get());
     if(!x_reg) {
         std::cerr << "Error when checking statement B5: set expression #" << fi1
                   << " is not a regression." << std::endl;
@@ -833,7 +821,7 @@ bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, Fo
     FormulaIndex xi = x_reg->get_subformula_index();
 
     //check if fi2 represents X \cup L
-    SetFormulaUnion *x_cup_l = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer);
+    SetFormulaUnion *x_cup_l = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer.get());
     if((!x_cup_l) || (x_cup_l->get_left_index() != xi)) {
         std::cerr << "Error when checking statement B5: set expression #" << fi2
                   << " is not a union with set expression #" << xi << " on the left side." << std::endl;
@@ -843,27 +831,22 @@ bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, Fo
 
     //resolve negated formula and instead pass bool if the formula is negated
     bool negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer);
+    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer.get());
     if(neg) {
         l_resolved = neg->get_subformula_index();
         negated = true;
     }
 
-    if(formulas[xi].fpointer->regression_is_union_subset(formulas[l_resolved].fpointer, negated)) {
-        add_kbentry(new KBEntrySubset(fi1, fi2), newki);
+    if(formulas[xi].fpointer->regression_is_union_subset(formulas[l_resolved].fpointer.get(), negated)) {
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
         ret = true;
     } else {
         std::cerr << "Error when checking statement B5: set expression #" << fi1
                   << " is not a subset of set expression #" << fi2 << "." << std::endl;
     }
 
-    // delete formulas that are not needed anymore
-    for(int index : {xi, l_resolved}) {
-        if(formulas[index].last_occ == newki) {
-            delete formulas[index].fpointer;
-            formulas[index].fpointer = nullptr;
-        }
-    }
+    // TODO: move?
+    remove_formulas_if_obsolete({xi, l_resolved}, newki);
     return ret;
 }
 

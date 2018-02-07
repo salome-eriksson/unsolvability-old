@@ -4,6 +4,7 @@
 #include <sstream>
 #include <cassert>
 #include <limits>
+#include <memory>
 
 #include "global_funcs.h"
 #include "task.h"
@@ -22,46 +23,46 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
     std::string type;
     // read in expression type
     in >> type;
-    SetFormula *expression;
+    std::unique_ptr<SetFormula> expression;
 
     if(type == "b") {
-        expression = new SetFormulaBDD(in, task);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaBDD(in, task));
     } else if(type == "h") {
-        expression = new SetFormulaHorn(in, task);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaHorn(in, task));
     } else if(type == "t") {
         std::cerr << "not implemented yet" << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     } else if(type == "e") {
-        expression = new SetFormulaExplicit(in, task);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaExplicit(in, task));
     } else if(type == "c") {
-        expression = new SetFormulaConstant(in, task);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaConstant(in, task));
     } else if(type == "n") {
         FormulaIndex subformulaindex;
         in >> subformulaindex;
-        expression = new SetFormulaNegation(subformulaindex);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaNegation(subformulaindex));
     } else if(type == "i") {
         FormulaIndex left, right;
         in >> left;
         in >> right;
-        expression = new SetFormulaIntersection(left, right);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaIntersection(left, right));
     } else if(type == "u") {
         FormulaIndex left, right;
         in >> left;
         in >> right;
-        expression = new SetFormulaUnion(left, right);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaUnion(left, right));
     } else if(type == "p") {
         FormulaIndex subformulaindex;
         in >> subformulaindex;
-        expression = new SetFormulaProgression(subformulaindex);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaProgression(subformulaindex));
     } else if(type == "r") {
         FormulaIndex subformulaindex;
         in >> subformulaindex;
-        expression = new SetFormulaRegression(subformulaindex);
+        expression = std::unique_ptr<SetFormula>(new SetFormulaRegression(subformulaindex));
     } else {
         std::cerr << "unknown expression type " << type << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }
-    proofchecker.add_formula(expression, expression_index);
+    proofchecker.add_formula(std::move(expression), expression_index);
 }
 
 void read_and_check_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
