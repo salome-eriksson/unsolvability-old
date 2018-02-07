@@ -7,24 +7,7 @@
 #include "cuddObj.hh"
 
 
-class SetFormulaExplicit;
-
-
-class ExplicitUtil {
-    friend class SetFormulaExplicit;
-private:
-    Task *task;
-    std::vector<int> prime_permutation;
-    SetFormulaExplicit *emptyformula;
-    SetFormulaExplicit *initformula;
-    SetFormulaExplicit *goalformula;
-    std::vector<BDD> actionformulas;
-    ExplicitUtil(Task *task);
-
-    BDD build_bdd_from_cube(const Cube &cube);
-    BDD build_bdd_for_action(const Action &a);
-    void setup_actionformulas();
-};
+class ExplicitUtil;
 
 class SetFormulaExplicit : public SetFormulaBasic
 {
@@ -34,6 +17,7 @@ private:
     BDD set;
     SetFormulaExplicit(BDD bdd);
 public:
+    SetFormulaExplicit();
     SetFormulaExplicit(std::ifstream &input, Task *task);
     virtual ~SetFormulaExplicit() {}
 
@@ -47,6 +31,22 @@ public:
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
 
     bool contains(const Cube &statecube);
+};
+
+class ExplicitUtil {
+    friend class SetFormulaExplicit;
+private:
+    Task *task;
+    std::vector<int> prime_permutation;
+    SetFormulaExplicit emptyformula;
+    SetFormulaExplicit initformula;
+    SetFormulaExplicit goalformula;
+    std::vector<BDD> actionformulas;
+    ExplicitUtil(Task *task);
+
+    BDD build_bdd_from_cube(const Cube &cube);
+    BDD build_bdd_for_action(const Action &a);
+    void build_actionformulas();
 };
 
 #endif // SETFORMULAEXPLICIT_H
