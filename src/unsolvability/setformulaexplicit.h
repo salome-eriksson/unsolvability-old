@@ -4,6 +4,7 @@
 #include "setformulabasic.h"
 #include "task.h"
 
+#include <memory>
 #include "cuddObj.hh"
 
 
@@ -13,7 +14,7 @@ class SetFormulaExplicit : public SetFormulaBasic
 {
     friend class ExplicitUtil;
 private:
-    static ExplicitUtil *util;
+    static std::unique_ptr<ExplicitUtil> util;
     BDD set;
     SetFormulaExplicit(BDD bdd);
 public:
