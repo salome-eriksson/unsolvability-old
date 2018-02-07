@@ -189,6 +189,11 @@ int main(int argc, char** argv) {
     set_timeout(x);
 
     Task* task = new Task(task_file);
+
+    manager = Cudd(task->get_number_of_facts()*2);
+    manager.setTimeoutHandler(exit_timeout);
+    manager.InstallOutOfMemoryHandler(exit_oom);
+    manager.UnregisterOutOfMemoryCallback();
     std::cout << "Amount of Actions: " << task->get_number_of_actions() << std::endl;
 
     if(certificate_file.compare(0,8,"$TMPDIR/") == 0) {
