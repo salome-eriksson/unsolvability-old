@@ -8,11 +8,11 @@
 #include "setformulahorn.h"
 #include "setformulaexplicit.h"
 
-BDDUtil::BDDUtil()
-    :task(nullptr), initformula(nullptr), goalformula(nullptr), emptyformula(nullptr) {
 
-}
-
+/*
+ * Reads in all BDDs from a given file and stores them
+ * in a DdNode* array
+ */
 BDDUtil::BDDUtil(Task *task, std::string filename)
     : task(task) {
 
@@ -22,7 +22,7 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
      * statements B4 and B5 (pro/regression), we move the
      * variables in such a way that a primed variable always
      * occurs directly after its unprimed version
-     * (Example: a a' b b' c c')
+     * (Example: BDD dump with vars "a b c": "a a' b b' c c'")
      */
     int compose[task->get_number_of_facts()];
     for(int i = 0; i < task->get_number_of_facts(); ++i) {
@@ -46,12 +46,14 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
     }
     // read out the same line from the string stream int by int
     // TODO: what happens if it cannot interpret the next word as int?
+    // TODO: can we do this more directly? Ie. get the ints while reading the first line.
     int n;
     while (ss >> n){
         varorder.push_back(n);
     }
     assert(varorder.size() == task->get_number_of_facts());
 
+    DdNode **tmp_array;
     /* read in the BDDs into an array of DdNodes. The parameters are as follows:
      *  - manager
      *  - how to match roots: we want them to be matched by id
@@ -62,15 +64,21 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
      *  - varmatchauxids: needed if you want to match vars according to auxidc
      *  - varcomposeids: the variable permutation if you want to permute the BDDs
      *  - mode: if the file was dumped in text or in binary mode
-     *  - filename
+     *  - filename: needed if you don't directly pass the FILE *
      *  - FILE*
      *  - Pointer to array where the DdNodes should be saved to
      */
-
-    DdNode **tmpArray;
     int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-        DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmpArray);
+        DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmp_array);
 
+    dd_nodes.reserve(nRoots);
+    for(int i = 0; i < nRoots; ++i) {
+        dd_nodes.push_back(tmp_array[i]);
+    }
+    // TODO: do we need to delete the tmpArary?
+
+
+    // TODO: used for memory leak testing, remove
     /*for(int i =0 ; i < 1000; ++i) {
         DdNode **bla;
         FILE *fpp;
@@ -86,44 +94,23 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
         free(bla);
     }*/
 
-    // store the BDDs in the wrapper class BDD from cudd rather than storing the raw DdNodes
-    bdds.reserve(nRoots);
-    for (int i=0; i<nRoots; i++) {
-        bdds.push_back(BDD(manager,tmpArray[i]));
-        Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
-    }
-    //FREE(tmpArray);
-
-    // insert BDDs for initial state, goal and empty set
-    initformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_initial_state()));
-    goalformula = new SetFormulaBDD(this, build_bdd_from_cube(task->get_goal()));
-    BDD *emptybdd = new BDD(manager.bddZero());
-    emptyformula = new SetFormulaBDD(this, emptybdd);
+    initformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_initial_state()) );
+    goalformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_goal()) );
+    emptyformula = SetFormulaBDD( this, BDD(manager.bddZero()) );
 }
 
-BDDUtil::~BDDUtil() {
-    /*if(initformula) {
-        delete initformula->bdd;
-        delete initformula;
-    }
-    if(goalformula) {
-        delete goalformula->bdd;
-        delete goalformula;
-    }
-    if(emptyformula) {
-        delete emptyformula->bdd;
-        delete emptyformula;
-    }*/
+BDDUtil::BDDUtil() {
+
 }
 
 // TODO: returning a new object is not a very safe way (see for example contains())
-BDD *BDDUtil::build_bdd_from_cube(const Cube &cube) {
+BDD BDDUtil::build_bdd_from_cube(const Cube &cube) {
     std::vector<int> local_cube(cube.size()*2,2);
     for(size_t i = 0; i < cube.size(); ++i) {
         //permute both accounting for primed variables and changed var order
         local_cube[varorder[i]*2] = cube[i];
     }
-    return new BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), &local_cube[0]));
+    return BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), &local_cube[0]));
 }
 
 BDD BDDUtil::build_bdd_for_action(const Action &a) {
@@ -158,21 +145,22 @@ void BDDUtil::build_actionformulas() {
     }
 }
 
-BDD *BDDUtil::get_bdd(int index) {
-    assert(index >= 0 && index < bdds.size());
-    return &(bdds[index]);
-}
-
 std::unordered_map<std::string, BDDUtil> SetFormulaBDD::utils;
 std::vector<int> SetFormulaBDD::prime_permutation;
 
-SetFormulaBDD::SetFormulaBDD(BDDUtil *util, BDD *bdd)
+SetFormulaBDD::SetFormulaBDD()
+    : util(nullptr), bdd(manager.bddZero()) {
+
+}
+
+SetFormulaBDD::SetFormulaBDD(BDDUtil *util, BDD bdd)
     : util(util), bdd(bdd) {
 
 }
 
 SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     std::string filename;
+    int bdd_index;
     input >> filename;
     input >> bdd_index;
     if(utils.find(filename) == utils.end()) {
@@ -183,26 +171,19 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
               prime_permutation[(2*i)+1] = 2*i;
             }
         }
-        utils.emplace(filename, BDDUtil(task, filename));
+        // TODO: is emplace the best thing to do here?
+        utils.emplace(std::make_pair(filename, BDDUtil(task, filename)));
     }
-    bdd = utils[filename].get_bdd(bdd_index);
     util = &(utils[filename]);
-    assert(bdd != nullptr);
 
-    std::string tmp;
-    input >> tmp;
-    assert(tmp.compare(";") == 0);
+    assert(bdd_index >= 0 && bdd_index < util->dd_nodes.size());
+    bdd = BDD(manager, util->dd_nodes[bdd_index]);
+    Cudd_RecursiveDeref(manager.getManager(), util->dd_nodes[bdd_index]);
+
+    std::string declaration_end;
+    input >> declaration_end;
+    assert(declaration_end == ";");
 }
-
-SetFormulaBDD::~SetFormulaBDD() {
-    /*
-     * this will decrease the reference counter for the original BDD within the
-     * Cudd Library, which then will take care of actually deleting the BDD
-     */
-    (*bdd) = manager.bddZero();
-    util = nullptr;
-}
-
 
 bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
     if(f->get_formula_type() == SetFormulaType::CONSTANT) {
@@ -219,14 +200,14 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
         for(int i : f_horn->get_forced_false()) {
             BDD tmp = !(manager.bddVar(util->varorder[i]*2));
-            if(!((*bdd).Leq(tmp))) {
+            if(!bdd.Leq(tmp)) {
                 return false;
             }
         }
 
         for(int i = 0; i < f_horn->get_forced_true().size(); ++i) {
             BDD tmp = (manager.bddVar(util->varorder[i]*2));
-            if(!((*bdd).Leq(tmp))) {
+            if(!(bdd.Leq(tmp))) {
                 return false;
             }
         }
@@ -239,20 +220,21 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
             if(f_horn->get_right(i) != -1) {
                 tmp += (manager.bddVar(util->varorder[i]*2));
             }
-            if(!((*bdd).Leq(tmp))) {
+            if(!(bdd.Leq(tmp))) {
                 return false;
             }
         }
         return true;
         break;
     }
+    // TODO: check for different varorder
     case SetFormulaType::BDD: {
         const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-        BDD left = *bdd;
+        BDD left = bdd;
         if(negated) {
             left = !left;
         }
-        BDD right = *(f_bdd->bdd);
+        BDD right = f_bdd->bdd;
         if(f_negated) {
             right = !right;
         }
@@ -270,16 +252,19 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
             return false;
         }
 
+        if(bdd.IsZero()) {
+            return true;
+        }
+
         SetFormulaExplicit *f_explicit = static_cast<SetFormulaExplicit *>(f);
 
         int* bdd_model;
         // TODO: find a better way to find out how many variables we have
         Cube statecube(util->varorder.size(),-1);
         CUDD_VALUE_TYPE value_type;
-        DdManager *ddmgr = manager.getManager();
-        DdNode *ddnode = bdd->getNode();
-        DdGen *cubegen = Cudd_FirstCube(ddmgr,ddnode,&bdd_model, &value_type);
+        DdGen *cubegen = Cudd_FirstCube(manager.getManager(),bdd.getNode(),&bdd_model, &value_type);
         // TODO: can the models contain don't cares?
+        // Since we checked for ZeroBDD above we will always have at least 1 cube.
         do{
             for(int i = 0; i < statecube.size(); ++i) {
                 statecube[i] = bdd_model[2*util->varorder[i]];
@@ -320,7 +305,7 @@ bool SetFormulaBDD::is_subset(SetFormula *f1, SetFormula *f2) {
     }
     const SetFormulaBDD *f1_bdd = static_cast<SetFormulaBDD *>(f1);
     const SetFormulaBDD *f2_bdd = static_cast<SetFormulaBDD *>(f2);
-    return bdd->Leq(*(f1_bdd->bdd) + *(f2_bdd->bdd));
+    return bdd.Leq(f1_bdd->bdd + f2_bdd->bdd);
 }
 
 
@@ -333,12 +318,12 @@ bool SetFormulaBDD::intersection_with_goal_is_subset(SetFormula *f, bool negated
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-    BDD left = *bdd;
+    BDD left = bdd;
     if(negated) {
         left = !left;
     }
-    left = left * *(util->goalformula->bdd);
-    BDD right = *(f_bdd->bdd);
+    left = left * util->goalformula.bdd;
+    BDD right = f_bdd->bdd;
     if(f_negated) {
         right = !right;
     }
@@ -355,11 +340,11 @@ bool SetFormulaBDD::progression_is_union_subset(SetFormula *f, bool f_negated) {
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-    BDD possible_successors = *(f_bdd->bdd);
+    BDD possible_successors = f_bdd->bdd;
     if(f_negated) {
         possible_successors = !possible_successors;
     }
-    possible_successors += *(bdd);
+    possible_successors += bdd;
     possible_successors = possible_successors.Permute(&prime_permutation[0]);
 
     if(util->actionformulas.size() == 0) {
@@ -367,7 +352,7 @@ bool SetFormulaBDD::progression_is_union_subset(SetFormula *f, bool f_negated) {
     }
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD succ = *(bdd) * util->actionformulas[i];
+        BDD succ = bdd * util->actionformulas[i];
         if(!succ.Leq(possible_successors)) {
             return false;
         }
@@ -385,18 +370,18 @@ bool SetFormulaBDD::regression_is_union_subset(SetFormula *f, bool f_negated) {
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-    BDD possible_predecessors = *(f_bdd->bdd);
+    BDD possible_predecessors = f_bdd->bdd;
     if(f_negated) {
         possible_predecessors = !possible_predecessors;
     }
-    possible_predecessors += *(bdd);
+    possible_predecessors += bdd;
 
     if(util->actionformulas.size() == 0) {
         util->build_actionformulas();
     }
 
     for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD pred = bdd->Permute(&prime_permutation[0]) * util->actionformulas[i];
+        BDD pred = bdd.Permute(&prime_permutation[0]) * util->actionformulas[i];
         if(!pred.Leq(possible_predecessors)) {
             return false;
         }
@@ -412,13 +397,13 @@ SetFormulaType SetFormulaBDD::get_formula_type() {
 SetFormulaBasic *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
-        return util->emptyformula;
+        return &(util->emptyformula);
         break;
     case ConstantType::INIT:
-        return util->initformula;
+        return &(util->initformula);
         break;
     case ConstantType::GOAL:
-        return util->goalformula;
+        return &(util->goalformula);
         break;
     default:
         std::cerr << "Unknown Constant type: " << std::endl;
@@ -428,8 +413,5 @@ SetFormulaBasic *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formu
 }
 
 bool SetFormulaBDD::contains(const Cube &statecube) const {
-    BDD *tmp = util->build_bdd_from_cube(statecube);
-    bool ret = (*tmp).Leq(*bdd);
-    delete tmp;
-    return ret;
+    return util->build_bdd_from_cube(statecube).Leq(bdd);
 }

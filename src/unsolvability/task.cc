@@ -113,11 +113,6 @@ Task::Task(std::string taskfile) {
     }
     assert(!getline(in, line));
     in.close();
-
-    manager = Cudd(factamount*2,0);
-    manager.setTimeoutHandler(exit_timeout);
-    manager.InstallOutOfMemoryHandler(exit_oom);
-    manager.UnregisterOutOfMemoryCallback();
 }
 
 const std::string& Task::get_fact(int n) {
