@@ -71,28 +71,12 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
     int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
         DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmp_array);
 
+    // we use a vector rather than c-style array for ease of reading
     dd_nodes.reserve(nRoots);
     for(int i = 0; i < nRoots; ++i) {
         dd_nodes.push_back(tmp_array[i]);
     }
-    // TODO: do we need to delete the tmpArary?
-
-
-    // TODO: used for memory leak testing, remove
-    /*for(int i =0 ; i < 1000; ++i) {
-        DdNode **bla;
-        FILE *fpp;
-        fpp = fopen(filename.c_str(), "r");
-        while((c = fgetc(fpp)) != '\n') {}
-        int n =Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-            DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fpp,&bla);
-
-        for (int i=0; i<n; i++) {
-            Cudd_RecursiveDeref(manager.getManager(), tmpArray[i]);
-        }
-        fclose(fpp);
-        free(bla);
-    }*/
+    // we do not need to free the memory for tmp_array, memcheck detected no leaks
 
     initformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_initial_state()) );
     goalformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_goal()) );
