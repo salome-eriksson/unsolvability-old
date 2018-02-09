@@ -67,13 +67,13 @@ private:
      * the DdNode reference count will be 0 and the DdNode will be deleted by Cudd.
      */
     std::vector<DdNode *>dd_nodes;
-    BDDUtil(Task *task, std::string filename);
 
     BDD build_bdd_from_cube(const Cube &cube);
     BDD build_bdd_for_action(const Action &a);
     void build_actionformulas();
 public:
     BDDUtil();
+    BDDUtil(Task *task, std::string filename);
 };
 
 
