@@ -156,7 +156,8 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
             }
         }
         // TODO: is emplace the best thing to do here?
-        utils.emplace(std::make_pair(filename, BDDUtil(task, filename)));
+        utils.emplace(std::piecewise_construct, std::make_tuple(filename),
+                      std::make_tuple(task, filename));
     }
     util = &(utils[filename]);
 
@@ -214,6 +215,13 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
     // TODO: check for different varorder
     case SetFormulaType::BDD: {
         const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
+
+        if(util->varorder != f_bdd->util->varorder) {
+            std::cerr << "L \\subseteq L' not supported for BDD formulas L and "
+                      << "L' with different variable order." << std::endl;
+            return false;
+        }
+
         BDD left = bdd;
         if(negated) {
             left = !left;
@@ -231,8 +239,8 @@ bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
         break;
     case SetFormulaType::EXPLICIT: {
         if(negated || f_negated) {
-            std::cerr << "L \\subseteq L' not supported for BDD formula L and ";
-            std::cerr << "explicit formula L' if one of them is negated" << std::endl;
+            std::cerr << "L \\subseteq L' not supported for BDD formula L and "
+                      << "explicit formula L' if one of them is negated" << std::endl;
             return false;
         }
 
@@ -289,6 +297,13 @@ bool SetFormulaBDD::is_subset(SetFormula *f1, SetFormula *f2) {
     }
     const SetFormulaBDD *f1_bdd = static_cast<SetFormulaBDD *>(f1);
     const SetFormulaBDD *f2_bdd = static_cast<SetFormulaBDD *>(f2);
+
+    if(util->varorder != f1_bdd->util->varorder || util->varorder != f2_bdd->util->varorder) {
+        std::cerr << "X \\subseteq X' \\cup X'' is not supported for BDD formulas X ";
+        std::cerr << "X' and X'' with different variable order." << std::endl;
+        return false;
+    }
+
     return bdd.Leq(f1_bdd->bdd + f2_bdd->bdd);
 }
 
@@ -302,6 +317,13 @@ bool SetFormulaBDD::intersection_with_goal_is_subset(SetFormula *f, bool negated
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
+
+    if(util->varorder != f_bdd->util->varorder) {
+        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' not supported for BDD formulas L and "
+                  << "L' with different variable order." << std::endl;
+        return false;
+    }
+
     BDD left = bdd;
     if(negated) {
         left = !left;
@@ -324,6 +346,13 @@ bool SetFormulaBDD::progression_is_union_subset(SetFormula *f, bool f_negated) {
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
+
+    if(util->varorder != f_bdd->util->varorder) {
+        std::cerr << "X[A] \\subseteq X \\land L is not supported for BDD formulas X and "
+                  << "L with different variable order." << std::endl;
+        return false;
+    }
+
     BDD possible_successors = f_bdd->bdd;
     if(f_negated) {
         possible_successors = !possible_successors;
@@ -354,6 +383,13 @@ bool SetFormulaBDD::regression_is_union_subset(SetFormula *f, bool f_negated) {
         return false;
     }
     const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
+
+    if(util->varorder != f_bdd->util->varorder) {
+        std::cerr << "[A]X \\subseteq X \\land L is not supported for BDD formulas X and "
+                  << "L with different variable order." << std::endl;
+        return false;
+    }
+
     BDD possible_predecessors = f_bdd->bdd;
     if(f_negated) {
         possible_predecessors = !possible_predecessors;
