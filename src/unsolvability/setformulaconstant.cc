@@ -1,6 +1,7 @@
 #include "setformulaconstant.h"
 
 #include <fstream>
+#include <iostream>
 
 #include "setformulahorn.h"
 #include "global_funcs.h"

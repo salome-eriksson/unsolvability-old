@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <fstream>
+#include <iostream>
 
 #include "global_funcs.h"
 
@@ -21,6 +22,12 @@ ExplicitUtil::ExplicitUtil(Task *task)
     initformula = SetFormulaExplicit(build_bdd_from_cube(task->get_initial_state()));
     goalformula = SetFormulaExplicit(build_bdd_from_cube(task->get_goal()));
     emptyformula = SetFormulaExplicit(BDD(manager.bddZero()));
+
+    hex.reserve(16);
+    for(int i = 0; i < 16; ++i) {
+        std::vector<int> tmp = { (i >> 3)%2, (i >> 2)%2, (i >> 1)%2, i%2};
+        hex.push_back(tmp);
+    }
 
 }
 
@@ -63,6 +70,24 @@ void ExplicitUtil::build_actionformulas() {
     }
 }
 
+Cube ExplicitUtil::parseCube(const std::string &param, int size) {
+    assert(param.length() == (size+3)/4);
+    Cube cube;
+    cube.reserve(size+3);
+    for(int i = 0; i < param.length(); ++i) {
+        const std::vector<int> *vec;
+        if(param.at(i) < 'a') {
+            vec = &hex.at(param.at(i)-'0');
+        } else {
+            vec = &hex.at(param.at(i)-'a'+10);
+        }
+
+        cube.insert(cube.end(), vec->begin(), vec->end());
+    }
+    cube.resize(size);
+    return cube;
+}
+
 std::unique_ptr<ExplicitUtil> SetFormulaExplicit::util;
 
 SetFormulaExplicit::SetFormulaExplicit() {
@@ -82,7 +107,7 @@ SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
     std::string s;
     input >> s;
     while(s.compare(";") != 0) {
-        set += util->build_bdd_from_cube(parseCube(s, task->get_number_of_facts()));
+        set += util->build_bdd_from_cube(util->parseCube(s, task->get_number_of_facts()));
         input >> s;
     }
 }

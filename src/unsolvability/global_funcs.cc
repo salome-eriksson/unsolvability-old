@@ -1,8 +1,8 @@
-#include <sstream>
 #include <stdlib.h>
 #include <unistd.h>
 #include <csignal>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <string.h>
 #include <fcntl.h>
@@ -12,37 +12,7 @@
 
 Timer timer;
 int g_timeout;
-std::vector<std::vector<int>> hex;
 Cudd manager;
-
-// TODO: this is ugly, we rely on verify to call this function before reading states
-void setup_hex() {
-    hex.reserve(16);
-    for(int i = 0; i < 16; ++i) {
-        std::vector<int> tmp = { (i >> 3)%2, (i >> 2)%2, (i >> 1)%2, i%2};
-        hex.push_back(tmp);
-    }
-}
-
-//TODO: move this to an appropriate place
-void split(const std::string &s, std::vector<std::string> &vec, char delim) {
-    vec.clear();
-    std::stringstream ss(s);
-    std::string item;
-    while(std::getline(ss, item, delim)) {
-        vec.push_back(item);
-    }
-}
-
-void print_parsing_error_and_exit(std::string &line, std::string expected) {
-    std::cout << "unexpected line in certificate: " << line
-              << " (expected \"" << expected << "\")" << std::endl;
-    exit_with(ExitCode::PARSING_ERROR);
-}
-
-void print_info(std::string info) {
-    std::cout << "INFO: " << info << " [" << timer << "]" << std::endl;
-}
 
 void initialize_timer() {
     timer = Timer();
@@ -273,47 +243,4 @@ void register_event_handlers() {
     sigaction(SIGSEGV, &default_signal_action, 0);
     sigaction(SIGINT, &default_signal_action, 0);
     sigaction(SIGXCPU, &default_signal_action, 0);
-}
-
-std::vector<std::string> determine_parameters(const std::string &parameter_line, char delim) {
-    std::vector<std::string> tokens;
-    std::stringstream ss(parameter_line);
-    std::string token;
-    while (getline(ss, token, delim)) {
-        tokens.push_back(token);
-    }
-    return tokens;
-}
-
-Cube parseCube(const std::string &param, int size) {
-    assert(param.length() == (size+3)/4);
-    Cube cube;
-    cube.reserve(size+3);
-    for(int i = 0; i < param.length(); ++i) {
-        const std::vector<int> *vec;
-        if(param.at(i) < 'a') {
-            vec = &hex.at(param.at(i)-'0');
-        } else {
-            vec = &hex.at(param.at(i)-'a'+10);
-        }
-
-        cube.insert(cube.end(), vec->begin(), vec->end());
-    }
-    cube.resize(size);
-    return cube;
-}
-
-std::string special_set_string(SpecialSet set) {
-    switch (set) {
-    case SpecialSet::EMPTYSET:
-        return "0";
-    case SpecialSet::TRUESET:
-        return "1";
-    case SpecialSet::GOALSET:
-        return "2";
-    case SpecialSet::INITSET:
-        return "3";
-    default:
-        return "-1";
-    }
 }

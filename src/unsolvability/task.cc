@@ -5,6 +5,8 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
+#include <sstream>
+
 
 Task::Task(std::string taskfile) {
 
@@ -113,6 +115,21 @@ Task::Task(std::string taskfile) {
     }
     assert(!getline(in, line));
     in.close();
+}
+
+void Task::split(const std::string &s, std::vector<std::string> &vec, char delim) {
+    vec.clear();
+    std::stringstream ss(s);
+    std::string item;
+    while(std::getline(ss, item, delim)) {
+        vec.push_back(item);
+    }
+}
+
+void Task::print_parsing_error_and_exit(std::string &line, std::string expected) {
+    std::cout << "unexpected line in certificate: " << line
+              << " (expected \"" << expected << "\")" << std::endl;
+    exit_with(ExitCode::PARSING_ERROR);
 }
 
 const std::string& Task::get_fact(int n) {
