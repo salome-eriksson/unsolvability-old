@@ -26,6 +26,10 @@ private:
   std::vector<Action> actions;
   Cube initial_state;
   Cube goal;
+
+  // parsing utilities
+  void split(const std::string &s, std::vector<std::string> &vec, char delim);
+  void print_parsing_error_and_exit(std::string &line, std::string expected);
 public:
   Task(std::string file);
   const std::vector<std::string>& get_fact_names();

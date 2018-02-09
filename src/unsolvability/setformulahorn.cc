@@ -4,6 +4,7 @@
 #include <stack>
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 
 #include "global_funcs.h"
 

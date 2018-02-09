@@ -43,11 +43,15 @@ private:
     SetFormulaExplicit initformula;
     SetFormulaExplicit goalformula;
     std::vector<BDD> actionformulas;
+    std::vector<std::vector<int>> hex;
+
     ExplicitUtil(Task *task);
 
     BDD build_bdd_from_cube(const Cube &cube);
     BDD build_bdd_for_action(const Action &a);
     void build_actionformulas();
+
+    Cube parseCube(const std::string &param, int size);
 };
 
 #endif // SETFORMULAEXPLICIT_H

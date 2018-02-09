@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <fstream>
+#include <iostream>
 #include "dddmp.h"
 
 #include "global_funcs.h"
