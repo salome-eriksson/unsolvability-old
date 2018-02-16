@@ -6,7 +6,7 @@
 
 #include <memory>
 #include "cuddObj.hh"
-
+#include "unordered_map"
 
 class ExplicitUtil;
 
@@ -44,6 +44,7 @@ private:
     SetFormulaExplicit goalformula;
     std::vector<BDD> actionformulas;
     std::vector<std::vector<int>> hex;
+    std::unordered_map<std::string, BDD> statebdds;
 
     ExplicitUtil(Task *task);
 
@@ -52,6 +53,7 @@ private:
     void build_actionformulas();
 
     Cube parseCube(const std::string &param, int size);
+    void add_state_to_bdd(BDD &bdd, std::string state);
 };
 
 #endif // SETFORMULAEXPLICIT_H

@@ -88,6 +88,16 @@ Cube ExplicitUtil::parseCube(const std::string &param, int size) {
     return cube;
 }
 
+void ExplicitUtil::add_state_to_bdd(BDD &bdd, std::string state) {
+    if(statebdds.find(state) == statebdds.end()) {
+        BDD statebdd = build_bdd_from_cube(parseCube(state, task->get_number_of_facts()));
+        auto ins = statebdds.insert(std::make_pair(state,statebdd));
+        bdd += ins.first->second;
+    } else {
+        bdd += statebdds[state];
+    }
+}
+
 std::unique_ptr<ExplicitUtil> SetFormulaExplicit::util;
 
 SetFormulaExplicit::SetFormulaExplicit() {
@@ -107,7 +117,7 @@ SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
     std::string s;
     input >> s;
     while(s.compare(";") != 0) {
-        set += util->build_bdd_from_cube(util->parseCube(s, task->get_number_of_facts()));
+        util->add_state_to_bdd(set, s);
         input >> s;
     }
 }
