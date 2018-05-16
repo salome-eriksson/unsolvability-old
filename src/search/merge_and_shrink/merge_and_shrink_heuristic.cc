@@ -28,6 +28,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 using namespace std;
 using utils::ExitCode;
@@ -406,12 +407,11 @@ int MergeAndShrinkHeuristic::build_unsolvability_certificate(const GlobalState &
         assert(certificate_id != 0);
         return certificate_id;
     }
-    certificate = new CuddBDD(cudd_manager, false);
+    std::unordered_map<int, CuddBDD> bdds;
+    bdds.insert({0, CuddBDD(cudd_manager, false)});
+    bdds.insert({-1, CuddBDD(cudd_manager, true)});
+    certificate = mas_representation->get_unsolvability_certificate(cudd_manager, bdds, true);
     certificate_id = s.get_id().hash();
-
-    std::vector<CuddBDD> dummy_vector;
-
-    mas_representation->get_unsolvability_certificate(certificate, dummy_vector, false);
     return certificate_id;
 }
 
