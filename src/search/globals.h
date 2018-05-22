@@ -76,4 +76,9 @@ extern const std::shared_ptr<AbstractTask> g_root_task();
 
 extern utils::Log g_log;
 
+/* TODO: HACK! This should be passed from eager search to the unsolvabilitymanager,
+ * but currently the singleton implementation does not allow this
+ */
+extern std::string g_certificate_directory;
+
 #endif

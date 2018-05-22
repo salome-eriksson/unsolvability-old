@@ -5,13 +5,10 @@
 
 
 UnsolvabilityManager::UnsolvabilityManager()
-    : setcount(0), knowledgecount(0) {
-    // for the maia grid, use a directory of the local file system
-    char *sge_env = std::getenv("SLURM_JOBID");
-    if(sge_env != NULL) {
-        directory = std::string(std::getenv("TMPDIR")) + "/";
+    : setcount(0), knowledgecount(0), directory(g_certificate_directory) {
+    if(!directory.empty() && !(directory.back() == '/')) {
+        directory += "/";
     }
-
     certstream.open(directory + "certificate.txt");
 
     emptysetid = setcount++;

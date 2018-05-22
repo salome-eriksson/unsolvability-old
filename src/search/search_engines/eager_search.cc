@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <array>
+#include <wordexp.h>
 
 using namespace std;
 static inline int get_op_index(const GlobalOperator *op) {
@@ -38,12 +39,25 @@ EagerSearch::EagerSearch(const Options &opts)
     : SearchEngine(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
       use_multi_path_dependence(opts.get<bool>("mpd")),
+      generate_certificate(opts.get<bool>("generate_certificate")),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_state_open_list()),
       f_evaluator(opts.get<ScalarEvaluator *>("f_eval", nullptr)),
       preferred_operator_heuristics(opts.get_list<Heuristic *>("preferred")),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")) {
+
+    if(generate_certificate) {
+        g_certificate_directory = opts.get<std::string>("certificate_directory");
+        // expand environment variables
+        wordexp_t p;
+        wordexp( g_certificate_directory.c_str(), &p, 0 );
+        g_certificate_directory = *(p.we_wordv);
+        wordfree( &p );
+        std::cout << "Generating unsolvability certificate in "
+                  << g_certificate_directory << std::endl;
+    }
 }
+
 
 void EagerSearch::initialize() {
     cout << "Conducting best first search"
@@ -113,7 +127,9 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
-        write_unsolvability_certificate();
+        if(generate_certificate) {
+            write_unsolvability_certificate();
+        }
         return FAILED;
     }
     SearchNode node = n.first;
@@ -335,6 +351,18 @@ void add_pruning_option(OptionParser &parser) {
         "each state and thereby influence the number and order of successor states "
         "that are considered.",
         "null()");
+}
+
+void add_unsolvability_options(OptionParser &parser) {
+    parser.add_option<bool>(
+        "generate_certificate",
+        "If the task is detected as unsolvable, generate a certificate of unsolvability.",
+        "false");
+    parser.add_option<std::string>(
+        "certificate_directory",
+        "The directory in which the unsolvability certificate should be written."
+        "Defaults to current directory if none is set.",
+        ".");
 }
 
 
@@ -619,6 +647,7 @@ static SearchEngine *_parse(OptionParser &parser) {
         "use preferred operators of these heuristics", "[]");
 
     add_pruning_option(parser);
+    add_unsolvability_options(parser);
     SearchEngine::add_options_to_parser(parser);
     Options opts = parser.parse();
 
@@ -656,6 +685,7 @@ static SearchEngine *_parse_astar(OptionParser &parser) {
                             "use multi-path dependence (LM-A*)", "false");
 
     add_pruning_option(parser);
+    add_unsolvability_options(parser);
     SearchEngine::add_options_to_parser(parser);
     Options opts = parser.parse();
 
@@ -722,6 +752,7 @@ static SearchEngine *_parse_greedy(OptionParser &parser) {
         "boost value for preferred operator open lists", "0");
 
     add_pruning_option(parser);
+    add_unsolvability_options(parser);
     SearchEngine::add_options_to_parser(parser);
 
     Options opts = parser.parse();
