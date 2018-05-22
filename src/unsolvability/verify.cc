@@ -185,7 +185,6 @@ int main(int argc, char** argv) {
     wordexp( task_file.c_str(), &p, 0 );
     task_file = *(p.we_wordv);
     wordfree( &p );
-    std::cout << certificate_file << std::endl;
 
 
     int x = std::numeric_limits<int>::max();
