@@ -5,6 +5,7 @@
 #include <cassert>
 #include <limits>
 #include <memory>
+#include <wordexp.h>
 
 #include "global_funcs.h"
 #include "task.h"
@@ -176,6 +177,17 @@ int main(int argc, char** argv) {
     initialize_timer();
     std::string task_file = argv[1];
     std::string certificate_file = argv[2];
+
+    // expand environment variables
+    wordexp_t p;
+    wordexp( certificate_file.c_str(), &p, 0 );
+    certificate_file = *(p.we_wordv);
+    wordexp( task_file.c_str(), &p, 0 );
+    task_file = *(p.we_wordv);
+    wordfree( &p );
+    std::cout << certificate_file << std::endl;
+
+
     int x = std::numeric_limits<int>::max();
     if(argc == 4) {
         std::istringstream ss(argv[3]);
@@ -195,13 +207,6 @@ int main(int argc, char** argv) {
     manager.InstallOutOfMemoryHandler(exit_oom);
     manager.UnregisterOutOfMemoryCallback();
     std::cout << "Amount of Actions: " << task->get_number_of_actions() << std::endl;
-
-    if(certificate_file.compare(0,8,"$TMPDIR/") == 0) {
-        std::string old_certificate_file = certificate_file;
-        certificate_file = std::getenv("TMPDIR");
-        certificate_file += "/";
-        certificate_file += old_certificate_file.substr(8);
-    }
 
     ProofChecker proofchecker;
     proofchecker.first_pass(certificate_file);

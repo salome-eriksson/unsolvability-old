@@ -389,3 +389,5 @@ int g_num_previously_generated_plans = 0;
 bool g_is_part_of_anytime_portfolio = false;
 
 utils::Log g_log;
+
+string g_certificate_directory = "";

@@ -22,6 +22,7 @@ namespace eager_search {
 class EagerSearch : public SearchEngine {
     const bool reopen_closed_nodes;
     const bool use_multi_path_dependence;
+    const bool generate_certificate;
 
     std::unique_ptr<StateOpenList> open_list;
     ScalarEvaluator *f_evaluator;
