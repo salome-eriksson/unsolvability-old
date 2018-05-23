@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <array>
-#include <wordexp.h>
+#include <regex>
 
 using namespace std;
 static inline int get_op_index(const GlobalOperator *op) {
@@ -49,10 +49,13 @@ EagerSearch::EagerSearch(const Options &opts)
     if(generate_certificate) {
         g_certificate_directory = opts.get<std::string>("certificate_directory");
         // expand environment variables
-        wordexp_t p;
-        wordexp( g_certificate_directory.c_str(), &p, 0 );
-        g_certificate_directory = *(p.we_wordv);
-        wordfree( &p );
+        static std::regex env( "\\$\\{([^}]+)\\}" );
+        std::smatch match;
+        while ( std::regex_search( g_certificate_directory, match, env ) ) {
+            const char * s = getenv( match[1].str().c_str() );
+            const std::string var( s == NULL ? "" : s );
+            g_certificate_directory.replace( match[0].first, match[0].second, var );
+        }
         std::cout << "Generating unsolvability certificate in "
                   << g_certificate_directory << std::endl;
     }

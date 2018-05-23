@@ -5,7 +5,7 @@
 #include <cassert>
 #include <limits>
 #include <memory>
-#include <wordexp.h>
+#include <regex>
 
 #include "global_funcs.h"
 #include "task.h"
@@ -179,13 +179,18 @@ int main(int argc, char** argv) {
     std::string certificate_file = argv[2];
 
     // expand environment variables
-    wordexp_t p;
-    wordexp( certificate_file.c_str(), &p, 0 );
-    certificate_file = *(p.we_wordv);
-    wordexp( task_file.c_str(), &p, 0 );
-    task_file = *(p.we_wordv);
-    wordfree( &p );
-
+    static std::regex env( "\\$\\{([^}]+)\\}" );
+    std::smatch match;
+    while ( std::regex_search( task_file, match, env ) ) {
+        const char * s = getenv( match[1].str().c_str() );
+        const std::string var( s == NULL ? "" : s );
+        task_file.replace( match[0].first, match[0].second, var );
+    }
+    while ( std::regex_search( certificate_file, match, env ) ) {
+        const char * s = getenv( match[1].str().c_str() );
+        const std::string var( s == NULL ? "" : s );
+        certificate_file.replace( match[0].first, match[0].second, var );
+    }
 
     int x = std::numeric_limits<int>::max();
     if(argc == 4) {
