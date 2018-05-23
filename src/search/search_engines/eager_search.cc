@@ -54,7 +54,7 @@ EagerSearch::EagerSearch(const Options &opts)
         while ( std::regex_search( g_certificate_directory, match, env ) ) {
             const char * s = getenv( match[1].str().c_str() );
             const std::string var( s == NULL ? "" : s );
-            g_certificate_directory.replace( match[0].first, match[0].second, var );
+            g_certificate_directory.replace( match.position(0), match.length(0), var );
         }
         std::cout << "Generating unsolvability certificate in "
                   << g_certificate_directory << std::endl;
