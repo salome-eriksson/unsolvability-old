@@ -52,16 +52,20 @@ EagerSearch::EagerSearch(const Options &opts)
         // expand environment variables
         size_t found = g_certificate_directory.find('$');
         while(found != std::string::npos) {
-           size_t end = g_certificate_directory.find('/');
-           std::string envvar;
-           if(end == std::string::npos) {
-               envvar = g_certificate_directory.substr(found+1);
-           } else {
-               envvar = g_certificate_directory.substr(found+1,end-found-1);
-           }
-          std::string expanded = std::getenv(envvar.c_str());
-          g_certificate_directory.replace(found,envvar.length()+1,expanded);
-          found = g_certificate_directory.find('$');
+            size_t end = g_certificate_directory.find('/');
+            std::string envvar;
+            if(end == std::string::npos) {
+                envvar = g_certificate_directory.substr(found+1);
+            } else {
+                envvar = g_certificate_directory.substr(found+1,end-found-1);
+            }
+            // to upper case
+            for(size_t i = 0; i < envvar.size(); i++) {
+                envvar.at(i) = toupper(envvar.at(i));
+            }
+            std::string expanded = std::getenv(envvar.c_str());
+            g_certificate_directory.replace(found,envvar.length()+1,expanded);
+            found = g_certificate_directory.find('$');
         }
         std::cout << "Generating unsolvability certificate in "
                   << g_certificate_directory << std::endl;
