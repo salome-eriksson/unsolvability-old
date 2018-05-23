@@ -6,8 +6,8 @@ rm task.txt
 rm certificate.txt
 
 #PDDL_FILE=~/pddls/unsolv-total/unsat-nomystery/nomystery-problem-05-9-9-1-01.pddl
-#PDDL_FILE=~/pddls/unsolv-total/document-transfer/prob09.pddl
-PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob07.pddl
+PDDL_FILE=~/pddls/unsolv-total/bag-gripper/prob24.pddl
+#PDDL_FILE=~/pddls/unsolv-total/bottleneck/prob07.pddl
 #PDDL_FILE="/home/simsal00/pddls/unsolv-total/cave-diving/dom05.pddl /home/simsal00/pddls/unsolv-total/cave-diving/prob05.pddl"
 #PDDL_FILE=~/pddls/unsolv-total/chessboard-pebbling/prob03.pddl
 echo "-------------------------------------------------"

@@ -38,6 +38,8 @@ def main():
                 exitcode = run_components.run_search(args)
             elif component == "validate":
                 run_components.run_validate(args)
+            elif component == "verify":
+                exitcode = run_components.run_verify(args)
             else:
                 assert False
         except subprocess.CalledProcessError as err:
