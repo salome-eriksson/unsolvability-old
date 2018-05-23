@@ -179,17 +179,31 @@ int main(int argc, char** argv) {
     std::string certificate_file = argv[2];
 
     // expand environment variables
-    static std::regex env( "\\$\\{([^}]+)\\}" );
-    std::smatch match;
-    while ( std::regex_search( task_file, match, env ) ) {
-        const char * s = getenv( match[1].str().c_str() );
-        const std::string var( s == NULL ? "" : s );
-        task_file.replace( match.position(0), match.length(0), var );
+    size_t found = task_file.find('$');
+    while(found != std::string::npos) {
+       size_t end = task_file.find('/');
+       std::string envvar;
+       if(end == std::string::npos) {
+           envvar = task_file.substr(found+1);
+       } else {
+           envvar = task_file.substr(found+1,end-found-1);
+       }
+      std::string expanded = std::getenv(envvar.c_str());
+      task_file.replace(found,envvar.length()+1,expanded);
+      found = task_file.find('$');
     }
-    while ( std::regex_search( certificate_file, match, env ) ) {
-        const char * s = getenv( match[1].str().c_str() );
-        const std::string var( s == NULL ? "" : s );
-        certificate_file.replace( match.position(0), match.length(0), var );
+    found = certificate_file.find('$');
+    while(found != std::string::npos) {
+       size_t end = certificate_file.find('/');
+       std::string envvar;
+       if(end == std::string::npos) {
+           envvar = certificate_file.substr(found+1);
+       } else {
+           envvar = certificate_file.substr(found+1,end-found-1);
+       }
+      std::string expanded = std::getenv(envvar.c_str());
+      certificate_file.replace(found,envvar.length()+1,expanded);
+      found = certificate_file.find('$');
     }
 
     int x = std::numeric_limits<int>::max();
