@@ -184,12 +184,12 @@ int main(int argc, char** argv) {
     while ( std::regex_search( task_file, match, env ) ) {
         const char * s = getenv( match[1].str().c_str() );
         const std::string var( s == NULL ? "" : s );
-        task_file.replace( match[0].first, match[0].second, var );
+        task_file.replace( match.position(0), match.length(0), var );
     }
     while ( std::regex_search( certificate_file, match, env ) ) {
         const char * s = getenv( match[1].str().c_str() );
         const std::string var( s == NULL ? "" : s );
-        certificate_file.replace( match[0].first, match[0].second, var );
+        certificate_file.replace( match.position(0), match.length(0), var );
     }
 
     int x = std::numeric_limits<int>::max();
