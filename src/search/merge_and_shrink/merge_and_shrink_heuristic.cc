@@ -28,6 +28,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 using namespace std;
 using utils::ExitCode;
@@ -405,10 +406,14 @@ void MergeAndShrinkHeuristic::setup_unsolvability_proof() {
 std::pair<int,int> MergeAndShrinkHeuristic::prove_superset_dead(const GlobalState &state) {
     UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
     if(setid < 0) {
-        CuddBDD certificate(cudd_manager, false);
-        std::vector<CuddBDD> dummy_vector;
-        mas_representation->get_unsolvability_certificate(&certificate, dummy_vector, false);
-        std::vector<CuddBDD>bdds(1,certificate);
+        std::unordered_map<int, CuddBDD> bdd_map;
+        bdd_map.insert({0, CuddBDD(cudd_manager, false)});
+        bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
+        CuddBDD *certificate =
+                mas_representation->get_unsolvability_certificate(cudd_manager, bdd_map, true);
+
+        std::vector<CuddBDD>bdds(1,*certificate);
+        delete certificate;
 
         std::stringstream ss;
         ss << UnsolvabilityManager::getInstance().get_directory() << this << ".bdd";

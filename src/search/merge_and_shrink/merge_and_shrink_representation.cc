@@ -65,24 +65,64 @@ void MergeAndShrinkRepresentationLeaf::dump() const {
     cout << endl;
 }
 
-void MergeAndShrinkRepresentationLeaf::get_unsolvability_certificate(CuddBDD* h_inf,
-            std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
-    int val;
-    for(size_t i = 0; i < lookup_table.size(); ++i) {
-        val = lookup_table[i];
-        CuddBDD fact_bdd(h_inf->get_manager(), var_id, i, false);
-        for(size_t x = 0; x < lookup_table.size(); ++x) {
-            if(x == i) {
-                continue;
-            }
-            fact_bdd.land(var_id, x, true);
-        }
-        if(val == -1) {
-            h_inf->lor(fact_bdd);
-        } else if(fill_bdd_for_val) {
-            bdd_for_val[val].lor(fact_bdd);
-        }
+void MergeAndShrinkRepresentationLeaf::get_bdds(
+        CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) {
+
+    CuddBDD mutexbdd = CuddBDD(manager,false);
+
+    std::vector<std::pair<int,int>> pos;
+    std::vector<std::pair<int,int>> neg;
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        neg.push_back(std::make_pair(var_id, i));
     }
+    pos.push_back(std::make_pair(var_id, 0));
+
+    CuddBDD varbdd = CuddBDD(manager, pos, neg);
+    bdd_for_val.insert({lookup_table[0],varbdd});
+    mutexbdd.lor(varbdd);
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        neg[i-1].second = i-1;
+        pos[0].second = i;
+        varbdd = CuddBDD(manager, pos, neg);
+        if(bdd_for_val.find(lookup_table[i]) == bdd_for_val.end()) {
+            bdd_for_val.insert({lookup_table[i],varbdd});
+        } else {
+            bdd_for_val[lookup_table[i]].lor(varbdd);
+        }
+        mutexbdd.lor(varbdd);
+    }
+    bdd_for_val.insert({-2, mutexbdd});
+}
+
+CuddBDD *MergeAndShrinkRepresentationLeaf::get_unsolvability_certificate(
+            CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) {
+
+    CuddBDD* b_inf = new CuddBDD(manager, false);
+
+    std::vector<std::pair<int,int>> pos;
+    std::vector<std::pair<int,int>> neg;
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        neg.push_back(std::make_pair(var_id, i));
+    }
+    pos.push_back(std::make_pair(var_id, 0));
+
+    int val = lookup_table[0];
+    CuddBDD varbdd = CuddBDD(manager, pos, neg);
+    varbdd.land(bdd_for_val[val]);
+    b_inf->lor(varbdd);
+
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        val = lookup_table[i];
+        neg[i-1].second = i-1;
+        pos[0].second = i;
+        if(first && val >= 0) {
+            val = 0;
+        }
+        varbdd = CuddBDD(manager, pos, neg);
+        varbdd.land(bdd_for_val[val]);
+        b_inf->lor(varbdd);
+    }
+    return b_inf;
 }
 
 MergeAndShrinkRepresentationMerge::MergeAndShrinkRepresentationMerge(
@@ -151,41 +191,50 @@ void MergeAndShrinkRepresentationMerge::dump() const {
     right_child->dump();
 }
 
-/*
- * h_inf: states with infinite estimate
- * bdd_for_val: is filled with bdds for each value (each bdd represents the
- * variable assignment so far that maps to the value in the lookup_table for the current
- * HeuristicRepresentation)
- * fill_bdd_for_val: if bdd_for_val should be filled (this will not be necessary for the "root"
- * table, since we are only interested in the states with infinite estimate
- */
-void MergeAndShrinkRepresentationMerge::get_unsolvability_certificate(CuddBDD* h_inf,
-         std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) {
-    CuddManager* manager = h_inf->get_manager();
+void MergeAndShrinkRepresentationMerge::get_bdds(
+        CuddManager *, std::unordered_map<int, CuddBDD> &) {
+    // TODO: clearer error message
+    std::cerr << "Non-linear merge strategy";
+    exit(1);
+}
+
+
+CuddBDD* MergeAndShrinkRepresentationMerge::get_unsolvability_certificate(
+         CuddManager * manager, std::unordered_map<int,CuddBDD> &bdd_for_val, bool first) {
     size_t rows = lookup_table.size();
     size_t columns = lookup_table[0].size();
-    //get the bdds for the child nodes
-    std::vector<CuddBDD> left_child_bdds(rows, CuddBDD(manager, false));
-    std::vector<CuddBDD> right_child_bdds(columns, CuddBDD(manager, false));
-    left_child->get_unsolvability_certificate(h_inf, left_child_bdds, true);
-    right_child->get_unsolvability_certificate(h_inf, right_child_bdds, true);
+
+    std::unordered_map<int, CuddBDD> row_bdds;
+
+    // for linear merge strategies, the right child is always an atomic abstraction
+    std::unordered_map<int, CuddBDD> right_child_bdds;
+    right_child->get_bdds(manager, right_child_bdds);
 
 
     int val;
-    CuddBDD tmp(manager);
     for(size_t i = 0; i < rows; ++i) {
+        CuddBDD b_i = CuddBDD(manager, false);
         for(size_t j = 0; j < columns; ++j) {
             val = lookup_table[i][j];
-            if(val == -1) {
-                tmp = left_child_bdds[i];
-                tmp.land(right_child_bdds[j]);
-                h_inf->lor(tmp);
-            } else if(fill_bdd_for_val) {
-                tmp = left_child_bdds[i];
-                tmp.land(right_child_bdds[j]);
-                bdd_for_val[val].lor(tmp);
+            if(first && val >= 0) {
+                val = 0;
             }
+            CuddBDD right_child = right_child_bdds[j];
+            right_child.land(bdd_for_val[val]);
+            b_i.lor(right_child);
         }
+        if(right_child_bdds.find(-1) != right_child_bdds.end()) {
+            CuddBDD right_child = right_child_bdds[-1];
+            right_child.land(bdd_for_val[-1]);
+            b_i.lor(right_child);
+        }
+        row_bdds.insert({i, b_i});
     }
+    // TODO: Hack: -2 is the mutex BDD
+    CuddBDD mutex_bdd = right_child_bdds[-2];
+    mutex_bdd.land(bdd_for_val[-1]);
+    row_bdds.insert({-1, mutex_bdd});
+
+    return left_child->get_unsolvability_certificate(manager, row_bdds, false);
 }
 }
