@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ -n $SLURM_JOBID ]
+then
+  if [ "$(ls -A $TMPDIR)" ]
+  then
+    CERT_SIZE="Certificate size: "
+    CERT_SIZE+=$(du -csk -- $TMPDIR | tail -n 1)
+    echo $CERT_SIZE | sed -e "s/ total$//"
+  else
+    echo "Certificate size: 0"
+  fi
+fi

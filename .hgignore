@@ -5,7 +5,9 @@
 ^experiments/issue[0-9]*/.*.-microbenchmark/\.obj/
 ^experiments/issue[0-9]*/.*.-microbenchmark/benchmark$
 ^experiments/issue[0-9]*/.*.-microbenchmark/Makefile\.depend$
-^experiments/unsolvability
+^experiments/old_unsolvability
+^experiments/unsolvability-proofsystem
+^experiments/test
 ^misc/autodoc/downward-xmlrpc\.secret$
 ^builds/
 ^src/CMakeLists.txt.user$
