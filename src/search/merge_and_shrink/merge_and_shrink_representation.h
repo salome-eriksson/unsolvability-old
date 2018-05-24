@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <unordered_map>
 
 #include "../unsolvability/cudd_interface.h"
 
@@ -28,8 +29,9 @@ public:
     virtual void apply_abstraction_to_lookup_table(
         const std::vector<int> &abstraction_mapping) = 0;
     virtual void dump() const = 0;
-    virtual void get_unsolvability_certificate(CuddBDD* h_inf,
-                std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val) = 0;
+    virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) = 0;
+    virtual CuddBDD* get_unsolvability_certificate(
+                CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) = 0;
 };
 
 
@@ -46,8 +48,9 @@ public:
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_value(const State &state) const override;
     virtual void dump() const override;
-    virtual void get_unsolvability_certificate(CuddBDD* h_inf,
-                std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val);
+    virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
+    virtual CuddBDD* get_unsolvability_certificate(
+                CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
 };
 
 
@@ -66,8 +69,9 @@ public:
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_value(const State &state) const override;
     virtual void dump() const override;
-    virtual void get_unsolvability_certificate(CuddBDD* h_inf,
-                std::vector<CuddBDD> &bdd_for_val, bool fill_bdd_for_val);
+    virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
+    virtual CuddBDD* get_unsolvability_certificate(
+                CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
 };
 }
 
