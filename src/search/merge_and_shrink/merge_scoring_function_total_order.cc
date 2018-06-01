@@ -23,12 +23,12 @@ MergeScoringFunctionTotalOrder::MergeScoringFunctionTotalOrder(
     : atomic_ts_order(AtomicTSOrder(options.get_enum("atomic_ts_order"))),
       product_ts_order(ProductTSOrder(options.get_enum("product_ts_order"))),
       atomic_before_product(options.get<bool>("atomic_before_product")),
-      random_seed(options.get<int>("random_seed")) {
-    rng = utils::parse_rng_from_options(options);
+      random_seed(options.get<int>("random_seed")),
+      rng(utils::parse_rng_from_options(options)) {
 }
 
 vector<double> MergeScoringFunctionTotalOrder::compute_scores(
-    FactoredTransitionSystem &,
+    const FactoredTransitionSystem &,
     const vector<pair<int, int>> &merge_candidates) {
     assert(initialized);
     vector<double> scores;
@@ -67,6 +67,7 @@ void MergeScoringFunctionTotalOrder::initialize(const TaskProxy &task_proxy) {
 
     // Compute the order in which atomic transition systems are considered
     vector<int> atomic_tso;
+    atomic_tso.reserve(num_variables);
     for (int i = 0; i < num_variables; ++i) {
         atomic_tso.push_back(i);
     }

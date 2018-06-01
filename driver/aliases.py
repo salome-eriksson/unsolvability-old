@@ -21,7 +21,7 @@ ALIASES["seq-sat-fd-autotune-1"] = [
 lazy(alt([single(sum([g(),weight(hff,10)])),
           single(sum([g(),weight(hff,10)]),pref_only=true)],
          boost=2000),
-     preferred=hff,reopen_closed=false,cost_type=one),
+     preferred=[hff],reopen_closed=false,cost_type=one),
 lazy(alt([single(sum([g(),weight(hAdd,7)])),
           single(sum([g(),weight(hAdd,7)]),pref_only=true),
           single(sum([g(),weight(hcg,7)])),
@@ -60,7 +60,7 @@ ALIASES["seq-sat-fd-autotune-2"] = [
     "--heuristic", "hgc=goalcount(transform=adapt_costs(plusone))",
     "--heuristic", "hff=ff()",
     "--search", """iterated([
-ehc(hcea,preferred=hcea,preferred_usage=0,cost_type=normal),
+ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),
 lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),
           single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),
           single(sum([weight(g(),2),weight(hcg,3)])),
@@ -96,7 +96,8 @@ lazy(alt([single(sum([g(),weight(hff,2)])),
 ALIASES["seq-sat-lama-2011"] = [
     "--if-unit-cost",
     "--heuristic",
-    "hlm,hff=lm_ff_syn(lm_rhw(reasonable_orders=true))",
+    "hlm=lama_synergy(lm_rhw(reasonable_orders=true))",
+    "--heuristic", "hff=ff_synergy(hlm)",
     "--search", """iterated([
                      lazy_greedy([hff,hlm],preferred=[hff,hlm]),
                      lazy_wastar([hff,hlm],preferred=[hff,hlm],w=5),
@@ -106,11 +107,13 @@ ALIASES["seq-sat-lama-2011"] = [
                      ],repeat_last=true,continue_on_fail=true)""",
     "--if-non-unit-cost",
     "--heuristic",
-    "hlm1,hff1=lm_ff_syn(lm_rhw(reasonable_orders=true,"
+    "hlm1=lama_synergy(lm_rhw(reasonable_orders=true,"
     "                           lm_cost_type=one),transform=adapt_costs(one))",
+    "--heuristic", "hff1=ff_synergy(hlm1)",
     "--heuristic",
-    "hlm2,hff2=lm_ff_syn(lm_rhw(reasonable_orders=true,"
+    "hlm2=lama_synergy(lm_rhw(reasonable_orders=true,"
     "                           lm_cost_type=plusone),transform=adapt_costs(plusone))",
+    "--heuristic", "hff2=ff_synergy(hlm2)",
     "--search", """iterated([
                      lazy_greedy([hff1,hlm1],preferred=[hff1,hlm1],
                                  cost_type=one,reopen_closed=false),
@@ -127,8 +130,9 @@ ALIASES["seq-sat-lama-2011"] = [
 
 ALIASES["lama-first"] = [
     "--heuristic",
-    "hlm,hff=lm_ff_syn(lm_rhw(reasonable_orders=true,lm_cost_type=one),"
-    "                  transform=adapt_costs(one))",
+    """hlm=lama_synergy(lm_rhw(reasonable_orders=true,lm_cost_type=one),
+                               transform=adapt_costs(one))""",
+    "--heuristic", "hff=ff_synergy(hlm)",
     "--search", """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)"""]
 

@@ -1,7 +1,6 @@
 #include "alternation_open_list.h"
 
-#include "open_list.h"
-
+#include "../open_list.h"
 #include "../option_parser.h"
 #include "../plugin.h"
 
@@ -15,7 +14,7 @@
 using namespace std;
 using utils::ExitCode;
 
-
+namespace alternation_open_list {
 template<class Entry>
 class AlternationOpenList : public OpenList<Entry> {
     vector<unique_ptr<OpenList<Entry>>> open_lists;
@@ -34,11 +33,16 @@ public:
     virtual bool empty() const override;
     virtual void clear() override;
     virtual void boost_preferred() override;
-    virtual void get_involved_heuristics(set<Heuristic *> &hset) override;
+    virtual void get_path_dependent_evaluators(
+        set<Evaluator *> &evals) override;
     virtual bool is_dead_end(
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 
@@ -103,10 +107,10 @@ void AlternationOpenList<Entry>::boost_preferred() {
 }
 
 template<class Entry>
-void AlternationOpenList<Entry>::get_involved_heuristics(
-    set<Heuristic *> &hset) {
+void AlternationOpenList<Entry>::get_path_dependent_evaluators(
+    set<Evaluator *> &evals) {
     for (const auto &sublist : open_lists)
-        sublist->get_involved_heuristics(hset);
+        sublist->get_path_dependent_evaluators(evals);
 }
 
 template<class Entry>
@@ -131,6 +135,24 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
     return false;
 }
 
+template<class Entry>
+std::pair<int,int> AlternationOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (const auto &sublist : open_lists) {
+        if(sublist->is_dead_end(eval_context)) {
+            return sublist->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void AlternationOpenList<Entry>::finish_unsolvability_proof() {
+    for (const auto &sublist : open_lists) {
+        sublist->finish_unsolvability_proof();
+    }
+}
 
 AlternationOpenListFactory::AlternationOpenListFactory(const Options &options)
     : options(options) {
@@ -167,3 +189,4 @@ static shared_ptr<OpenListFactory> _parse(OptionParser &parser) {
 }
 
 static PluginShared<OpenListFactory> _plugin("alt", _parse);
+}

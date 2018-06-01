@@ -1,18 +1,17 @@
 #ifndef SEARCH_ENGINES_EAGER_SEARCH_H
 #define SEARCH_ENGINES_EAGER_SEARCH_H
 
+#include "../open_list.h"
 #include "../search_engine.h"
 
-#include "../open_lists/open_list.h"
 #include "../unsolvability/cudd_interface.h"
 
 #include <memory>
 #include <vector>
 
-class GlobalOperator;
+class Evaluator;
 class Heuristic;
 class PruningMethod;
-class ScalarEvaluator;
 
 namespace options {
 class Options;
@@ -25,9 +24,9 @@ class EagerSearch : public SearchEngine {
     const bool generate_certificate;
 
     std::unique_ptr<StateOpenList> open_list;
-    ScalarEvaluator *f_evaluator;
+    Evaluator *f_evaluator;
 
-    std::vector<Heuristic *> heuristics;
+    std::vector<Evaluator *> path_dependent_evaluators;
     std::vector<Heuristic *> preferred_operator_heuristics;
 
     std::shared_ptr<PruningMethod> pruning_method;
@@ -37,6 +36,8 @@ class EagerSearch : public SearchEngine {
     void update_f_value_statistics(const SearchNode &node);
     void reward_progress();
     void print_checkpoint_line(int g) const;
+
+    std::string unsolvability_directory;
 
 protected:
     virtual void initialize() override;

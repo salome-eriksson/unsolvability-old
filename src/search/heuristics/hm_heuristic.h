@@ -2,6 +2,7 @@
 #define HEURISTICS_HM_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../evaluation_context.h"
 
 #include <algorithm>
 #include <iostream>
@@ -33,6 +34,7 @@ class HMHeuristic : public Heuristic {
     std::map<Tuple, int> hm_table;
     bool was_updated;
 
+    bool unsolvability_setup;
     std::vector<std::vector<int>> fact_to_variable;
     int strips_varamount;
     std::string mutexes;
@@ -62,6 +64,8 @@ class HMHeuristic : public Heuristic {
 
     void dump_table() const;
 
+    void setup_unsolvability_proof();
+
 protected:
     virtual int compute_heuristic(const GlobalState &global_state);
 
@@ -70,8 +74,8 @@ public:
 
     virtual bool dead_ends_are_reliable() const;
 
-    virtual void setup_unsolvability_proof();
-    virtual std::pair<int,int> prove_superset_dead(const GlobalState &state) override;
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }
 

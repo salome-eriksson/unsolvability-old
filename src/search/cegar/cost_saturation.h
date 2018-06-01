@@ -8,6 +8,8 @@
 
 namespace utils {
 class CountdownTimer;
+class Duration;
+class RandomNumberGenerator;
 }
 
 namespace cegar {
@@ -28,6 +30,7 @@ class CostSaturation {
     const double max_time;
     const bool use_general_costs;
     const PickSplit pick_split;
+    utils::RandomNumberGenerator &rng;
 
     std::vector<CartesianHeuristicFunction> heuristic_functions;
     std::vector<int> remaining_costs;
@@ -44,7 +47,7 @@ class CostSaturation {
         const std::vector<std::shared_ptr<AbstractTask>> &subtasks,
         const utils::CountdownTimer &timer,
         std::function<bool()> should_abort);
-    void print_statistics() const;
+    void print_statistics(utils::Duration init_time) const;
 
 public:
     CostSaturation(
@@ -53,7 +56,8 @@ public:
         int max_non_looping_transitions,
         double max_time,
         bool use_general_costs,
-        PickSplit pick_split);
+        PickSplit pick_split,
+        utils::RandomNumberGenerator &rng);
 
     std::vector<CartesianHeuristicFunction> generate_heuristic_functions(
         const std::shared_ptr<AbstractTask> &task);

@@ -1,12 +1,12 @@
 #include "state_registry.h"
 
-#include "global_operator.h"
 #include "per_state_information.h"
+#include "task_proxy.h"
 
 using namespace std;
 
 StateRegistry::StateRegistry(
-    const AbstractTask &task, const IntPacker &state_packer,
+    const AbstractTask &task, const int_packer::IntPacker &state_packer,
     AxiomEvaluator &axiom_evaluator, const vector<int> &initial_state_data)
     : task(task),
       state_packer(state_packer),
@@ -15,7 +15,6 @@ StateRegistry::StateRegistry(
       num_variables(initial_state_data.size()),
       state_data_pool(get_bins_per_state()),
       registered_states(
-          0,
           StateIDSemanticHash(state_data_pool, get_bins_per_state()),
           StateIDSemanticEqual(state_data_pool, get_bins_per_state())),
       cached_initial_state(0) {
@@ -38,13 +37,13 @@ StateID StateRegistry::insert_id_or_pop_state() {
       state data pool.
     */
     StateID id(state_data_pool.size() - 1);
-    pair<StateIDSet::iterator, bool> result = registered_states.insert(id);
+    pair<int, bool> result = registered_states.insert(id.value);
     bool is_new_entry = result.second;
     if (!is_new_entry) {
         state_data_pool.pop_back();
     }
-    assert(registered_states.size() == state_data_pool.size());
-    return *result.first;
+    assert(registered_states.size() == static_cast<int>(state_data_pool.size()));
+    return StateID(result.first);
 }
 
 GlobalState StateRegistry::lookup_state(StateID id) const {
@@ -72,14 +71,15 @@ const GlobalState &StateRegistry::get_initial_state() {
 //TODO it would be nice to move the actual state creation (and operator application)
 //     out of the StateRegistry. This could for example be done by global functions
 //     operating on state buffers (PackedStateBin *).
-GlobalState StateRegistry::get_successor_state(const GlobalState &predecessor, const GlobalOperator &op) {
+GlobalState StateRegistry::get_successor_state(const GlobalState &predecessor, const OperatorProxy &op) {
     assert(!op.is_axiom());
     state_data_pool.push_back(predecessor.get_packed_buffer());
     PackedStateBin *buffer = state_data_pool[state_data_pool.size() - 1];
-    for (size_t i = 0; i < op.get_effects().size(); ++i) {
-        const GlobalEffect &effect = op.get_effects()[i];
-        if (effect.does_fire(predecessor))
-            state_packer.set(buffer, effect.var, effect.val);
+    for (EffectProxy effect : op.get_effects()) {
+        if (does_fire(effect, predecessor)) {
+            FactPair effect_pair = effect.get_fact().get_pair();
+            state_packer.set(buffer, effect_pair.var, effect_pair.value);
+        }
     }
     axiom_evaluator.evaluate(buffer, state_packer);
     StateID id = insert_id_or_pop_state();
@@ -100,4 +100,9 @@ void StateRegistry::subscribe(PerStateInformationBase *psi) const {
 
 void StateRegistry::unsubscribe(PerStateInformationBase *const psi) const {
     subscribers.erase(psi);
+}
+
+void StateRegistry::print_statistics() const {
+    cout << "Number of registered states: " << size() << endl;
+    registered_states.print_statistics();
 }

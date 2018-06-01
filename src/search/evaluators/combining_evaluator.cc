@@ -7,10 +7,10 @@ using namespace std;
 
 namespace combining_evaluator {
 CombiningEvaluator::CombiningEvaluator(
-    const vector<ScalarEvaluator *> &subevaluators_)
+    const vector<Evaluator *> &subevaluators_)
     : subevaluators(subevaluators_) {
     all_dead_ends_are_reliable = true;
-    for (const ScalarEvaluator *subevaluator : subevaluators)
+    for (const Evaluator *subevaluator : subevaluators)
         if (!subevaluator->dead_ends_are_reliable())
             all_dead_ends_are_reliable = false;
 }
@@ -30,7 +30,7 @@ EvaluationResult CombiningEvaluator::compute_result(
     values.reserve(subevaluators.size());
 
     // Collect component values. Return infinity if any is infinite.
-    for (ScalarEvaluator *subevaluator : subevaluators) {
+    for (Evaluator *subevaluator : subevaluators) {
         int h_val = eval_context.get_heuristic_value_or_infinity(subevaluator);
         if (h_val == EvaluationResult::INFTY) {
             result.set_h_value(h_val);
@@ -45,8 +45,21 @@ EvaluationResult CombiningEvaluator::compute_result(
     return result;
 }
 
-void CombiningEvaluator::get_involved_heuristics(set<Heuristic *> &hset) {
-    for (size_t i = 0; i < subevaluators.size(); ++i)
-        subevaluators[i]->get_involved_heuristics(hset);
+void CombiningEvaluator::get_path_dependent_evaluators(
+    set<Evaluator *> &evals) {
+    for (auto &subevaluator : subevaluators)
+        subevaluator->get_path_dependent_evaluators(evals);
 }
+
+std::pair<int,int> CombiningEvaluator::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (Evaluator *evaluator : subevaluators) {
+        if (eval_context.is_heuristic_infinite(evaluator)) {
+            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
 }

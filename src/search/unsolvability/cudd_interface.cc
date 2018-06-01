@@ -1,6 +1,4 @@
 #include "cudd_interface.h"
-#include "../globals.h"
-#include "../global_operator.h"
 #include "../utils/timer.h"
 
 #include <algorithm>
@@ -38,8 +36,8 @@ CuddBDD::CuddBDD(CuddManager *manager, int var, int val, bool neg)
 
 CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
     : manager(manager) {
-    std::vector<int> cube(manager->amount_vars, 0);
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
+    std::vector<int> cube(manager->bdd_varamount, 0);
+    for(size_t i = 0; i < manager->task_proxy.get_variables().size(); ++i) {
         cube[manager->fact_to_var[i][state[i]]] = 1;
     }
     bdd = Cudd_CubeArrayToBdd(manager->ddmgr, &cube[0]);
@@ -49,7 +47,7 @@ CuddBDD::CuddBDD(CuddManager *manager, const GlobalState &state)
 CuddBDD::CuddBDD(CuddManager *manager,const std::vector<std::pair<int,int> >& pos_facts,
                  const std::vector<std::pair<int,int> > &neg_facts)
     : manager(manager) {
-    std::vector<int> cube(manager->amount_vars, 2);
+    std::vector<int> cube(manager->bdd_varamount, 2);
     for(size_t i = 0; i < pos_facts.size(); ++i) {
         const std::pair<int,int>& p = pos_facts[i];
         assert(p.first < (int)manager->fact_to_var.size()
@@ -165,43 +163,44 @@ void CuddBDD::dumpBDD(std::string filename, std::string bddname) const {
     fclose(f);
 }
 
-CuddManager::CuddManager() {
-    fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
-    var_order.resize(g_variable_domain.size());
-    amount_vars = 0;
+CuddManager::CuddManager(std::shared_ptr<AbstractTask> task)
+    : task(task), task_proxy(*task) {
+    int varamount = task_proxy.get_variables().size();
+    fact_to_var.resize(varamount, std::vector<int>());
+    var_order.resize(varamount);
+    bdd_varamount = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {
         var_order[i] = i;
-        fact_to_var[i].resize(g_variable_domain[i]);
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
-            fact_to_var[i][j] = amount_vars++;
+        int domsize = task_proxy.get_variables()[i].get_domain_size();
+        fact_to_var[i].resize(domsize);
+        for(int j = 0; j < domsize; ++j) {
+            fact_to_var[i][j] = bdd_varamount++;
         }
     }
-    ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
+    ddmgr = Cudd_Init(bdd_varamount,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
     Cudd_InstallOutOfMemoryHandler(exit_oom);
     Cudd_UnregisterOutOfMemoryCallback(ddmgr);
 }
 
 
 
-CuddManager::CuddManager(std::vector<int> &var_order)
-    : var_order(var_order) {
-    assert(var_order.size() == g_variable_domain.size());
-    fact_to_var.resize(g_variable_domain.size(), std::vector<int>());
-    amount_vars = 0;
+CuddManager::CuddManager(std::shared_ptr<AbstractTask> task, std::vector<int> &var_order)
+    : var_order(var_order), task(task), task_proxy(*task){
+    int varamount = task_proxy.get_variables().size();
+    assert(var_order.size() == varmount);
+    fact_to_var.resize(varamount, std::vector<int>());
+    bdd_varamount = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {
         int index = var_order[i];
-        fact_to_var[index].resize(g_variable_domain[index]);
-        for(int j = 0; j < g_variable_domain[index]; ++j) {
-            fact_to_var[index][j] = amount_vars++;
+        int domsize = task_proxy.get_variables()[index].get_domain_size();
+        fact_to_var[index].resize(domsize);
+        for(int j = 0; j < domsize; ++j) {
+            fact_to_var[index][j] = bdd_varamount++;
         }
     }
-    ddmgr = Cudd_Init(amount_vars,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
+    ddmgr = Cudd_Init(bdd_varamount,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
     Cudd_InstallOutOfMemoryHandler(exit_oom);
     Cudd_UnregisterOutOfMemoryCallback(ddmgr);
-}
-
-int CuddManager::get_amount_vars() const {
-    return amount_vars;
 }
 
 const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {

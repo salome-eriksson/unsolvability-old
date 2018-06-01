@@ -3,16 +3,16 @@
 
 #include "../pruning_method.h"
 
-class GlobalOperator;
 class GlobalState;
 
 namespace null_pruning_method {
 class NullPruningMethod : public PruningMethod {
 public:
-    NullPruningMethod();
-    virtual ~NullPruningMethod() = default;
-    virtual void prune_operators(const GlobalState & /*state*/,
-                                 std::vector<const GlobalOperator *> & /*ops*/) override {}
+    virtual void initialize(const std::shared_ptr<AbstractTask> &) override;
+    virtual void prune_operators(const State &,
+                                 std::vector<OperatorID> &) override {}
+    virtual void prune_operators(const GlobalState &,
+                                 std::vector<OperatorID> &) override {}
     virtual void print_statistics() const override {}
 };
 }
