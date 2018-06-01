@@ -156,6 +156,18 @@ void SearchEngine::add_succ_order_options(OptionParser &parser) {
     utils::add_rng_options(parser);
 }
 
+void SearchEngine::add_unsolvability_options(OptionParser &parser) {
+    parser.add_option<bool>(
+        "generate_certificate",
+        "If the task is detected as unsolvable, generate a certificate of unsolvability.",
+        "false");
+    parser.add_option<std::string>(
+        "certificate_directory",
+        "The directory in which the unsolvability certificate should be written."
+        "Defaults to current directory if none is set.",
+        ".");
+}
+
 void print_initial_h_values(const EvaluationContext &eval_context) {
     eval_context.get_cache().for_each_evaluator_result(
         [] (const Evaluator *eval, const EvaluationResult &result) {

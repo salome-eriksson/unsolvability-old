@@ -27,6 +27,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 using namespace std;
 using utils::ExitCode;
@@ -48,6 +49,7 @@ MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const Options &opts)
       prune_irrelevant_states(opts.get<bool>("prune_irrelevant_states")),
       verbosity(static_cast<Verbosity>(opts.get_enum("verbosity"))),
       starting_peak_memory(-1),
+      unsolvability_setup(false),
       mas_representation(nullptr) {
     assert(max_states_before_merge > 0);
     assert(max_states >= max_states_before_merge);
@@ -211,6 +213,8 @@ int MergeAndShrinkHeuristic::main_loop(
         }
     }
 
+    bool first = true;
+
     unique_ptr<MergeStrategy> merge_strategy =
         merge_strategy_factory->compute_merge_strategy(task_proxy, fts);
     merge_strategy_factory = nullptr;
@@ -222,6 +226,12 @@ int MergeAndShrinkHeuristic::main_loop(
         pair<int, int> merge_indices = merge_strategy->get_next();
         int merge_index1 = merge_indices.first;
         int merge_index2 = merge_indices.second;
+            //TODO hack for getting the variable order in case of linear merge strategy
+            if(first) {
+                variable_order.push_back(merge_index1);
+            }
+            variable_order.push_back(merge_index2);
+            first = false;
         assert(merge_index1 != merge_index2);
         if (verbosity >= Verbosity::NORMAL) {
             cout << "Next pair of indices: ("
@@ -333,7 +343,19 @@ int MergeAndShrinkHeuristic::main_loop(
     } else {
         cout << "Main loop terminated early because a factor is unsolvable. "
             "Statistics:" << endl;
+        std::vector<bool> covered = std::vector<bool>(task_proxy.get_variables().size(), false);
+        for(size_t i = 0; i < variable_order.size(); ++i) {
+            covered[variable_order[i]] = true;
+        }
+        for(size_t i = 0; i < covered.size(); ++i) {
+            if(!covered[i]) {
+                variable_order.push_back(i);
+            }
+        }
     }
+
+    assert(variable_order.size() == g_variable_domain.size());
+    cudd_manager = new CuddManager(task, variable_order);
 
     cout << "Maximum intermediate abstraction size: "
          << maximum_intermediate_size << endl;
@@ -464,6 +486,61 @@ void MergeAndShrinkHeuristic::handle_shrink_limit_options_defaults(Options &opts
     opts.set<int>("max_states_before_merge", max_states_before_merge);
     opts.set<int>("threshold_before_merge", threshold);
 }
+
+void MergeAndShrinkHeuristic::setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager) {
+    std::unordered_map<int, CuddBDD> bdd_map;
+    bdd_map.insert({0, CuddBDD(cudd_manager, false)});
+    bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
+    CuddBDD *certificate =
+            mas_representation->get_unsolvability_certificate(cudd_manager, bdd_map, true);
+
+    std::vector<CuddBDD>bdds(1,*certificate);
+    delete certificate;
+
+    std::stringstream ss;
+    ss << unsolvmanager.get_directory() << this << ".bdd";
+    bdd_filename = ss.str();
+    cudd_manager->dumpBDDs(bdds, bdd_filename);
+
+    setid = unsolvmanager.get_new_setid();
+    unsolvability_setup = true;
+}
+
+std::pair<int,int> MergeAndShrinkHeuristic::prove_superset_dead(
+        EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
+    if(!unsolvability_setup) {
+        setup_unsolvability_proof(unsolvmanager);
+    }
+
+    std::ofstream &certstream = unsolvmanager.get_stream();
+
+    certstream << "e " << setid << " b " << bdd_filename << " 0 ;\n";
+    int progid = unsolvmanager.get_new_setid();
+    certstream << "e " << progid << " p " << setid << "\n";
+    int union_set_empty = unsolvmanager.get_new_setid();;
+    certstream << "e " << union_set_empty << " u "
+               << setid << " " << unsolvmanager.get_emptysetid() << "\n";
+
+    int k_prog = unsolvmanager.get_new_knowledgeid();
+    certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b4\n";
+
+    int set_and_goal = unsolvmanager.get_new_setid();
+    certstream << "e " << set_and_goal << " i "
+               << setid << " " << unsolvmanager.get_goalsetid() << "\n";
+    int k_set_and_goal_empty = unsolvmanager.get_new_knowledgeid();
+    certstream << "k " << k_set_and_goal_empty << " s "
+               << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b3\n";
+    int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
+    certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
+               << " d3 " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
+
+    k_set_dead = unsolvmanager.get_new_knowledgeid();
+    certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
+               << unsolvmanager.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
+
+    return std::make_pair(setid, k_set_dead);
+}
+
 
 static Heuristic *_parse(OptionParser &parser) {
     parser.document_synopsis(

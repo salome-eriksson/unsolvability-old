@@ -25,9 +25,11 @@ REL_TRANSLATE_PATH = os.path.join("translate", "translate.py")
 if os.name == "posix":
     REL_SEARCH_PATH = "downward"
     VALIDATE = "validate"
+    REL_VERIFY_PATH = "verify"
 elif os.name == "nt":
     REL_SEARCH_PATH = "downward.exe"
     VALIDATE = "validate.exe"
+    REL_VERIFY_PATH = None
 else:
     sys.exit("Unsupported OS: " + os.name)
 
@@ -175,3 +177,33 @@ def run_validate(args):
             sys.exit("Error: %s not found. Is it on the PATH?" % VALIDATE)
         else:
             raise
+
+def run_verify(args):
+    logging.info("Running verify.")
+    
+    time_limit = limits.get_time_limit(
+        args.verify_time_limit, args.overall_time_limit)
+    memory_limit = limits.get_memory_limit(
+        args.verify_memory_limit, args.overall_memory_limit)        
+    
+    if time_limit:
+       args.verify_options.append(str(time_limit))
+    
+    print_component_settings(
+        "verify", args.verify_input, args.verify_options,
+        time_limit, memory_limit)
+    
+    verify = get_executable(args.build, REL_VERIFY_PATH)
+    logging.info("verify executable: %s" % verify)
+        
+    try:
+        call_component(
+            verify, args.verify_input + args.verify_options, [],
+            time_limit=time_limit, memory_limit=memory_limit)
+    except subprocess.CalledProcessError as err:
+        if err.returncode in returncodes.EXPECTED_EXITCODES:
+            return err.returncode
+        else:
+            raise
+    else:
+        return 0
