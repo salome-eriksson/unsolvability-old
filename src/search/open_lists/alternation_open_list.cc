@@ -39,6 +39,10 @@ public:
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 
@@ -131,6 +135,24 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
     return false;
 }
 
+template<class Entry>
+std::pair<int,int> AlternationOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (const auto &sublist : open_lists) {
+        if(sublist->is_dead_end(eval_context)) {
+            return sublist->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void AlternationOpenList<Entry>::finish_unsolvability_proof() {
+    for (const auto &sublist : open_lists) {
+        sublist->finish_unsolvability_proof();
+    }
+}
 
 AlternationOpenListFactory::AlternationOpenListFactory(const Options &options)
     : options(options) {

@@ -57,6 +57,7 @@ static shared_ptr<SearchEngine> _parse(OptionParser &parser) {
 
     SearchEngine::add_pruning_option(parser);
     SearchEngine::add_options_to_parser(parser);
+    SearchEngine::add_unsolvability_options(parser);
 
     Options opts = parser.parse();
     opts.verify_list_non_empty<Evaluator *>("evals");

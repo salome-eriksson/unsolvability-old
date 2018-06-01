@@ -19,6 +19,7 @@ determines the required input files:
 
 --translate: [DOMAIN] PROBLEM
 --search: TRANSLATE_OUTPUT
+--verify: TASK CERTIFICATE
 
 Arguments given before the specified input files are interpreted by the driver
 script ("driver options"). Arguments given after the input files are passed on
@@ -86,7 +87,7 @@ Examples:
 %s
 """ % "\n\n".join("%s\n%s" % (desc, " ".join(cmd)) for desc, cmd in EXAMPLES)
 
-COMPONENTS_PLUS_OVERALL = ["translate", "search", "overall"]
+COMPONENTS_PLUS_OVERALL = ["translate", "search", "verify", "overall"]
 
 
 class RawHelpFormatter(argparse.HelpFormatter):
@@ -149,6 +150,7 @@ def _split_planner_args(parser, args):
 
     args.translate_options = []
     args.search_options = []
+    args.verify_options = []
 
     curr_options = args.search_options
     for option in options:
@@ -156,6 +158,8 @@ def _split_planner_args(parser, args):
             curr_options = args.translate_options
         elif option == "--search-options":
             curr_options = args.search_options
+        elif option == "--verify-options":
+            curr_options = args.verify_options
         else:
             curr_options.append(option)
 
@@ -207,6 +211,8 @@ def _set_components_and_inputs(parser, args):
         args.components.append("translate")
     if args.search or args.run_all:
         args.components.append("search")
+    if args.verify:
+        args.components.append("verify")
 
     if not args.components:
         _set_components_automatically(parser, args)
@@ -219,6 +225,7 @@ def _set_components_and_inputs(parser, args):
 
     args.translate_inputs = []
     args.search_input = "output.sas"
+    args.verify_input = ["task.txt", "certificate.txt"]
 
     assert args.components
     first = args.components[0]
@@ -245,6 +252,13 @@ def _set_components_and_inputs(parser, args):
             args.search_input, = args.filenames
         else:
             parser.error("search needs exactly one input file")
+    elif first == "verify":
+        if "--help" in args.verify_options:
+            args.verify_input = None
+        elif num_files == 2:
+            args.verify_input = args.filenames
+        else:
+            parser.error("verifier needs exactly two input files")
     else:
         assert False, first
 
@@ -279,13 +293,16 @@ def parse_args():
                "(may select several; default: auto-select based on input file(s))"))
     components.add_argument(
         "--run-all", action="store_true",
-        help="run all components of the planner")
+        help="run all components of the planner (without verifier)")
     components.add_argument(
         "--translate", action="store_true",
         help="run translator component")
     components.add_argument(
         "--search", action="store_true",
         help="run search component")
+    components.add_argument(
+        "--verify", action="store_true",
+        help="run verify component")
 
     limits = parser.add_argument_group(
         title="time and memory limits", description=LIMITS_HELP)

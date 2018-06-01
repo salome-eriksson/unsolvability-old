@@ -2,6 +2,8 @@
 #define HEURISTICS_RELAXATION_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
+#include "../evaluation_context.h"
 
 #include <vector>
 
@@ -54,12 +56,28 @@ protected:
     std::vector<std::vector<Proposition>> propositions;
     std::vector<Proposition *> goal_propositions;
 
+    CuddManager *cudd_manager;
+    std::vector<CuddBDD> bdds;
+    /*
+     * the first int is a setid which corresponds to the BDD in the bdds vector
+     * the second int is a knowledgeid which corresponds to the knowledge that setid is dead
+     */
+    std::vector<std::pair<int,int>> set_and_knowledge_ids;
+    std::string bdd_filename;
+    bool unsolvability_setup;
+
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;
+
+    void setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager);
 public:
     RelaxationHeuristic(const options::Options &options);
     virtual ~RelaxationHeuristic();
     virtual bool dead_ends_are_reliable() const;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 }
 

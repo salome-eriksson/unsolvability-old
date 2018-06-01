@@ -50,4 +50,16 @@ void CombiningEvaluator::get_path_dependent_evaluators(
     for (auto &subevaluator : subevaluators)
         subevaluator->get_path_dependent_evaluators(evals);
 }
+
+std::pair<int,int> CombiningEvaluator::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (Evaluator *evaluator : subevaluators) {
+        if (eval_context.is_heuristic_infinite(evaluator)) {
+            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
 }

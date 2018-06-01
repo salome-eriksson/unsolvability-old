@@ -2,6 +2,8 @@
 #define EVALUATOR_H
 
 #include "evaluation_result.h"
+#include "../utils/system.h"
+#include "unsolvability/unsolvabilitymanager.h"
 
 #include <set>
 
@@ -76,6 +78,13 @@ public:
     */
     virtual EvaluationResult compute_result(
         EvaluationContext &eval_context) = 0;
+
+    virtual std::pair<int,int> prove_superset_dead(EvaluationContext &, UnsolvabilityManager &) {
+        std::cerr << "Not implemented!" << std::endl;
+        utils::exit_with(utils::ExitCode::UNSUPPORTED);
+    }
+
+    virtual void finish_unsolvability_proof() {}
 
     void report_value_for_initial_state(const EvaluationResult &result) const;
     void report_new_minimum_value(const EvaluationResult &result) const;

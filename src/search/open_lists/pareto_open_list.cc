@@ -56,6 +56,10 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
 
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
+
     static OpenList<Entry> *_parse(OptionParser &p);
 };
 
@@ -224,6 +228,25 @@ bool ParetoOpenList<Entry>::is_reliable_dead_end(
             evaluator->dead_ends_are_reliable())
             return true;
     return false;
+}
+
+template<class Entry>
+std::pair<int,int> ParetoOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (Evaluator *evaluator : evaluators) {
+        if (eval_context.is_heuristic_infinite(evaluator)) {
+            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void ParetoOpenList<Entry>::finish_unsolvability_proof() {
+    for (Evaluator *evaluator : evaluators) {
+        evaluator->finish_unsolvability_proof();
+    }
 }
 
 ParetoOpenListFactory::ParetoOpenListFactory(

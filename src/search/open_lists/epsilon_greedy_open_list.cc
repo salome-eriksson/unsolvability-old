@@ -57,6 +57,10 @@ public:
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
     virtual bool empty() const override;
     virtual void clear() override;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 template<class HeapNode>
@@ -120,6 +124,21 @@ template<class Entry>
 bool EpsilonGreedyOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
     return is_dead_end(eval_context) && evaluator->dead_ends_are_reliable();
+}
+
+template<class Entry>
+std::pair<int,int> EpsilonGreedyOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    if (eval_context.is_heuristic_infinite(evaluator)) {
+        return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void EpsilonGreedyOpenList<Entry>::finish_unsolvability_proof() {
+    evaluator->finish_unsolvability_proof();
 }
 
 template<class Entry>

@@ -4,6 +4,8 @@
 #include "../open_list.h"
 #include "../search_engine.h"
 
+#include "../unsolvability/cudd_interface.h"
+
 #include <memory>
 #include <vector>
 
@@ -19,6 +21,7 @@ namespace eager_search {
 class EagerSearch : public SearchEngine {
     const bool reopen_closed_nodes;
     const bool use_multi_path_dependence;
+    const bool generate_certificate;
 
     std::unique_ptr<StateOpenList> open_list;
     Evaluator *f_evaluator;
@@ -34,6 +37,8 @@ class EagerSearch : public SearchEngine {
     void reward_progress();
     void print_checkpoint_line(int g) const;
 
+    std::string unsolvability_directory;
+
 protected:
     virtual void initialize() override;
     virtual SearchStatus step() override;
@@ -45,6 +50,8 @@ public:
     virtual void print_statistics() const override;
 
     void dump_search_space() const;
+
+    void write_unsolvability_certificate();
 };
 }
 

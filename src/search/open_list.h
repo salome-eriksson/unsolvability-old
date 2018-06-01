@@ -6,6 +6,7 @@
 
 #include "evaluation_context.h"
 #include "operator_id.h"
+#include "unsolvability/unsolvabilitymanager.h"
 
 class StateID;
 
@@ -130,6 +131,10 @@ public:
     virtual bool is_dead_end(EvaluationContext &eval_context) const = 0;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const = 0;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) = 0;
+    virtual void finish_unsolvability_proof() = 0;
 };
 
 

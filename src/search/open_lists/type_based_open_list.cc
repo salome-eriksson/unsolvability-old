@@ -44,6 +44,10 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 template<class Entry>
@@ -132,6 +136,26 @@ bool TypeBasedOpenList<Entry>::is_reliable_dead_end(
     }
     return false;
 }
+
+template<class Entry>
+std::pair<int,int> TypeBasedOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (Evaluator *evaluator : evaluators) {
+        if (eval_context.is_heuristic_infinite(evaluator)) {
+            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void TypeBasedOpenList<Entry>::finish_unsolvability_proof() {
+    for (Evaluator *evaluator : evaluators) {
+        evaluator->finish_unsolvability_proof();
+    }
+}
+
 
 template<class Entry>
 void TypeBasedOpenList<Entry>::get_path_dependent_evaluators(
