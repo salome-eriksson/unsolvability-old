@@ -2,6 +2,8 @@
 #define UNSOLVABILITYMANAGER_H
 
 #include "../global_state.h"
+#include "../abstract_task.h"
+#include "../task_proxy.h"
 
 #include <fstream>
 
@@ -9,6 +11,9 @@
 class UnsolvabilityManager
 {
 private:
+    std::shared_ptr<AbstractTask> task;
+    TaskProxy task_proxy;
+
     int setcount;
     int knowledgecount;
 
@@ -22,9 +27,8 @@ private:
     std::string directory;
     std::vector<char> hex;
 
-    UnsolvabilityManager();
 public:
-    static UnsolvabilityManager &getInstance();
+    UnsolvabilityManager(std::string directory, std::shared_ptr<AbstractTask> task);
 
     int get_new_setid();
     int get_new_knowledgeid();
@@ -40,9 +44,6 @@ public:
 
     void dump_state(const GlobalState &state);
     void write_task_file() const;
-
-    UnsolvabilityManager(UnsolvabilityManager const&) = delete;
-    void operator=(UnsolvabilityManager const&) = delete;
 };
 
 #endif // UNSOLVABILITYMANAGER_H

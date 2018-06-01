@@ -9,6 +9,8 @@
 #include <fstream>
 
 #include "../global_state.h"
+#include "../abstract_task.h"
+#include "../task_proxy.h"
 #include "../utils/system.h"
 
 
@@ -77,17 +79,20 @@ class CuddManager {
     friend class CuddBDD;
 private:
 #ifdef USE_CUDD
-    CuddManager *instance;
     DdManager* ddmgr;
     std::vector<int> var_order;
     std::vector<std::vector<int>> fact_to_var;
-    int amount_vars;
+
+    // Hold a reference to the task implementation and pass it to objects that need it.
+    const std::shared_ptr<AbstractTask> task;
+    // Use task_proxy to access task information.
+    TaskProxy task_proxy;
+    int bdd_varamount;
 #endif
 public:
     // uses default var order
-    CUDD_METHOD(CuddManager())
-    CUDD_METHOD(CuddManager(std::vector<int> &var_order))
-    CUDD_METHOD(int get_amount_vars() const)
+    CUDD_METHOD(CuddManager(std::shared_ptr<AbstractTask> task))
+    CUDD_METHOD(CuddManager(std::shared_ptr<AbstractTask> task, std::vector<int> &var_order))
     CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
     // TODO: should this method be here?
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD> &bdds, std::string filename) const)

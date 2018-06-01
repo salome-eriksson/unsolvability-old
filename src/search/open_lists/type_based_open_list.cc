@@ -1,15 +1,16 @@
 #include "type_based_open_list.h"
 
-#include "open_list.h"
-
-#include "../globals.h"
+#include "../evaluator.h"
+#include "../open_list.h"
 #include "../option_parser.h"
 #include "../plugin.h"
 
 #include "../utils/collections.h"
+#include "../utils/hash.h"
 #include "../utils/markup.h"
 #include "../utils/memory.h"
 #include "../utils/rng.h"
+#include "../utils/rng_options.h"
 
 #include <memory>
 #include <unordered_map>
@@ -17,10 +18,11 @@
 
 using namespace std;
 
-
+namespace type_based_open_list {
 template<class Entry>
 class TypeBasedOpenList : public OpenList<Entry> {
-    vector<ScalarEvaluator *> evaluators;
+    shared_ptr<utils::RandomNumberGenerator> rng;
+    vector<Evaluator *> evaluators;
 
     using Key = vector<int>;
     using Bucket = vector<Entry>;
@@ -41,7 +43,11 @@ public:
     virtual bool is_dead_end(EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
-    virtual void get_involved_heuristics(set<Heuristic *> &hset) override;
+    virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 template<class Entry>
@@ -49,7 +55,7 @@ void TypeBasedOpenList<Entry>::do_insertion(
     EvaluationContext &eval_context, const Entry &entry) {
     vector<int> key;
     key.reserve(evaluators.size());
-    for (ScalarEvaluator *evaluator : evaluators) {
+    for (Evaluator *evaluator : evaluators) {
         key.push_back(
             eval_context.get_heuristic_value_or_infinity(evaluator));
     }
@@ -67,12 +73,13 @@ void TypeBasedOpenList<Entry>::do_insertion(
 
 template<class Entry>
 TypeBasedOpenList<Entry>::TypeBasedOpenList(const Options &opts)
-    : evaluators(opts.get_list<ScalarEvaluator *>("evaluators")) {
+    : rng(utils::parse_rng_from_options(opts)),
+      evaluators(opts.get_list<Evaluator *>("evaluators")) {
 }
 
 template<class Entry>
 Entry TypeBasedOpenList<Entry>::remove_min(vector<int> *key) {
-    size_t bucket_id = (*g_rng())(keys_and_buckets.size());
+    size_t bucket_id = (*rng)(keys_and_buckets.size());
     auto &key_and_bucket = keys_and_buckets[bucket_id];
     const Key &min_key = key_and_bucket.first;
     Bucket &bucket = key_and_bucket.second;
@@ -82,7 +89,7 @@ Entry TypeBasedOpenList<Entry>::remove_min(vector<int> *key) {
         *key = min_key;
     }
 
-    int pos = (*g_rng())(bucket.size());
+    int pos = (*rng)(bucket.size());
     Entry result = utils::swap_and_pop_from_vector(bucket, pos);
 
     if (bucket.empty()) {
@@ -112,7 +119,7 @@ bool TypeBasedOpenList<Entry>::is_dead_end(
     if (is_reliable_dead_end(eval_context))
         return true;
     // Otherwise, return true if all evaluators agree this is a dead-end.
-    for (ScalarEvaluator *evaluator : evaluators) {
+    for (Evaluator *evaluator : evaluators) {
         if (!eval_context.is_heuristic_infinite(evaluator))
             return false;
     }
@@ -122,7 +129,7 @@ bool TypeBasedOpenList<Entry>::is_dead_end(
 template<class Entry>
 bool TypeBasedOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
-    for (ScalarEvaluator *evaluator : evaluators) {
+    for (Evaluator *evaluator : evaluators) {
         if (evaluator->dead_ends_are_reliable() &&
             eval_context.is_heuristic_infinite(evaluator))
             return true;
@@ -131,10 +138,30 @@ bool TypeBasedOpenList<Entry>::is_reliable_dead_end(
 }
 
 template<class Entry>
-void TypeBasedOpenList<Entry>::get_involved_heuristics(
-    set<Heuristic *> &hset) {
-    for (ScalarEvaluator *evaluator : evaluators) {
-        evaluator->get_involved_heuristics(hset);
+std::pair<int,int> TypeBasedOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (Evaluator *evaluator : evaluators) {
+        if (eval_context.is_heuristic_infinite(evaluator)) {
+            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void TypeBasedOpenList<Entry>::finish_unsolvability_proof() {
+    for (Evaluator *evaluator : evaluators) {
+        evaluator->finish_unsolvability_proof();
+    }
+}
+
+
+template<class Entry>
+void TypeBasedOpenList<Entry>::get_path_dependent_evaluators(
+    set<Evaluator *> &evals) {
+    for (Evaluator *evaluator : evaluators) {
+        evaluator->get_path_dependent_evaluators(evals);
     }
 }
 
@@ -170,12 +197,14 @@ static shared_ptr<OpenListFactory> _parse(OptionParser &parser) {
             " on Artificial Intelligence (AAAI 2014)",
             "2395-2401",
             "AAAI Press 2014"));
-    parser.add_list_option<ScalarEvaluator *>(
+    parser.add_list_option<Evaluator *>(
         "evaluators",
         "Evaluators used to determine the bucket for each entry.");
 
+    utils::add_rng_options(parser);
+
     Options opts = parser.parse();
-    opts.verify_list_non_empty<ScalarEvaluator *>("evaluators");
+    opts.verify_list_non_empty<Evaluator *>("evaluators");
     if (parser.dry_run())
         return nullptr;
     else
@@ -183,3 +212,4 @@ static shared_ptr<OpenListFactory> _parse(OptionParser &parser) {
 }
 
 static PluginShared<OpenListFactory> _plugin("type_based", _parse);
+}

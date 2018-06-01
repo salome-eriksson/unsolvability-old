@@ -3,6 +3,7 @@
 
 #include "../heuristic.h"
 #include "../unsolvability/cudd_interface.h"
+#include "../evaluation_context.h"
 
 #include <vector>
 
@@ -15,7 +16,7 @@ struct Proposition;
 struct UnaryOperator;
 
 struct UnaryOperator {
-    int operator_no; // -1 for axioms; index into g_operators otherwise
+    int operator_no; // -1 for axioms; index into the task's operators otherwise
     std::vector<Proposition *> precondition;
     Proposition *effect;
     int base_cost;
@@ -55,7 +56,7 @@ protected:
     std::vector<std::vector<Proposition>> propositions;
     std::vector<Proposition *> goal_propositions;
 
-    CuddManager *manager;
+    CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
     /*
      * the first int is a setid which corresponds to the BDD in the bdds vector
@@ -63,17 +64,20 @@ protected:
      */
     std::vector<std::pair<int,int>> set_and_knowledge_ids;
     std::string bdd_filename;
+    bool unsolvability_setup;
 
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;
+
+    void setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager);
 public:
     RelaxationHeuristic(const options::Options &options);
     virtual ~RelaxationHeuristic();
     virtual bool dead_ends_are_reliable() const;
 
-    virtual void setup_unsolvability_proof();
-    virtual std::pair<int,int> prove_superset_dead(const GlobalState &state) override;
-    virtual void finish_unsolvability_proof();
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 }
 

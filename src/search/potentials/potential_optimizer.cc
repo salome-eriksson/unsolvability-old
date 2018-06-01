@@ -3,8 +3,8 @@
 #include "potential_function.h"
 
 #include "../option_parser.h"
-#include "../task_tools.h"
 
+#include "../task_utils/task_properties.h"
 #include "../utils/collections.h"
 #include "../utils/memory.h"
 #include "../utils/system.h"
@@ -26,8 +26,8 @@ PotentialOptimizer::PotentialOptimizer(const Options &opts)
       lp_solver(lp::LPSolverType(opts.get_enum("lpsolver"))),
       max_potential(opts.get<double>("max_potential")),
       num_lp_vars(0) {
-    verify_no_axioms(task_proxy);
-    verify_no_conditional_effects(task_proxy);
+    task_properties::verify_no_axioms(task_proxy);
+    task_properties::verify_no_conditional_effects(task_proxy);
     initialize();
 }
 
@@ -103,6 +103,7 @@ void PotentialOptimizer::construct_lp() {
                           lp_solver.get_infinity());
 
     vector<lp::LPVariable> lp_variables;
+    lp_variables.reserve(num_lp_vars);
     for (int lp_var_id = 0; lp_var_id < num_lp_vars; ++lp_var_id) {
         // Use dummy coefficient for now. Adapt coefficient later.
         lp_variables.emplace_back(-lp_solver.get_infinity(), upper_bound, 1.0);

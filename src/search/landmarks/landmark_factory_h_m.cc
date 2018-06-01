@@ -3,8 +3,8 @@
 #include "../abstract_task.h"
 #include "../option_parser.h"
 #include "../plugin.h"
-#include "../task_tools.h"
 
+#include "../task_utils/task_properties.h"
 #include "../utils/collections.h"
 #include "../utils/system.h"
 
@@ -299,7 +299,7 @@ void LandmarkFactoryHM::print_proposition(const VariablesProxy &variables, const
 }
 
 static FluentSet get_operator_precondition(const OperatorProxy &op) {
-    FluentSet preconditions = get_fact_pairs(op.get_preconditions());
+    FluentSet preconditions = task_properties::get_fact_pairs(op.get_preconditions());
     sort(preconditions.begin(), preconditions.end());
     return preconditions;
 }
@@ -905,7 +905,7 @@ void LandmarkFactoryHM::generate_landmarks(
     compute_h_m_landmarks(task_proxy);
     // now construct landmarks graph
     vector<FluentSet> goal_subsets;
-    FluentSet goals = get_fact_pairs(task_proxy.get_goals());
+    FluentSet goals = task_properties::get_fact_pairs(task_proxy.get_goals());
     VariablesProxy variables = task_proxy.get_variables();
     get_m_sets(variables, m_, goal_subsets, goals);
     list<int> all_lms;
@@ -972,7 +972,7 @@ bool LandmarkFactoryHM::supports_conditional_effects() const {
     return false;
 }
 
-static LandmarkFactory *_parse(OptionParser &parser) {
+static shared_ptr<LandmarkFactory> _parse(OptionParser &parser) {
     parser.document_synopsis(
         "h^m Landmarks",
         "The landmark generation method introduced by "
@@ -990,13 +990,11 @@ static LandmarkFactory *_parse(OptionParser &parser) {
     parser.document_language_support("conditional_effects",
                                      "ignored, i.e. not supported");
 
-    if (parser.dry_run()) {
+    if (parser.dry_run())
         return nullptr;
-    } else {
-        return new LandmarkFactoryHM(opts);
-    }
+    else
+        return make_shared<LandmarkFactoryHM>(opts);
 }
 
-static Plugin<LandmarkFactory> _plugin(
-    "lm_hm", _parse);
+static PluginShared<LandmarkFactory> _plugin("lm_hm", _parse);
 }

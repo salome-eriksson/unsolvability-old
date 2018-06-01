@@ -13,16 +13,20 @@ from . import returncodes
 from . import util
 from .plan_manager import PlanManager
 
-VALIDATE_MEMORY_LIMIT_IN_MB = 3072
+if limits.can_set_limits():
+    VALIDATE_MEMORY_LIMIT_IN_B = 3.5 * 1024 * 1024 * 1024
+    VALIDATE_TIME_LIMIT = 1800
+else:
+    VALIDATE_MEMORY_LIMIT_IN_B = None
+    VALIDATE_TIME_LIMIT = None
+
 #TODO: We might want to turn translate into a module and call it with "python -m translate".
 REL_TRANSLATE_PATH = os.path.join("translate", "translate.py")
 if os.name == "posix":
-    REL_PREPROCESS_PATH = "preprocess"
     REL_SEARCH_PATH = "downward"
     VALIDATE = "validate"
     REL_VERIFY_PATH = "verify"
 elif os.name == "nt":
-    REL_PREPROCESS_PATH = "preprocess.exe"
     REL_SEARCH_PATH = "downward.exe"
     VALIDATE = "validate.exe"
     REL_VERIFY_PATH = None
@@ -100,22 +104,6 @@ def run_translate(args):
         time_limit=time_limit, memory_limit=memory_limit)
 
 
-def run_preprocess(args):
-    logging.info("Running preprocessor (%s)." % args.build)
-    time_limit = limits.get_time_limit(
-        args.preprocess_time_limit, args.overall_time_limit)
-    memory_limit = limits.get_memory_limit(
-        args.preprocess_memory_limit, args.overall_memory_limit)
-    print_component_settings(
-        "preprocessor", args.preprocess_input, args.preprocess_options,
-        time_limit, memory_limit)
-    preprocess = get_executable(args.build, REL_PREPROCESS_PATH)
-    call_component(
-        preprocess, args.preprocess_options,
-        stdin=args.preprocess_input,
-        time_limit=time_limit, memory_limit=memory_limit)
-
-
 def run_search(args):
     logging.info("Running search (%s)." % args.build)
     time_limit = limits.get_time_limit(
@@ -175,10 +163,15 @@ def run_validate(args):
 
     print_component_settings(
         "validate", validate_inputs, [],
-        time_limit=None, memory_limit=VALIDATE_MEMORY_LIMIT_IN_MB)
+        time_limit=VALIDATE_TIME_LIMIT,
+        memory_limit=VALIDATE_MEMORY_LIMIT_IN_B)
 
     try:
-        call_component(VALIDATE, validate_inputs)
+        call_component(
+            VALIDATE,
+            validate_inputs,
+            time_limit=VALIDATE_TIME_LIMIT,
+            memory_limit=VALIDATE_MEMORY_LIMIT_IN_B)
     except OSError as err:
         if err.errno == errno.ENOENT:
             sys.exit("Error: %s not found. Is it on the PATH?" % VALIDATE)

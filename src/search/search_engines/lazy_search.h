@@ -2,18 +2,19 @@
 #define SEARCH_ENGINES_LAZY_SEARCH_H
 
 #include "../evaluation_context.h"
+#include "../evaluator.h"
 #include "../global_state.h"
-#include "../scalar_evaluator.h"
+#include "../open_list.h"
+#include "../operator_id.h"
 #include "../search_engine.h"
 #include "../search_progress.h"
 #include "../search_space.h"
 
-#include "../open_lists/open_list.h"
+#include "../utils/rng.h"
 
 #include <memory>
 #include <vector>
 
-class GlobalOperator;
 class Heuristic;
 
 namespace options {
@@ -29,14 +30,14 @@ protected:
     bool reopen_closed_nodes; // whether to reopen closed nodes upon finding lower g paths
     bool randomize_successors;
     bool preferred_successors_first;
+    std::shared_ptr<utils::RandomNumberGenerator> rng;
 
-    std::vector<Heuristic *> heuristics;
+    std::vector<Evaluator *> path_dependent_evaluators;
     std::vector<Heuristic *> preferred_operator_heuristics;
-    std::vector<Heuristic *> estimate_heuristics;
 
     GlobalState current_state;
     StateID current_predecessor_id;
-    const GlobalOperator *current_operator;
+    OperatorID current_operator_id;
     int current_g;
     int current_real_g;
     EvaluationContext current_eval_context;
@@ -49,8 +50,8 @@ protected:
 
     void reward_progress();
 
-    std::vector<const GlobalOperator *> get_successor_operators(
-        const algorithms::OrderedSet<const GlobalOperator *> &preferred_operators) const;
+    std::vector<OperatorID> get_successor_operators(
+        const ordered_set::OrderedSet<OperatorID> &preferred_operators) const;
 
     // TODO: Move into SearchEngine?
     void print_checkpoint_line(int g) const;

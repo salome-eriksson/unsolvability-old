@@ -1,13 +1,14 @@
 #include "pareto_open_list.h"
 
-#include "open_list.h"
-
-#include "../globals.h"
+#include "../evaluator.h"
+#include "../open_list.h"
 #include "../option_parser.h"
 #include "../plugin.h"
 
+#include "../utils/hash.h"
 #include "../utils/memory.h"
 #include "../utils/rng.h"
+#include "../utils/rng_options.h"
 
 #include <cassert>
 #include <deque>
@@ -18,9 +19,11 @@
 
 using namespace std;
 
-
+namespace pareto_open_list {
 template<class Entry>
 class ParetoOpenList : public OpenList<Entry> {
+    shared_ptr<utils::RandomNumberGenerator> rng;
+
     typedef deque<Entry> Bucket;
     typedef vector<int> KeyType;
     typedef unordered_map<KeyType, Bucket> BucketMap;
@@ -29,7 +32,7 @@ class ParetoOpenList : public OpenList<Entry> {
     BucketMap buckets;
     KeySet nondominated;
     bool state_uniform_selection;
-    vector<ScalarEvaluator *> evaluators;
+    vector<Evaluator *> evaluators;
 
     bool dominates(const KeyType &v1, const KeyType &v2) const;
     bool is_nondominated(
@@ -47,11 +50,15 @@ public:
     virtual Entry remove_min(vector<int> *key = nullptr) override;
     virtual bool empty() const override;
     virtual void clear() override;
-    virtual void get_involved_heuristics(set<Heuristic *> &hset) override;
+    virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
     virtual bool is_dead_end(
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
+
+    virtual std::pair<int,int> prove_superset_dead(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 
     static OpenList<Entry> *_parse(OptionParser &p);
 };
@@ -59,8 +66,9 @@ public:
 template<class Entry>
 ParetoOpenList<Entry>::ParetoOpenList(const Options &opts)
     : OpenList<Entry>(opts.get<bool>("pref_only")),
+      rng(utils::parse_rng_from_options(opts)),
       state_uniform_selection(opts.get<bool>("state_uniform_selection")),
-      evaluators(opts.get_list<ScalarEvaluator *>("evals")) {
+      evaluators(opts.get_list<Evaluator *>("evals")) {
 }
 
 template<class Entry>
@@ -121,7 +129,7 @@ void ParetoOpenList<Entry>::do_insertion(
     EvaluationContext &eval_context, const Entry &entry) {
     vector<int> key;
     key.reserve(evaluators.size());
-    for (ScalarEvaluator *evaluator : evaluators)
+    for (Evaluator *evaluator : evaluators)
         key.push_back(eval_context.get_heuristic_value_or_infinity(evaluator));
 
     Bucket &bucket = buckets[key];
@@ -164,7 +172,7 @@ Entry ParetoOpenList<Entry>::remove_min(vector<int> *key) {
         else
             numerator = 1;
         seen += numerator;
-        if ((*g_rng())(seen) < numerator)
+        if ((*rng)(seen) < numerator)
             selected = it;
     }
     if (key) {
@@ -192,9 +200,10 @@ void ParetoOpenList<Entry>::clear() {
 }
 
 template<class Entry>
-void ParetoOpenList<Entry>::get_involved_heuristics(set<Heuristic *> &hset) {
-    for (ScalarEvaluator *evaluator : evaluators)
-        evaluator->get_involved_heuristics(hset);
+void ParetoOpenList<Entry>::get_path_dependent_evaluators(
+    set<Evaluator *> &evals) {
+    for (Evaluator *evaluator : evaluators)
+        evaluator->get_path_dependent_evaluators(evals);
 }
 
 template<class Entry>
@@ -205,7 +214,7 @@ bool ParetoOpenList<Entry>::is_dead_end(
     if (is_reliable_dead_end(eval_context))
         return true;
     // Otherwise, return true if all heuristics agree this is a dead-end.
-    for (ScalarEvaluator *evaluator : evaluators)
+    for (Evaluator *evaluator : evaluators)
         if (!eval_context.is_heuristic_infinite(evaluator))
             return false;
     return true;
@@ -214,11 +223,30 @@ bool ParetoOpenList<Entry>::is_dead_end(
 template<class Entry>
 bool ParetoOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
-    for (ScalarEvaluator *evaluator : evaluators)
+    for (Evaluator *evaluator : evaluators)
         if (eval_context.is_heuristic_infinite(evaluator) &&
             evaluator->dead_ends_are_reliable())
             return true;
     return false;
+}
+
+template<class Entry>
+std::pair<int,int> ParetoOpenList<Entry>::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (Evaluator *evaluator : evaluators) {
+        if (eval_context.is_heuristic_infinite(evaluator)) {
+            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+}
+
+template<class Entry>
+void ParetoOpenList<Entry>::finish_unsolvability_proof() {
+    for (Evaluator *evaluator : evaluators) {
+        evaluator->finish_unsolvability_proof();
+    }
 }
 
 ParetoOpenListFactory::ParetoOpenListFactory(
@@ -242,7 +270,7 @@ static shared_ptr<OpenListFactory> _parse(OptionParser &parser) {
         "Selects one of the Pareto-optimal (regarding the sub-evaluators) "
         "entries for removal.");
 
-    parser.add_list_option<ScalarEvaluator *>("evals", "scalar evaluators");
+    parser.add_list_option<Evaluator *>("evals", "evaluators");
     parser.add_option<bool>(
         "pref_only",
         "insert only nodes generated by preferred operators", "false");
@@ -254,6 +282,8 @@ static shared_ptr<OpenListFactory> _parse(OptionParser &parser) {
         "we weight the buckets with the number of entries.",
         "false");
 
+    utils::add_rng_options(parser);
+
     Options opts = parser.parse();
     if (parser.dry_run())
         return nullptr;
@@ -262,3 +292,4 @@ static shared_ptr<OpenListFactory> _parse(OptionParser &parser) {
 }
 
 static PluginShared<OpenListFactory> _plugin("pareto", _parse);
+}

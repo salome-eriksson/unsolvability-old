@@ -1,13 +1,17 @@
 #include "search_engine.h"
 
 #include "evaluation_context.h"
+#include "evaluator.h"
 #include "globals.h"
+#include "heuristic.h"
 #include "option_parser.h"
 #include "plugin.h"
 
 #include "algorithms/ordered_set.h"
-
+#include "task_utils/task_properties.h"
+#include "tasks/root_task.h"
 #include "utils/countdown_timer.h"
+#include "utils/rng_options.h"
 #include "utils/system.h"
 #include "utils/timer.h"
 
@@ -18,12 +22,15 @@
 using namespace std;
 using utils::ExitCode;
 
+class PruningMethod;
 
 SearchEngine::SearchEngine(const Options &opts)
     : status(IN_PROGRESS),
       solution_found(false),
+      task(tasks::g_root_task),
+      task_proxy(*task),
       state_registry(
-          *g_root_task(), *g_state_packer, *g_axiom_evaluator, g_initial_state_data),
+          *task, *g_state_packer, *g_axiom_evaluator, g_initial_state_data),
       search_space(state_registry,
                    static_cast<OperatorCost>(opts.get_enum("cost_type"))),
       cost_type(static_cast<OperatorCost>(opts.get_enum("cost_type"))),
@@ -51,7 +58,7 @@ SearchStatus SearchEngine::get_status() const {
     return status;
 }
 
-const SearchEngine::Plan &SearchEngine::get_plan() const {
+const Plan &SearchEngine::get_plan() const {
     assert(solution_found);
     return plan;
 }
@@ -73,12 +80,12 @@ void SearchEngine::search() {
         }
     }
     // TODO: Revise when and which search times are logged.
-    cout << "Actual search time: " << timer
+    cout << "Actual search time: " << timer.get_elapsed_time()
          << " [t=" << utils::g_timer << "]" << endl;
 }
 
 bool SearchEngine::check_goal_and_set_plan(const GlobalState &state) {
-    if (test_goal(state)) {
+    if (task_properties::is_goal_state(task_proxy, state)) {
         cout << "Solution found!" << endl;
         Plan plan;
         search_space.trace_path(state, plan);
@@ -88,13 +95,28 @@ bool SearchEngine::check_goal_and_set_plan(const GlobalState &state) {
     return false;
 }
 
-void SearchEngine::save_plan_if_necessary() const {
-    if (found_solution())
-        save_plan(get_plan());
+void SearchEngine::save_plan_if_necessary() {
+    if (found_solution()) {
+        plan_manager.save_plan(get_plan(), task_proxy);
+    }
 }
 
-int SearchEngine::get_adjusted_cost(const GlobalOperator &op) const {
+int SearchEngine::get_adjusted_cost(const OperatorProxy &op) const {
     return get_adjusted_action_cost(op, cost_type);
+}
+
+/* TODO: merge this into add_options_to_parser when all search
+         engines support pruning.
+
+   Method doesn't belong here because it's only useful for certain derived classes.
+   TODO: Figure out where it belongs and move it there. */
+void SearchEngine::add_pruning_option(OptionParser &parser) {
+    parser.add_option<shared_ptr<PruningMethod>>(
+        "pruning",
+        "Pruning methods can prune or reorder the set of applicable operators in "
+        "each state and thereby influence the number and order of successor states "
+        "that are considered.",
+        "null()");
 }
 
 void SearchEngine::add_options_to_parser(OptionParser &parser) {
@@ -114,16 +136,44 @@ void SearchEngine::add_options_to_parser(OptionParser &parser) {
         "infinity");
 }
 
+/* Method doesn't belong here because it's only useful for certain derived classes.
+   TODO: Figure out where it belongs and move it there. */
+void SearchEngine::add_succ_order_options(OptionParser &parser) {
+    vector<string> options;
+    parser.add_option<bool>(
+        "randomize_successors",
+        "randomize the order in which successors are generated",
+        "false");
+    parser.add_option<bool>(
+        "preferred_successors_first",
+        "consider preferred operators first",
+        "false");
+    parser.document_note(
+        "Successor ordering",
+        "When using randomize_successors=true and "
+        "preferred_successors_first=true, randomization happens before "
+        "preferred operators are moved to the front.");
+    utils::add_rng_options(parser);
+}
+
+void SearchEngine::add_unsolvability_options(OptionParser &parser) {
+    parser.add_option<bool>(
+        "generate_certificate",
+        "If the task is detected as unsolvable, generate a certificate of unsolvability.",
+        "false");
+    parser.add_option<std::string>(
+        "certificate_directory",
+        "The directory in which the unsolvability certificate should be written."
+        "Defaults to current directory if none is set.",
+        ".");
+}
+
 void print_initial_h_values(const EvaluationContext &eval_context) {
-    eval_context.get_cache().for_each_heuristic_value(
-        [] (const Heuristic *heur, const EvaluationResult &result) {
-        cout << "Initial heuristic value for "
-             << heur->get_description() << ": ";
-        if (result.is_infinite())
-            cout << "infinity";
-        else
-            cout << result.get_h_value();
-        cout << endl;
+    eval_context.get_cache().for_each_evaluator_result(
+        [] (const Evaluator *eval, const EvaluationResult &result) {
+        if (eval->is_used_for_reporting_minima()) {
+            eval->report_value_for_initial_state(result);
+        }
     }
         );
 }
@@ -135,10 +185,10 @@ static PluginTypePlugin<SearchEngine> _type_plugin(
     "");
 
 
-algorithms::OrderedSet<const GlobalOperator *> collect_preferred_operators(
+ordered_set::OrderedSet<OperatorID> collect_preferred_operators(
     EvaluationContext &eval_context,
     const vector<Heuristic *> &preferred_operator_heuristics) {
-    algorithms::OrderedSet<const GlobalOperator *> preferred_operators;
+    ordered_set::OrderedSet<OperatorID> preferred_operators;
     for (Heuristic *heuristic : preferred_operator_heuristics) {
         /*
           Unreliable heuristics might consider solvable states as dead
@@ -146,9 +196,8 @@ algorithms::OrderedSet<const GlobalOperator *> collect_preferred_operators(
           heuristics.
         */
         if (!eval_context.is_heuristic_infinite(heuristic)) {
-            for (const GlobalOperator *op :
-                 eval_context.get_preferred_operators(heuristic)) {
-                preferred_operators.insert(op);
+            for (OperatorID op_id : eval_context.get_preferred_operators(heuristic)) {
+                preferred_operators.insert(op_id);
             }
         }
     }

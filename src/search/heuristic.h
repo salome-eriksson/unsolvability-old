@@ -1,20 +1,16 @@
 #ifndef HEURISTIC_H
 #define HEURISTIC_H
 
+#include "evaluator.h"
+#include "operator_id.h"
 #include "per_state_information.h"
-#include "scalar_evaluator.h"
 #include "task_proxy.h"
 
 #include "algorithms/ordered_set.h"
 
-#include "unsolvability/unsolvabilitymanager.h"
-
 #include <memory>
 #include <vector>
-#include <fstream>
 
-class GlobalOperator;
-class GlobalState;
 class TaskProxy;
 
 namespace options {
@@ -22,14 +18,18 @@ class OptionParser;
 class Options;
 }
 
-class Heuristic : public ScalarEvaluator {
+class Heuristic : public Evaluator {
     struct HEntry {
+        /* dirty is conceptually a bool, but Visual C++ does not support
+           packing ints and bools together in a bitfield. */
         int h : 31;
-        bool dirty : 1;
-        HEntry(int h, bool dirty) : h(h), dirty(dirty) {}
-    };
+        unsigned int dirty : 1;
 
-    std::string description;
+        HEntry(int h, bool dirty)
+            : h(h), dirty(dirty) {
+        }
+    };
+    static_assert(sizeof(HEntry) == 4, "HEntry has unexpected size.");
 
     /*
       TODO: We might want to get rid of the preferred_operators
@@ -42,7 +42,7 @@ class Heuristic : public ScalarEvaluator {
       being able to reuse the data structure from one iteration to the
       next, but this seems to be the only potential downside.
     */
-    algorithms::OrderedSet<const GlobalOperator *> preferred_operators;
+    ordered_set::OrderedSet<OperatorID> preferred_operators;
 
 protected:
     /*
@@ -69,8 +69,6 @@ protected:
       is OK -- it will only appear once in the list of preferred
       operators for this heuristic.
     */
-    // TODO: Make private once all heuristics use the TaskProxy class.
-    void set_preferred(const GlobalOperator *op);
     void set_preferred(const OperatorProxy &op);
 
     /* TODO: Make private and use State instead of GlobalState once all
@@ -81,37 +79,14 @@ public:
     explicit Heuristic(const options::Options &options);
     virtual ~Heuristic() override;
 
-    virtual void notify_initial_state(const GlobalState & /*initial_state*/) {
-    }
-
-    virtual bool notify_state_transition(
-        const GlobalState &parent_state, const GlobalOperator &op,
-        const GlobalState &state);
-
-    virtual void get_involved_heuristics(std::set<Heuristic *> &hset) override {
-        hset.insert(this);
+    virtual void get_path_dependent_evaluators(
+        std::set<Evaluator *> & /*evals*/) override {
     }
 
     static void add_options_to_parser(options::OptionParser &parser);
-    static options::Options default_options();
 
     virtual EvaluationResult compute_result(
         EvaluationContext &eval_context) override;
-
-    std::string get_description() const;
-    bool is_h_dirty(GlobalState &state) {
-        return heuristic_cache[state].dirty;
-    }
-
-    virtual void setup_unsolvability_proof() {}
-    // first int is the setid, second is the knowledgeid that set is dead
-    virtual std::pair<int,int> prove_superset_dead(const GlobalState &) {
-        return std::make_pair(-1,-1);
-    }
-    /* this method is currently only used for heuristics that use BDDs
-     * in order to dump all BDDs in one file
-     */
-    virtual void finish_unsolvability_proof() {}
 };
 
 #endif

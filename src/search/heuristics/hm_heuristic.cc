@@ -2,8 +2,8 @@
 
 #include "../option_parser.h"
 #include "../plugin.h"
-#include "../task_tools.h"
 
+#include "../task_utils/task_properties.h"
 #include "../utils/logging.h"
 
 #include <cassert>
@@ -17,8 +17,9 @@ namespace hm_heuristic {
 HMHeuristic::HMHeuristic(const Options &opts)
     : Heuristic(opts),
       m(opts.get<int>("m")),
-      has_cond_effects(has_conditional_effects(task_proxy)),
-      goals(get_fact_pairs(task_proxy.get_goals())) {
+      has_cond_effects(task_properties::has_conditional_effects(task_proxy)),
+      goals(task_properties::get_fact_pairs(task_proxy.get_goals())),
+      unsolvability_setup(false) {
     cout << "Using h^" << m << "." << endl;
     cout << "The implementation of the h^m heuristic is preliminary." << endl
          << "It is SLOOOOOOOOOOOW." << endl
@@ -28,16 +29,16 @@ HMHeuristic::HMHeuristic(const Options &opts)
 
 
 bool HMHeuristic::dead_ends_are_reliable() const {
-    return !has_axioms(task_proxy) && !has_cond_effects;
+    return !task_properties::has_axioms(task_proxy) && !has_cond_effects;
 }
 
 
 int HMHeuristic::compute_heuristic(const GlobalState &global_state) {
     State state = convert_global_state(global_state);
-    if (is_goal_state(task_proxy, state)) {
+    if (task_properties::is_goal_state(task_proxy, state)) {
         return 0;
     } else {
-        Tuple s_tup = get_fact_pairs(state);
+        Tuple s_tup = task_properties::get_fact_pairs(state);
 
         init_hm_table(s_tup);
         update_hm_table();
@@ -179,7 +180,7 @@ int HMHeuristic::check_tuple_in_tuple(
 
 
 HMHeuristic::Tuple HMHeuristic::get_operator_pre(const OperatorProxy &op) const {
-    Tuple preconditions = get_fact_pairs(op.get_preconditions());
+    Tuple preconditions = task_properties::get_fact_pairs(op.get_preconditions());
     sort(preconditions.begin(), preconditions.end());
     return preconditions;
 }
@@ -263,11 +264,13 @@ void HMHeuristic::dump_table() const {
 
 
 void HMHeuristic::setup_unsolvability_proof() {
-    fact_to_variable.resize(g_variable_domain.size());
+    int varamount = task_proxy.get_variables().size();
+    fact_to_variable.resize(varamount);
     strips_varamount = 0;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        fact_to_variable[i].resize(g_variable_domain[i]);
-        for(int j = 0; j < g_variable_domain[i]; ++j) {
+    for(int i = 0; i < varamount; ++i) {
+        int domsize = task_proxy.get_variables()[i].get_domain_size();
+        fact_to_variable[i].resize(domsize);
+        for(int j = 0; j < domsize; ++j) {
             // we want the variables to start with 1 since that is how the DIMACS format works
             fact_to_variable[i][j] = ++strips_varamount;
         }
@@ -275,21 +278,27 @@ void HMHeuristic::setup_unsolvability_proof() {
 
     mutexamount = 0;
     std::stringstream ss;
-    for(size_t i = 0; i < g_variable_domain.size(); ++i) {
-        for(int j = 0; j < g_variable_domain[i]-1; ++j) {
-            for(int k = j+1; k < g_variable_domain[i]; ++k) {
+    for(int i = 0; i < varamount; ++i) {
+        int domsize = task_proxy.get_variables()[i].get_domain_size();
+        for(int j = 0; j < domsize-1; ++j) {
+            for(int k = j+1; k < domsize; ++k) {
                 ss << "-" << fact_to_variable[i][j] << " -" << fact_to_variable[i][k] << " 0 ";
                 mutexamount++;
             }
         }
     }
     mutexes = ss.str();
+    unsolvability_setup = true;
 }
 
-std::pair<int,int> HMHeuristic::prove_superset_dead(const GlobalState &state) {
-    UnsolvabilityManager &unsolvmgr = UnsolvabilityManager::getInstance();
+std::pair<int,int> HMHeuristic::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     //we need to redo the computation to get the unreachable facts
-    compute_heuristic(state);    
+    compute_heuristic(eval_context.get_state());
+
+    if(!unsolvability_setup) {
+        setup_unsolvability_proof();
+    }
 
     int clauseamount = mutexamount;
     std::stringstream tuples;
@@ -303,33 +312,33 @@ std::pair<int,int> HMHeuristic::prove_superset_dead(const GlobalState &state) {
         }
     }
 
-    int setid = unsolvmgr.get_new_setid();
-    std::ofstream &certstream = unsolvmgr.get_stream();
+    int setid = unsolvmanager.get_new_setid();
+    std::ofstream &certstream = unsolvmanager.get_stream();
     certstream << "e " << setid << " h p cnf " << strips_varamount << " " << clauseamount << " ";
     certstream << mutexes << tuples.str() << ";\n";
 
-    int progid = unsolvmgr.get_new_setid();
+    int progid = unsolvmanager.get_new_setid();
     certstream << "e " << progid << " p " << setid << "\n";
-    int union_set_empty = unsolvmgr.get_new_setid();;
+    int union_set_empty = unsolvmanager.get_new_setid();;
     certstream << "e " << union_set_empty << " u "
-               << setid << " " << unsolvmgr.get_emptysetid() << "\n";
+               << setid << " " << unsolvmanager.get_emptysetid() << "\n";
 
-    int k_prog = unsolvmgr.get_new_knowledgeid();
+    int k_prog = unsolvmanager.get_new_knowledgeid();
     certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b4\n";
 
-    int set_and_goal = unsolvmgr.get_new_setid();
+    int set_and_goal = unsolvmanager.get_new_setid();
     certstream << "e " << set_and_goal << " i "
-               << setid << " " << unsolvmgr.get_goalsetid() << "\n";
-    int k_set_and_goal_empty = unsolvmgr.get_new_knowledgeid();
+               << setid << " " << unsolvmanager.get_goalsetid() << "\n";
+    int k_set_and_goal_empty = unsolvmanager.get_new_knowledgeid();
     certstream << "k " << k_set_and_goal_empty << " s "
-               << set_and_goal << " " << unsolvmgr.get_emptysetid() << " b3\n";
-    int k_set_and_goal_dead = unsolvmgr.get_new_knowledgeid();
+               << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b3\n";
+    int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
     certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
-               << " d3 " << k_set_and_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
+               << " d3 " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
 
-    int k_set_dead = unsolvmgr.get_new_knowledgeid();
+    int k_set_dead = unsolvmanager.get_new_knowledgeid();
     certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
-               << unsolvmgr.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
+               << unsolvmanager.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
 
     return std::make_pair(setid, k_set_dead);
 }
