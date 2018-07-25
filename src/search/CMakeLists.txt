@@ -13,7 +13,6 @@ endif()
 
 project(downward)
 fast_downward_set_compiler_flags()
-fast_downward_set_linker_flags()
 
 # Collect source files needed for the active plugins.
 include("${CMAKE_CURRENT_SOURCE_DIR}/DownwardFiles.cmake")
@@ -24,6 +23,8 @@ add_executable(downward ${PLANNER_SOURCES})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext)
 
 ## == Libraries ==
+
+fast_downward_set_linker_flags(downward)
 
 # On Linux, find the rt library for clock_gettime().
 if(UNIX AND NOT APPLE)
@@ -46,9 +47,9 @@ option(
   TRUE)
 
 if(PLUGIN_LP_SOLVER_ENABLED AND USE_LP)
-    find_package(OSI OPTIONAL_COMPONENTS Cpx Clp Grb)
-    if(OSI_FOUND AND (OSI_Cpx_FOUND OR OSI_Clp_FOUND OR OSI_Grb_FOUND))
-        foreach(SOLVER Cpx Clp Grb)
+    find_package(OSI OPTIONAL_COMPONENTS Cpx Clp Grb Spx)
+    if(OSI_FOUND AND (OSI_Cpx_FOUND OR OSI_Clp_FOUND OR OSI_Grb_FOUND OR OSI_Spx_FOUND))
+        foreach(SOLVER Cpx Clp Grb Spx)
             if(OSI_${SOLVER}_FOUND)
                 string(TOUPPER ${SOLVER} TMP_SOLVER_UPPER_CASE)
                 mark_as_advanced(TMP_SOLVER_UPPER_CASE)
@@ -62,6 +63,12 @@ if(PLUGIN_LP_SOLVER_ENABLED AND USE_LP)
         add_definitions("-D USE_LP")
         include_directories(${OSI_INCLUDE_DIRS})
         target_link_libraries(downward ${OSI_LIBRARIES})
+
+        find_package(ZLIB REQUIRED)
+        if(ZLIB_FOUND)
+            include_directories(${ZLIB_INCLUDE_DIRS})
+            target_link_libraries(downward ${ZLIB_LIBRARIES})
+        endif()
     endif()
 
     if(OSI_Cpx_FOUND AND CPLEX_RUNTIME_LIBRARY)
