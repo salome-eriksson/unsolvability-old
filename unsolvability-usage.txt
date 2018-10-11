@@ -26,15 +26,18 @@ installed to)
 
 Generating and verifying proofs
 -------------------------------------
+The build script for fast downward has been extended to also build the
+verifier if you call it with "./build.py --build-verifier".
 
-The script run in src/unsolvability can be used to test your installation. In
-it you can specify a PDDL file and a Fast Downward configuration, and the
-script will then first run Fast Downward in order to generate a proof,
-and then call the verifier which verifies the proof.
+To generate proofs, you need to pass the option "generate_certificate"
+to the search engine (currently only eager search and by extension astar is
+supported). The created certificate consists of two text files "task.txt" and
+"certificate.txt", as well as potentially some text files ending with ".bdd".
 
-The verifier takes two arguments which specify the locations of
- - the task file
- - the proof file
+You can call the verifier with "./fast-downward.py --verify task.txt
+certificate.txt". The verification is successful if the output ends with
+"Exiting: certificate is valid".
+
 
 
 ---FORMATS---
