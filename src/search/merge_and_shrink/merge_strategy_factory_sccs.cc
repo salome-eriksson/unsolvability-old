@@ -171,7 +171,7 @@ static shared_ptr<MergeStrategyFactory>_parse(options::OptionParser &parser) {
         + utils::format_paper_reference(
             {"Silvan Sievers", "Martin Wehrle", "Malte Helmert"},
             "An Analysis of Merge Strategies for Merge-and-Shrink Heuristics",
-            "http://ai.cs.unibas.ch/papers/sievers-et-al-icaps2016.pdf",
+            "https://ai.dmi.unibas.ch/papers/sievers-et-al-icaps2016.pdf",
             "Proceedings of the 26th International Conference on Planning and "
             "Scheduling (ICAPS 2016)",
             "2358-2366",
@@ -218,7 +218,7 @@ static shared_ptr<MergeStrategyFactory>_parse(options::OptionParser &parser) {
         if ((merge_tree && merge_selector) || (!merge_tree && !merge_selector)) {
             cerr << "You have to specify exactly one of the options merge_tree "
                 "and merge_selector!" << endl;
-            utils::exit_with(utils::ExitCode::INPUT_ERROR);
+            utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
         }
         return nullptr;
     } else {
@@ -226,5 +226,5 @@ static shared_ptr<MergeStrategyFactory>_parse(options::OptionParser &parser) {
     }
 }
 
-static options::PluginShared<MergeStrategyFactory> _plugin("merge_sccs", _parse);
+static options::Plugin<MergeStrategyFactory> _plugin("merge_sccs", _parse);
 }

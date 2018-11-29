@@ -7,10 +7,10 @@ using namespace std;
 
 namespace combining_evaluator {
 CombiningEvaluator::CombiningEvaluator(
-    const vector<Evaluator *> &subevaluators_)
+    const vector<shared_ptr<Evaluator>> &subevaluators_)
     : subevaluators(subevaluators_) {
     all_dead_ends_are_reliable = true;
-    for (const Evaluator *subevaluator : subevaluators)
+    for (const shared_ptr<Evaluator> &subevaluator : subevaluators)
         if (!subevaluator->dead_ends_are_reliable())
             all_dead_ends_are_reliable = false;
 }
@@ -30,18 +30,18 @@ EvaluationResult CombiningEvaluator::compute_result(
     values.reserve(subevaluators.size());
 
     // Collect component values. Return infinity if any is infinite.
-    for (Evaluator *subevaluator : subevaluators) {
-        int h_val = eval_context.get_heuristic_value_or_infinity(subevaluator);
-        if (h_val == EvaluationResult::INFTY) {
-            result.set_h_value(h_val);
+    for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
+        int value = eval_context.get_evaluator_value_or_infinity(subevaluator.get());
+        if (value == EvaluationResult::INFTY) {
+            result.set_evaluator_value(value);
             return result;
         } else {
-            values.push_back(h_val);
+            values.push_back(value);
         }
     }
 
     // If we arrived here, all subevaluator values are finite.
-    result.set_h_value(combine_values(values));
+    result.set_evaluator_value(combine_values(values));
     return result;
 }
 
@@ -53,13 +53,13 @@ void CombiningEvaluator::get_path_dependent_evaluators(
 
 std::pair<int,int> CombiningEvaluator::prove_superset_dead(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
-    for (Evaluator *evaluator : subevaluators) {
-        if (eval_context.is_heuristic_infinite(evaluator)) {
-            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+    for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
+        if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
+            return subevaluator->prove_superset_dead(eval_context, unsolvmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
-    utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
 
 }

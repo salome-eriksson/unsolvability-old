@@ -35,17 +35,17 @@ LandmarkNode *LandmarkFactoryMerged::get_matching_landmark(const LandmarkNode &l
             return 0;
     } else if (lm.conjunctive) {
         cerr << "Don't know how to handle conjunctive landmarks yet" << endl;
-        utils::exit_with(ExitCode::UNSUPPORTED);
+        utils::exit_with(ExitCode::SEARCH_UNSUPPORTED);
     }
     return 0;
 }
 
 void LandmarkFactoryMerged::generate_landmarks(
-    const shared_ptr<AbstractTask> &task, Exploration &exploration) {
+    const shared_ptr<AbstractTask> &task, Exploration &) {
     cout << "Merging " << lm_factories.size() << " landmark graphs" << endl;
 
     for (const shared_ptr<LandmarkFactory> &lm_factory : lm_factories) {
-        lm_graphs.push_back(lm_factory->compute_lm_graph(task, exploration));
+        lm_graphs.push_back(lm_factory->compute_lm_graph(task));
     }
 
     cout << "Adding simple landmarks" << endl;
@@ -84,7 +84,7 @@ void LandmarkFactoryMerged::generate_landmarks(
                 }
             } else if (node.conjunctive) {
                 cerr << "Don't know how to handle conjunctive landmarks yet" << endl;
-                utils::exit_with(ExitCode::UNSUPPORTED);
+                utils::exit_with(ExitCode::SEARCH_UNSUPPORTED);
             }
         }
     }
@@ -151,5 +151,5 @@ static shared_ptr<LandmarkFactory> _parse(OptionParser &parser) {
         return make_shared<LandmarkFactoryMerged>(opts);
 }
 
-static PluginShared<LandmarkFactory> _plugin("lm_merged", _parse);
+static Plugin<LandmarkFactory> _plugin("lm_merged", _parse);
 }

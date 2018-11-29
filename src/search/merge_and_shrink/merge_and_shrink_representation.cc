@@ -128,6 +128,10 @@ CuddBDD *MergeAndShrinkRepresentationLeaf::get_unsolvability_certificate(
     return b_inf;
 }
 
+void MergeAndShrinkRepresentationLeaf::fill_varorder(std::vector<int> &varorder) {
+    varorder.push_back(var_id);
+}
+
 MergeAndShrinkRepresentationMerge::MergeAndShrinkRepresentationMerge(
     unique_ptr<MergeAndShrinkRepresentation> left_child_,
     unique_ptr<MergeAndShrinkRepresentation> right_child_)
@@ -241,5 +245,11 @@ CuddBDD* MergeAndShrinkRepresentationMerge::get_unsolvability_certificate(
     row_bdds.insert({-1, mutex_bdd});
 
     return left_child->get_unsolvability_certificate(manager, row_bdds, false);
+}
+
+void MergeAndShrinkRepresentationMerge::fill_varorder(std::vector<int> &varorder) {
+    // TODO: doublecheck if we get the varorder right!
+    left_child->fill_varorder(varorder);
+    right_child->fill_varorder(varorder);
 }
 }

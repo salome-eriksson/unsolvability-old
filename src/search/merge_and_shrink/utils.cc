@@ -14,18 +14,6 @@
 using namespace std;
 
 namespace merge_and_shrink {
-/*
-  Compute target sizes for shrinking two transition systems with sizes size1
-  and size2 before they are merged. Use the following rules:
-  1) Right before merging, the transition systems may have at most
-     max_states_before_merge states.
-  2) Right after merging, the product has at most max_states_after_merge states.
-  3) Transition systems are shrunk as little as necessary to satisfy the above
-     constraints. (If possible, neither is shrunk at all.)
-  There is often a Pareto frontier of solutions following these rules. In this
-  case, balanced solutions (where the target sizes are close to each other)
-  are preferred over less balanced ones.
-*/
 pair<int, int> compute_shrink_sizes(
     int size1,
     int size2,
@@ -79,7 +67,11 @@ bool shrink_factor(
     int shrink_threshold_before_merge,
     const ShrinkStrategy &shrink_strategy,
     Verbosity verbosity) {
-    const TransitionSystem &ts = fts.get_ts(index);
+    /*
+      TODO: think about factoring out common logic of this function and the
+      function copy_and_shrink_ts in merge_scoring_function_miasm_utils.cc.
+    */
+    const TransitionSystem &ts = fts.get_transition_system(index);
     int num_states = ts.get_size();
     if (num_states > min(new_size, shrink_threshold_before_merge)) {
         if (verbosity >= Verbosity::VERBOSE) {
@@ -115,8 +107,8 @@ bool shrink_before_merge_step(
       max_states and max_states_before_merge.
     */
     pair<int, int> new_sizes = compute_shrink_sizes(
-        fts.get_ts(index1).get_size(),
-        fts.get_ts(index2).get_size(),
+        fts.get_transition_system(index1).get_size(),
+        fts.get_transition_system(index2).get_size(),
         max_states_before_merge,
         max_states);
 
@@ -157,7 +149,7 @@ bool prune_step(
     bool prune_irrelevant_states,
     Verbosity verbosity) {
     assert(prune_unreachable_states || prune_irrelevant_states);
-    const TransitionSystem &ts = fts.get_ts(index);
+    const TransitionSystem &ts = fts.get_transition_system(index);
     const Distances &distances = fts.get_distances(index);
     int num_states = ts.get_size();
     StateEquivalenceRelation state_equivalence_relation;
