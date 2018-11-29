@@ -9,7 +9,7 @@
 using utils::ExitCode;
 
 void exit_oom(size_t size) {
-    utils::exit_with(ExitCode::OUT_OF_MEMORY);
+    utils::exit_with(ExitCode::SEARCH_OUT_OF_MEMORY);
 }
 
 CuddBDD::CuddBDD() : manager(NULL), bdd(NULL) {}

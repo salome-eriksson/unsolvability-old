@@ -124,7 +124,7 @@ void UnsolvabilityManager::write_task_file() const{
                 std::cout << "CONDITIONAL EFFECTS, ABORT!";
                 task_file.close();
                 std::remove("task.txt");
-                utils::exit_with(utils::ExitCode::CRITICAL_ERROR);
+                utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
             }
             FactProxy f = post[i].get_fact();
             task_file << "ADD:" << fact_to_var[f.get_variable().get_id()][f.get_value()] << "\n";

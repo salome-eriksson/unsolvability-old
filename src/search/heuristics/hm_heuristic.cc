@@ -344,7 +344,7 @@ std::pair<int,int> HMHeuristic::prove_superset_dead(
 }
 
 
-static Heuristic *_parse(OptionParser &parser) {
+static shared_ptr<Heuristic> _parse(OptionParser &parser) {
     parser.document_synopsis("h^m heuristic", "");
     parser.document_language_support("action costs", "supported");
     parser.document_language_support("conditional effects", "ignored");
@@ -366,8 +366,8 @@ static Heuristic *_parse(OptionParser &parser) {
     if (parser.dry_run())
         return nullptr;
     else
-        return new HMHeuristic(opts);
+        return make_shared<HMHeuristic>(opts);
 }
 
-static Plugin<Heuristic> _plugin("hm", _parse);
+static Plugin<Evaluator> _plugin("hm", _parse);
 }
