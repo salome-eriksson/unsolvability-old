@@ -7,7 +7,7 @@
 UnsolvabilityManager::UnsolvabilityManager(
         std::string directory, std::shared_ptr<AbstractTask> task)
     : task(task), task_proxy(*task), setcount(0), knowledgecount(0), directory(directory) {
-    certstream.open(directory + "certificate.txt");
+    certstream.open(directory + "proof.txt");
 
     emptysetid = setcount++;
     certstream << "e " << emptysetid << " c e\n";

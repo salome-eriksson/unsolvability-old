@@ -151,7 +151,7 @@ SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
         if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
-            write_unsolvability_certificate();
+            write_unsolvability_proof();
         }
         return FAILED;
     }
@@ -379,7 +379,7 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
     }
 }
 
-void EagerSearch::write_unsolvability_certificate() {
+void EagerSearch::write_unsolvability_proof() {
     double writing_start = utils::g_timer();
 
     UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
@@ -411,7 +411,7 @@ void EagerSearch::write_unsolvability_certificate() {
         unsolvmgr.write_task_file();
 
         double writing_end = utils::g_timer();
-        std::cout << "Time for writing unsolvability certificate: "
+        std::cout << "Time for writing unsolvability proof: "
                   << writing_end - writing_start << std::endl;
         return;
     }
@@ -618,7 +618,7 @@ void EagerSearch::write_unsolvability_certificate() {
     unsolvmgr.write_task_file();
 
     double writing_end = utils::g_timer();
-    std::cout << "Time for writing unsolvability certificate: "
+    std::cout << "Time for writing unsolvability proof: "
               << writing_end - writing_start << std::endl;
 }
 

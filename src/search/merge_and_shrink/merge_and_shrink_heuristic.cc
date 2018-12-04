@@ -112,11 +112,11 @@ void MergeAndShrinkHeuristic::setup_unsolvability_proof(UnsolvabilityManager &un
     std::unordered_map<int, CuddBDD> bdd_map;
     bdd_map.insert({0, CuddBDD(cudd_manager, false)});
     bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
-    CuddBDD *certificate =
-            mas_representation->get_unsolvability_certificate(cudd_manager, bdd_map, true);
+    CuddBDD *deadend_bdd =
+            mas_representation->get_deadend_bdd(cudd_manager, bdd_map, true);
 
-    std::vector<CuddBDD>bdds(1,*certificate);
-    delete certificate;
+    std::vector<CuddBDD>bdds(1,*deadend_bdd);
+    delete deadend_bdd;
 
     std::stringstream ss;
     ss << unsolvmanager.get_directory() << this << ".bdd";
