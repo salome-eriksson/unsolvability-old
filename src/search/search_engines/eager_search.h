@@ -16,10 +16,16 @@ namespace options {
 class Options;
 }
 
+enum class UnsolvabilityVerificationType {
+    NONE,
+    CERTIFICATE,
+    PROOF
+};
+
 namespace eager_search {
 class EagerSearch : public SearchEngine {
     const bool reopen_closed_nodes;
-    const bool generate_certificate;
+    const UnsolvabilityVerificationType unsolv_type;
 
     std::unique_ptr<StateOpenList> open_list;
     std::shared_ptr<Evaluator> f_evaluator;

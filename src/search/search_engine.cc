@@ -174,13 +174,15 @@ void SearchEngine::add_succ_order_options(OptionParser &parser) {
 }
 
 void SearchEngine::add_unsolvability_options(OptionParser &parser) {
-    parser.add_option<bool>(
-        "generate_certificate",
-        "If the task is detected as unsolvable, generate a certificate of unsolvability.",
-        "false");
+    vector<string> verification_types;
+    verification_types.push_back("NONE");
+    verification_types.push_back("CERTIFICATE");
+    verification_types.push_back("PROOF");
+    parser.add_enum_option(
+        "unsolv_verification", verification_types, "type of unsolvability verification", "NONE");
     parser.add_option<std::string>(
-        "certificate_directory",
-        "The directory in which the unsolvability certificate should be written."
+        "unsolv_directory",
+        "The directory in which the unsolvability verification should be written."
         "Defaults to current directory if none is set.",
         ".");
 }

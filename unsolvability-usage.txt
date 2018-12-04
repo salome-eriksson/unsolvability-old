@@ -29,9 +29,9 @@ Generating and verifying proofs
 The build script for fast downward has been extended to also build the
 verifier if you call it with "./build.py --build-verifier".
 
-To generate proofs, you need to pass the option "generate_certificate"
+To generate proofs, you need to pass the option "unsolv_verification=PROOF"
 to the search engine (currently only eager search and by extension astar is
-supported). The created certificate consists of two text files "task.txt" and
+supported). The created proof consists of two text files "task.txt" and
 "certificate.txt", as well as potentially some text files ending with ".bdd".
 
 You can call the verifier with "./fast-downward.py --verify task.txt
