@@ -97,7 +97,7 @@ void MergeAndShrinkRepresentationLeaf::get_bdds(
     bdd_for_val.insert({-2, mutexbdd});
 }
 
-CuddBDD *MergeAndShrinkRepresentationLeaf::get_unsolvability_certificate(
+CuddBDD *MergeAndShrinkRepresentationLeaf::get_deadend_bdd(
             CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) {
 
     CuddBDD* b_inf = new CuddBDD(manager, false);
@@ -208,7 +208,7 @@ void MergeAndShrinkRepresentationMerge::get_bdds(
 }
 
 
-CuddBDD* MergeAndShrinkRepresentationMerge::get_unsolvability_certificate(
+CuddBDD* MergeAndShrinkRepresentationMerge::get_deadend_bdd(
          CuddManager * manager, std::unordered_map<int,CuddBDD> &bdd_for_val, bool first) {
     size_t rows = lookup_table.size();
     size_t columns = lookup_table[0].size();
@@ -244,7 +244,7 @@ CuddBDD* MergeAndShrinkRepresentationMerge::get_unsolvability_certificate(
     mutex_bdd.land(bdd_for_val[-1]);
     row_bdds.insert({-1, mutex_bdd});
 
-    return left_child->get_unsolvability_certificate(manager, row_bdds, false);
+    return left_child->get_deadend_bdd(manager, row_bdds, false);
 }
 
 void MergeAndShrinkRepresentationMerge::fill_varorder(std::vector<int> &varorder) {

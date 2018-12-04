@@ -56,7 +56,7 @@ public:
 
     void dump_search_space() const;
 
-    void write_unsolvability_certificate();
+    void write_unsolvability_proof();
 };
 }
 
