@@ -28,20 +28,20 @@ namespace eager_search {
 EagerSearch::EagerSearch(const Options &opts)
     : SearchEngine(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
-      generate_certificate(opts.get<bool>("generate_certificate")),
+      unsolv_type(static_cast<UnsolvabilityVerificationType>(opts.get<int>("unsolv_verification"))),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_state_open_list()),
       f_evaluator(opts.get<shared_ptr<Evaluator>>("f_eval", nullptr)),
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
-      unsolvability_directory(opts.get<std::string>("certificate_directory")) {
+      unsolvability_directory(opts.get<std::string>("unsolv_directory")) {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
 
-    if(generate_certificate) {
+    if(unsolv_type != UnsolvabilityVerificationType::NONE) {
         // expand environment variables
         size_t found = unsolvability_directory.find('$');
         while(found != std::string::npos) {
@@ -63,7 +63,7 @@ EagerSearch::EagerSearch(const Options &opts)
         if(!unsolvability_directory.empty() && !(unsolvability_directory.back() == '/')) {
             unsolvability_directory += "/";
         }
-        std::cout << "Generating unsolvability certificate in "
+        std::cout << "Generating unsolvability verification in "
                   << unsolvability_directory << std::endl;
     }
 }
@@ -150,7 +150,7 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
-        if(generate_certificate) {
+        if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
             write_unsolvability_certificate();
         }
         return FAILED;
