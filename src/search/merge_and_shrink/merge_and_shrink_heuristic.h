@@ -2,6 +2,7 @@
 #define MERGE_AND_SHRINK_MERGE_AND_SHRINK_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../evaluation_context.h"
 #include "../unsolvability/cudd_interface.h"
 
 #include <memory>
@@ -15,13 +16,21 @@ class MergeAndShrinkHeuristic : public Heuristic {
 
     // TODO: change vars as needed
     bool unsolvability_setup;
-    std::vector<int> variable_order;
     CuddManager* cudd_manager;
+    std::vector<int> variable_order;
+    CuddBDD *bdd;
+
+    int bdd_to_stateid;
+
     int setid;
     int k_set_dead;
     std::string bdd_filename;
 
-    void setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager);
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
+
+    void setup_unsolvability_proof();
 protected:
     virtual int compute_heuristic(const GlobalState &global_state) override;
 public:

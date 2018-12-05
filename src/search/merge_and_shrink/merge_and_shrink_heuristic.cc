@@ -108,29 +108,51 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
 }
 
 
-void MergeAndShrinkHeuristic::setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager) {
+void MergeAndShrinkHeuristic::setup_unsolvability_proof() {
     std::unordered_map<int, CuddBDD> bdd_map;
     bdd_map.insert({0, CuddBDD(cudd_manager, false)});
     bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
-    CuddBDD *deadend_bdd =
-            mas_representation->get_deadend_bdd(cudd_manager, bdd_map, true);
-
-    std::vector<CuddBDD>bdds(1,*deadend_bdd);
-    delete deadend_bdd;
-
-    std::stringstream ss;
-    ss << unsolvmanager.get_directory() << this << ".bdd";
-    bdd_filename = ss.str();
-    cudd_manager->dumpBDDs(bdds, bdd_filename);
-
-    setid = unsolvmanager.get_new_setid();
+    bdd = mas_representation->get_deadend_bdd(cudd_manager, bdd_map, true);
     unsolvability_setup = true;
+}
+
+int MergeAndShrinkHeuristic::create_subcertificate(EvaluationContext &eval_context) {
+    if(!unsolvability_setup) {
+        setup_unsolvability_proof();
+        bdd_to_stateid = eval_context.get_state().get_id().get_value();
+    }
+    return bdd_to_stateid;
+}
+
+void MergeAndShrinkHeuristic::write_subcertificates(const string &filename) {
+    if(bdd) {
+        std::vector<CuddBDD> bddvec(1,*bdd);
+        std::vector<int> stateidvec(1,bdd_to_stateid);
+        cudd_manager->dumpBDDs_certificate(bddvec, stateidvec, filename);
+    } else {
+        std::ofstream cert_stream;
+        cert_stream.open(filename);
+        cert_stream.close();
+    }
+}
+
+std::vector<int> MergeAndShrinkHeuristic::get_varorder() {
+    return variable_order;
 }
 
 std::pair<int,int> MergeAndShrinkHeuristic::prove_superset_dead(
         EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
     if(!unsolvability_setup) {
-        setup_unsolvability_proof(unsolvmanager);
+        setup_unsolvability_proof();
+        std::vector<CuddBDD>bdds(1,*bdd);
+        delete bdd;
+
+        std::stringstream ss;
+        ss << unsolvmanager.get_directory() << this << ".bdd";
+        bdd_filename = ss.str();
+        cudd_manager->dumpBDDs(bdds, bdd_filename);
+
+        setid = unsolvmanager.get_new_setid();
 
         std::ofstream &certstream = unsolvmanager.get_stream();
 

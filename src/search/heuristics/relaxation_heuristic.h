@@ -58,9 +58,10 @@ protected:
 
     CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
+    std::vector<int> bdd_to_stateid;
     /*
-     * the first int is a setid which corresponds to the BDD in the bdds vector
-     * the second int is a knowledgeid which corresponds to the knowledge that setid is dead
+      the first int is a setid which corresponds to the BDD in the bdds vector
+      the second int is a knowledgeid which corresponds to the knowledge that setid is dead
      */
     std::vector<std::pair<int,int>> set_and_knowledge_ids;
     std::string bdd_filename;
@@ -69,12 +70,21 @@ protected:
     Proposition *get_proposition(const FactProxy &fact);
     virtual int compute_heuristic(const GlobalState &state) = 0;
 
-    void setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager);
+    /*
+      bool bdd_already_seen: whether the bdd was built before the function call already
+      int bddindex: the index of the requested bdd in bdds vector
+     */
+    std::pair<bool,int> get_bdd_for_state(const GlobalState &state);
 public:
     RelaxationHeuristic(const options::Options &opts);
     virtual ~RelaxationHeuristic();
     virtual bool dead_ends_are_reliable() const;
 
+    // functions related to unsolvability certificate generation
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+
+    // functions related to unsolvability proof generation
     virtual std::pair<int,int> prove_superset_dead(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;

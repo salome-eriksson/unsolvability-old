@@ -182,32 +182,11 @@ void RelaxationHeuristic::simplify() {
     cout << " done! [" << unary_operators.size() << " unary operators]" << endl;
 }
 
-void RelaxationHeuristic::setup_unsolvability_proof(UnsolvabilityManager &unsolvmanager) {
-    cudd_manager = new CuddManager(task);
-    std::stringstream ss;
-    ss << unsolvmanager.get_directory() << this << ".bdd";
-    bdd_filename = ss.str();
-    unsolvability_setup = true;
-}
-
-std::pair<int,int> RelaxationHeuristic::prove_superset_dead(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
-    if(!unsolvability_setup) {
-        setup_unsolvability_proof(unsolvmanager);
-    }
-
-    int bddindex = -1;
-    int setid = -1;
-    const GlobalState &state = eval_context.get_state();
-
-    /*
-     * If the state is contained in an existing BDD already, then we can use
-     * that one to show that the state is dead
-     */
+std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const GlobalState &state) {
     CuddBDD statebdd(cudd_manager, state);
     for(size_t i = 0; i < bdds.size(); ++i) {
         if(statebdd.isSubsetOf(bdds[i])) {
-            return set_and_knowledge_ids[i];
+            return std::make_pair(true,i);
         }
     }
 
@@ -223,10 +202,56 @@ std::pair<int,int> RelaxationHeuristic::prove_superset_dead(
             }
         }
     }
-    bddindex = bdds.size();
     bdds.push_back(CuddBDD(cudd_manager, pos_vars,neg_vars));
+    return std::make_pair(false,bdds.size()-1);
+}
 
-    setid = unsolvmanager.get_new_setid();
+int RelaxationHeuristic::create_subcertificate(EvaluationContext &eval_context) {
+    if(!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        unsolvability_setup = true;
+    }
+    std::pair<bool,int> get_bdd = get_bdd_for_state(eval_context.get_state());
+    bool bdd_already_seen = get_bdd.first;
+    int bddindex = get_bdd.second;
+    // we have used this bdd for another dead end already, use this stateid
+    if(bdd_already_seen) {
+        return bdd_to_stateid[bddindex];
+    }
+    int stateid = eval_context.get_state().get_id().get_value();
+    bdd_to_stateid.push_back(stateid);
+    return stateid;
+}
+
+void RelaxationHeuristic::write_subcertificates(const string &filename) {
+    if(!bdds.empty()) {
+        cudd_manager->dumpBDDs_certificate(bdds, bdd_to_stateid, filename);
+    } else {
+        std::ofstream cert_stream;
+        cert_stream.open(filename);
+        cert_stream.close();
+    }
+}
+
+std::pair<int,int> RelaxationHeuristic::prove_superset_dead(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    if(!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        std::stringstream ss;
+        ss << unsolvmanager.get_directory() << this << ".bdd";
+        bdd_filename = ss.str();
+        unsolvability_setup = true;
+    }
+
+    std::pair<bool,int> get_bdd = get_bdd_for_state(eval_context.get_state());
+    bool bdd_already_seen = get_bdd.first;
+    int bddindex = get_bdd.second;
+    // we have used this bdd for another dead end already and thus have shown the set dead
+    if(bdd_already_seen) {
+        return set_and_knowledge_ids[bddindex];
+    }
+
+    int setid = unsolvmanager.get_new_setid();
     assert(bddindex >= 0 && setid >= 0);
 
     std::ofstream &certstream = unsolvmanager.get_stream();
@@ -259,6 +284,8 @@ std::pair<int,int> RelaxationHeuristic::prove_superset_dead(
 }
 
 void RelaxationHeuristic::finish_unsolvability_proof() {
-    cudd_manager->dumpBDDs(bdds, bdd_filename);
+    if(!bdds.empty()) {
+        cudd_manager->dumpBDDs(bdds, bdd_filename);
+    }
 }
 }

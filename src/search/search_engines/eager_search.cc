@@ -42,6 +42,9 @@ EagerSearch::EagerSearch(const Options &opts)
     }
 
     if(unsolv_type != UnsolvabilityVerificationType::NONE) {
+        if(unsolvability_directory.compare(".") == 0) {
+            unsolvability_directory = "";
+        }
         // expand environment variables
         size_t found = unsolvability_directory.find('$');
         while(found != std::string::npos) {
@@ -217,8 +220,7 @@ SearchStatus EagerSearch::step() {
             if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
                 EvaluationContext succ_eval_context(
                     succ_state, succ_node.get_g(), is_preferred, &statistics);
-                // need to call something in order for the state to actually be evaluated
-                // TODO: this might be inefficient but resolves a bug where for relaxation heuristics we always assume the state has just been evaluated
+                // TODO: need to call something in order for the state to actually be evaluated, but this might be inefficient
                 open_list->is_dead_end(succ_eval_context);
                 int hint = open_list->create_subcertificate(succ_eval_context);
                 unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
