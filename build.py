@@ -128,9 +128,9 @@ def build(config_name, cmake_parameters, make_parameters, build_verifier):
     
     if(build_verifier):
         print("Building verifier")
-        verify_path = os.path.join(get_project_root_path(), "src/unsolvability")
+        verify_path = os.path.join(get_project_root_path(), "src/proof-verifier")
         try_run([MAKE], cwd=verify_path)
-        try_run(["cp", os.path.join(os.path.relpath(verify_path, build_path), "verify"), "bin"], cwd=build_path)
+        try_run(["cp", os.path.join(os.path.relpath(verify_path, build_path), "verify"), "bin/verify-proof"], cwd=build_path)
     
     print("Built configuration {config_name} successfully.".format(**locals()))
 

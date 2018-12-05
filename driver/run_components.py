@@ -20,7 +20,7 @@ REL_TRANSLATE_PATH = os.path.join("translate", "translate.py")
 if os.name == "posix":
     REL_SEARCH_PATH = "downward"
     VALIDATE = "validate"
-    REL_VERIFY_PATH = "verify"
+    REL_VERIFY_PATH = "verify-proof"
 elif os.name == "nt":
     REL_SEARCH_PATH = "downward.exe"
     VALIDATE = "validate.exe"
@@ -178,7 +178,7 @@ def run_validate(args):
 
 
 def run_verify(args):
-    logging.info("Running verify.")
+    logging.info("Running verify (proof).")
     
     if args.verify_time_limit:
        args.verify_options.append(str(time_limit))
