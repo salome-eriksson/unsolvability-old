@@ -43,6 +43,7 @@ public:
     virtual void get_path_dependent_evaluators(
         std::set<Evaluator *> &evals) override;
 
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
     virtual std::pair<int,int> prove_superset_dead(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };

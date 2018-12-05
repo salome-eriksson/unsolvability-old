@@ -81,7 +81,8 @@ public:
 
     // functions related to unsolvability certificate generation
     virtual int create_subcertificate(EvaluationContext &) {return -1;}
-    virtual void write_subcertificates(std::string) {}
+    virtual void write_subcertificates(const std::string &) {}
+    // can be left empty if varorder is identical to fdr task
     virtual std::vector<int> get_varorder() {return std::vector<int>();}
 
     // functions related to unsolvability proof generation

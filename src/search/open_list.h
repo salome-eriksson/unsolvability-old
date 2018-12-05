@@ -129,8 +129,8 @@ public:
     // functions related to unsolvability certificate generation
     virtual int create_subcertificate(EvaluationContext &eval_context) = 0;
     virtual void write_subcertificates(const std::string &filename) = 0;
-    // TODO: Ideally we would pass by reference but this does not work for dummy functions
-    // Performance should not be affected since the function is only called once
+    // can be left empty if varorder is identical to fdr task
+    // TODO: Ideally we would pass by reference (performance should not be affected since the function is only called once)
     virtual std::vector<int> get_varorder() = 0;
 
     // functions related to unsolvability proof generation
