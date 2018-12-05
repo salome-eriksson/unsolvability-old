@@ -21,7 +21,7 @@ determines the required input files:
 
 --translate: [DOMAIN] PROBLEM
 --search: TRANSLATE_OUTPUT
---verify: TASK CERTIFICATE
+--verify: TYPE TASK CERTIFICATE
 
 Arguments given before the specified input files are interpreted by the driver
 script ("driver options"). Arguments given after the input files are passed on
@@ -237,7 +237,7 @@ def _set_components_and_inputs(parser, args):
         args.components.append("validate")
 
     args.translate_inputs = []
-    args.verify_input = ["task.txt", "certificate.txt"]
+    args.verify_input = []
 
     assert args.components
     first = args.components[0]
@@ -269,11 +269,13 @@ def _set_components_and_inputs(parser, args):
     elif first == "verify":
         if "--help" in args.verify_options:
             args.verify_input = None
-        elif num_files == 2:
-            args.verify_input = args.filenames
+        elif num_files == 3:
+            # TODO: a very hacky way of getting verification type...
+            args.verify_type = args.filenames[0]
+            args.verify_input = args.filenames[-2:]
         else:
             print_usage_and_exit_with_driver_input_error(
-                parser, "verifier needs exactly two input files")
+                parser, "verifier needs a type specification and exactly two input files")
     else:
         assert False, first
 

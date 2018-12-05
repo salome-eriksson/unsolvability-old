@@ -20,11 +20,9 @@ REL_TRANSLATE_PATH = os.path.join("translate", "translate.py")
 if os.name == "posix":
     REL_SEARCH_PATH = "downward"
     VALIDATE = "validate"
-    REL_VERIFY_PATH = "verify-proof"
 elif os.name == "nt":
     REL_SEARCH_PATH = "downward.exe"
     VALIDATE = "validate.exe"
-    REL_VERIFY_PATH = None
 else:
     returncodes.exit_with_driver_unsupported_error("Unsupported OS: " + os.name)
 
@@ -178,7 +176,14 @@ def run_validate(args):
 
 
 def run_verify(args):
-    logging.info("Running verify (proof).")
+    logging.info("Running verify.")
+    
+    if args.verify_type == 'certificate':
+      REL_VERIFY_PATH = "verify-certificate"
+    elif args.verify_type == 'proof':
+      REL_VERIFY_PATH = "verify-proof"
+    else:
+      returncodes.exit_with_driver_input_error("Error: no verify type specified")
     
     if args.verify_time_limit:
        args.verify_options.append(str(time_limit))
