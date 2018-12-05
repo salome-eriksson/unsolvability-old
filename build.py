@@ -127,7 +127,12 @@ def build(config_name, cmake_parameters, make_parameters, build_verifier):
     try_run([MAKE] + make_parameters, cwd=build_path)
     
     if(build_verifier):
-        print("Building verifier")
+        print("Building verifier (certificate)")
+        verify_path = os.path.join(get_project_root_path(), "src/certificate-verifier")
+        try_run([MAKE], cwd=verify_path)
+        try_run(["cp", os.path.join(os.path.relpath(verify_path, build_path), "verify"), "bin/verify-certificate"], cwd=build_path)
+        
+        print("Building verifier (proof)")
         verify_path = os.path.join(get_project_root_path(), "src/proof-verifier")
         try_run([MAKE], cwd=verify_path)
         try_run(["cp", os.path.join(os.path.relpath(verify_path, build_path), "verify"), "bin/verify-proof"], cwd=build_path)
