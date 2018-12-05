@@ -43,7 +43,6 @@ public:
     std::string &get_directory();
 
     void dump_state(const GlobalState &state);
-    void write_task_file() const;
 };
 
 #endif // UNSOLVABILITYMANAGER_H

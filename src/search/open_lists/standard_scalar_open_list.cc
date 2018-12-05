@@ -41,6 +41,10 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
 
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
+
     virtual std::pair<int,int> prove_superset_dead(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
@@ -112,6 +116,25 @@ template<class Entry>
 bool StandardScalarOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
     return is_dead_end(eval_context) && evaluator->dead_ends_are_reliable();
+}
+
+template<class Entry>
+int StandardScalarOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
+    if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+        return evaluator->create_subcertificate(eval_context);
+    }
+    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void StandardScalarOpenList<Entry>::write_subcertificates(const std::string &filename) {
+    evaluator->write_subcertificates(filename);
+}
+
+template<class Entry>
+std::vector<int> StandardScalarOpenList<Entry>::get_varorder() {
+    return evaluator->get_varorder();
 }
 
 template<class Entry>
