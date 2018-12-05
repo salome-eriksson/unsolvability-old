@@ -187,7 +187,7 @@ CuddManager::CuddManager(std::shared_ptr<AbstractTask> task)
 CuddManager::CuddManager(std::shared_ptr<AbstractTask> task, std::vector<int> &var_order)
     : var_order(var_order), task(task), task_proxy(*task){
     int varamount = task_proxy.get_variables().size();
-    assert(var_order.size() == varmount);
+    assert((int)var_order.size() == varamount);
     fact_to_var.resize(varamount, std::vector<int>());
     bdd_varamount = 0;
     for(size_t i = 0; i < var_order.size(); ++i) {

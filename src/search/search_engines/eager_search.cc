@@ -119,6 +119,9 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
+        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+            open_list->create_subcertificate(eval_context);
+        }
         cout << "Initial state is a dead end." << endl;
     } else {
         if (search_progress.check_progress(eval_context))
@@ -133,6 +136,10 @@ void EagerSearch::initialize() {
     print_initial_evaluator_values(eval_context);
 
     pruning_method->initialize(task);
+
+    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+        unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
+    }
 }
 
 void EagerSearch::print_checkpoint_line(int g) const {
@@ -150,6 +157,9 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
+        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+            write_unsolvability_certificate();
+        }
         if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
             write_unsolvability_proof();
         }
@@ -179,10 +189,18 @@ SearchStatus EagerSearch::step() {
                                     preferred_operators);
     }
 
+    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+        unsolvability_certificate_hints << s.get_id().get_value() << " " << applicable_ops.size();
+    }
+
     for (OperatorID op_id : applicable_ops) {
         OperatorProxy op = task_proxy.get_operators()[op_id];
-        if ((node.get_real_g() + op.get_cost()) >= bound)
+        if ((node.get_real_g() + op.get_cost()) >= bound) {
+            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+                unsolvability_certificate_hints << " " <<  op.get_id() << " -1";
+            }
             continue;
+        }
 
         GlobalState succ_state = state_registry.get_successor_state(s, op);
         statistics.inc_generated();
@@ -195,8 +213,18 @@ SearchStatus EagerSearch::step() {
         }
 
         // Previously encountered dead end. Don't re-evaluate.
-        if (succ_node.is_dead_end())
+        if (succ_node.is_dead_end()) {
+            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+                EvaluationContext succ_eval_context(
+                    succ_state, succ_node.get_g(), is_preferred, &statistics);
+                // need to call something in order for the state to actually be evaluated
+                // TODO: this might be inefficient but resolves a bug where for relaxation heuristics we always assume the state has just been evaluated
+                open_list->is_dead_end(succ_eval_context);
+                int hint = open_list->create_subcertificate(succ_eval_context);
+                unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
+            }
             continue;
+        }
 
         if (succ_node.is_new()) {
             // We have not seen this state before.
@@ -212,6 +240,10 @@ SearchStatus EagerSearch::step() {
             statistics.inc_evaluated_states();
 
             if (open_list->is_dead_end(succ_eval_context)) {
+                if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+                    int hint = open_list->create_subcertificate(succ_eval_context);
+                    unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
+                }
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
@@ -266,6 +298,12 @@ SearchStatus EagerSearch::step() {
                 succ_node.update_parent(node, op, get_adjusted_cost(op));
             }
         }
+        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+            unsolvability_certificate_hints << " " << op.get_id() << " " << succ_state.get_id().get_value();
+        }
+    }
+    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+        unsolvability_certificate_hints << "\n";
     }
 
     return IN_PROGRESS;
@@ -379,14 +417,141 @@ void EagerSearch::update_f_value_statistics(const SearchNode &node) {
     }
 }
 
+void dump_statebdd(const GlobalState &s, std::ofstream &statebdd_file,
+                   int amount_vars, const std::vector<std::vector<int>> &fact_to_var) {
+    // first dump amount of bdds (=1) and index
+    statebdd_file << "1 " << s.get_id().get_value() << "\n";
+
+    // header
+    statebdd_file << ".ver DDDMP-2.0\n";
+    statebdd_file << ".mode A\n";
+    statebdd_file << ".varinfo 0\n";
+    statebdd_file << ".nnodes " << amount_vars+1 << "\n";
+    statebdd_file << ".nvars " << amount_vars << "\n";
+    statebdd_file << ".nsuppvars " << amount_vars << "\n";
+    statebdd_file << ".ids";
+    for(int i = 0; i < amount_vars; ++i) {
+        statebdd_file << " " << i;
+    }
+    statebdd_file << "\n";
+    statebdd_file << ".permids";
+    for(int i = 0; i < amount_vars; ++i) {
+        statebdd_file << " " << i;
+    }
+    statebdd_file << "\n";
+    statebdd_file << ".nroots 1\n";
+    statebdd_file << ".rootids -" << amount_vars+1 << "\n";
+    statebdd_file << ".nodes\n";
+
+    // nodes
+    // TODO: this is a huge mess because only "false" arcs can be minus
+    // We start with a negative root, and if the last var is false, we can
+    // put a minus in the last arc and reach true in this way.
+    // if the last var is true, we assume that the second last is false (because FDR)
+    // and thus put a minus on the second last arc which means the last node is "positive"
+    std::vector<bool> state_vars(amount_vars, false);
+    for(size_t i = 0; i < fact_to_var.size(); ++i) {
+        state_vars[fact_to_var.at(i).at(s[i])] = true;
+    }
+    assert(!state_vars[amount_vars-1] || !state_vars[amount_vars-2]);
+    bool last_true = state_vars[amount_vars-1];
+    int var = amount_vars-1;
+
+    statebdd_file << "1 T 1 0 0\n";
+    statebdd_file << "2 " << var << " " << var << " 1 -1\n";
+    var--;
+    statebdd_file << "3 " << var << " " << var << " ";
+    if(last_true) {
+        statebdd_file << "1 -2\n";
+    } else if(state_vars[var]) {
+        statebdd_file << "2 1\n";
+    } else {
+        statebdd_file << "1 2\n";
+    }
+    var--;
+
+    for(int i = 4; i <= amount_vars+1; ++i) {
+        statebdd_file << i << " " << var << " " << var << " ";
+        if(state_vars[var]) {
+            statebdd_file << i-1 << " 1\n";
+        } else {
+            statebdd_file << "1 " << i-1 << "\n";
+        }
+        var--;
+    }
+    statebdd_file << ".end\n";
+}
+
+void EagerSearch::write_unsolvability_certificate() {
+    unsolvability_certificate_hints << "end hints";
+    unsolvability_certificate_hints.close();
+
+    double writing_start = utils::g_timer();
+    std::string hcerts_filename = unsolvability_directory + "h_cert.bdd";
+    open_list->write_subcertificates(hcerts_filename);
+
+    std::vector<int> varorder = open_list->get_varorder();
+    if(varorder.empty()) {
+        varorder.resize(task_proxy.get_variables().size());
+        for(size_t i = 0; i < varorder.size(); ++i) {
+            varorder[i] = i;
+        }
+    }
+    std::vector<std::vector<int>> fact_to_var(varorder.size(), std::vector<int>());
+    int varamount = 0;
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        int var = varorder[i];
+        fact_to_var[var].resize(task_proxy.get_variables()[var].get_domain_size());
+        for(int j = 0; j < task_proxy.get_variables()[var].get_domain_size(); ++j) {
+            fact_to_var[var][j] = varamount++;
+        }
+    }
+
+    std::string statebdd_file = unsolvability_directory + "states.bdd";
+    std::ofstream stream;
+    stream.open(statebdd_file);
+    for(const StateID id : state_registry) {
+        // dump bdds of closed states
+        const GlobalState &state = state_registry.lookup_state(id);
+        if(search_space.get_node(state).is_closed()) {
+            dump_statebdd(state, stream, varamount, fact_to_var);
+        }
+    }
+
+    // there is currently no safeguard that these are the actual names used
+    std::ofstream cert_file;
+    cert_file.open(unsolvability_directory + "certificate.txt");
+    cert_file << "certificate-type:disjunctive:1\n";
+    cert_file << "bdd-files:2\n";
+    cert_file << unsolvability_directory << "states.bdd\n";
+    cert_file << unsolvability_directory << "h_cert.bdd\n";
+    cert_file << "hints:" << unsolvability_directory << "hints.txt\n";
+    cert_file.close();
+
+    /*
+      Writing the task file at the end minimizes the chances that both task and
+      certificate file are there but the planner could not finish writing them.
+     */
+    write_unsolvability_task_file(varorder);
+    double writing_end = utils::g_timer();
+    std::cout << "Time for writing unsolvability certificate: " << writing_end - writing_start << std::endl;
+
+}
+
 void EagerSearch::write_unsolvability_proof() {
     double writing_start = utils::g_timer();
 
     UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
     std::ofstream &certstream = unsolvmgr.get_stream();
+    std::vector<int> varorder(task_proxy.get_variables().size());
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        varorder[i] = i;
+    }
 
-    // TODO: asking if the initial node is new seems wrong, but that is
-    // how the search handles a dead initial state
+    /*
+      TODO: asking if the initial node is new seems wrong, but that is
+      how the search handles a dead initial state
+     */
     if(search_space.get_node(state_registry.get_initial_state()).is_new()) {
         const GlobalState &init_state = state_registry.get_initial_state();
         EvaluationContext eval_context(init_state,
@@ -406,9 +571,11 @@ void EagerSearch::write_unsolvability_proof() {
 
         open_list->finish_unsolvability_proof();
 
-        // writing the task file at the end minimizes the chances that both task and cert
-        // file are there but the planner could not finish writing them
-        unsolvmgr.write_task_file();
+        /*
+          Writing the task file at the end minimizes the chances that both task and
+          proof file are there but the planner could not finish writing them.
+         */
+        write_unsolvability_task_file(varorder);
 
         double writing_end = utils::g_timer();
         std::cout << "Time for writing unsolvability proof: "
@@ -613,13 +780,91 @@ void EagerSearch::write_unsolvability_proof() {
 
     manager.dumpBDDs(bdds, filename_search_bdds);
 
-    // writing the task file at the end minimizes the chances that both task and cert
-    // file are there but the planner could not finish writing them
-    unsolvmgr.write_task_file();
+    /*
+      Writing the task file at the end minimizes the chances that both task and
+      proof file are there but the planner could not finish writing them.
+     */
+    write_unsolvability_task_file(varorder);
 
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability proof: "
               << writing_end - writing_start << std::endl;
+}
+
+
+void EagerSearch::write_unsolvability_task_file(const std::vector<int> &varorder) {
+    assert(varorder.size() == task_proxy.get_variables().size());
+    std::vector<std::vector<int>> fact_to_var(varorder.size(), std::vector<int>());
+    int fact_amount = 0;
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        int var = varorder[i];
+        fact_to_var[var].resize(task_proxy.get_variables()[var].get_domain_size());
+        for(int j = 0; j < task_proxy.get_variables()[var].get_domain_size(); ++j) {
+            fact_to_var[var][j] = fact_amount++;
+        }
+    }
+
+    std::ofstream task_file;
+    task_file.open("task.txt");
+
+    task_file << "begin_atoms:" << fact_amount << "\n";
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        int var = varorder[i];
+        for(int j = 0; j < task_proxy.get_variables()[var].get_domain_size(); ++j) {
+            task_file << task_proxy.get_variables()[var].get_fact(j).get_name() << "\n";
+        }
+    }
+    task_file << "end_atoms\n";
+
+    task_file << "begin_init\n";
+    for(size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
+        task_file << fact_to_var[i][task_proxy.get_initial_state()[i].get_value()] << "\n";
+    }
+    task_file << "end_init\n";
+
+    task_file << "begin_goal\n";
+    for(size_t i = 0; i < task_proxy.get_goals().size(); ++i) {
+        FactProxy f = task_proxy.get_goals()[i];
+        task_file << fact_to_var[f.get_variable().get_id()][f.get_value()] << "\n";
+    }
+    task_file << "end_goal\n";
+
+
+    task_file << "begin_actions:" << task_proxy.get_operators().size() << "\n";
+    for(size_t op_index = 0;  op_index < task_proxy.get_operators().size(); ++op_index) {
+        OperatorProxy op = task_proxy.get_operators()[op_index];
+
+        task_file << "begin_action\n"
+                  << op.get_name() << "\n"
+                  << "cost: "<< op.get_cost() <<"\n";
+        PreconditionsProxy pre = op.get_preconditions();
+        EffectsProxy post = op.get_effects();
+
+        for(size_t i = 0; i < pre.size(); ++i) {
+            task_file << "PRE:" << fact_to_var[pre[i].get_variable().get_id()][pre[i].get_value()] << "\n";
+        }
+        for(size_t i = 0; i < post.size(); ++i) {
+            if(!post[i].get_conditions().empty()) {
+                std::cout << "CONDITIONAL EFFECTS, ABORT!";
+                task_file.close();
+                std::remove("task.txt");
+                utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+            }
+            FactProxy f = post[i].get_fact();
+            task_file << "ADD:" << fact_to_var[f.get_variable().get_id()][f.get_value()] << "\n";
+            // all other facts from this FDR variable are set to false
+            // TODO: can we make this more compact / smarter?
+            for(int j = 0; j < f.get_variable().get_domain_size(); j++) {
+                if(j == f.get_value()) {
+                    continue;
+                }
+                task_file << "DEL:" << fact_to_var[f.get_variable().get_id()][j] << "\n";
+            }
+        }
+        task_file << "end_action\n";
+    }
+    task_file << "end_actions\n";
+    task_file.close();
 }
 
 }
