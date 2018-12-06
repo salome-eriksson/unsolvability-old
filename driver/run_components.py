@@ -186,7 +186,7 @@ def run_verify(args):
       returncodes.exit_with_driver_input_error("Error: no verify type specified")
     
     if args.verify_time_limit:
-       args.verify_options.append(str(time_limit))
+       args.verify_options.append(str(args.verify_time_limit))
     
     
     verify = get_executable(args.build, REL_VERIFY_PATH)

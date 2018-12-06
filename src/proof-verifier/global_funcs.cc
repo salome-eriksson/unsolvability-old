@@ -189,11 +189,11 @@ void exit_oom(size_t) {
     print_peak_memory_reentrant();
     write_reentrant_str(1,"abort time ");
     int time = timer() *100;
-    write_reentrant_int(1,time%100);
-    time -= (time%100)*100;
+    write_reentrant_int(1,time/100);
+    time -= (time/100)*100;
     write_reentrant_str(1, ".");
-    write_reentrant_int(1,time%10);
-    time -= (time%10)*10;
+    write_reentrant_int(1,time/10);
+    time -= (time/10)*10;
     write_reentrant_int(1,time);
     write_reentrant_str(1,"\n");
     exit_with(ExitCode::OUT_OF_MEMORY);
