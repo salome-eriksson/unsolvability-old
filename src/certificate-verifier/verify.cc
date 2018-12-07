@@ -79,6 +79,23 @@ int main(int argc, char** argv) {
         task_file.replace(found,envvar.length()+1,expanded);
         found = task_file.find('$');
     }
+    found = certificate_file.find('$');
+    while(found != std::string::npos) {
+        size_t end = certificate_file.find('/');
+        std::string envvar;
+        if(end == std::string::npos) {
+            envvar = certificate_file.substr(found+1);
+        } else {
+            envvar = certificate_file.substr(found+1,end-found-1);
+        }
+        // to upper case
+        for(size_t i = 0; i < envvar.size(); i++) {
+            envvar.at(i) = toupper(envvar.at(i));
+        }
+        std::string expanded = std::getenv(envvar.c_str());
+        certificate_file.replace(found,envvar.length()+1,expanded);
+        found = certificate_file.find('$');
+    }
 
     int x = 0;
     if(argc == 4) {
