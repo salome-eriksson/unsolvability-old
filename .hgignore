@@ -12,9 +12,12 @@
 ^src/CMakeLists.txt.user$
 
 
-^src/unsolvability/.*\.o$
-^src/unsolvability/Makefile\.depend$
-^src/unsolvability/verify$
+^src/proof-verifier/.*\.o$
+^src/proof-verifier/Makefile\.depend$
+^src/proof-verifier/verify$
+^src/certificate-verifier/.*\.o$
+^src/certificate-verifier/Makefile\.depend$
+^src/certificate-verifier/verify$
 
 # use glob syntax.
 syntax: glob
