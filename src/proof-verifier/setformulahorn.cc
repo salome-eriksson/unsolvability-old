@@ -839,178 +839,30 @@ bool SetFormulaHorn::implies_union(const HornFormulaList &formulas,
 
 
 
-bool SetFormulaHorn::is_subset(SetFormula *f, bool negated, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    }
-    switch (f->get_formula_type()) {
-    case SetFormulaType::HORN: {
-        const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
-        HornFormulaList list;
-        // this \implies f
-        if(!negated && !f_negated) {
-            list.push_back(std::make_pair(this, false));
-            return SetFormulaHorn::implies(list, f_horn, false);
-        // \lnot this \implies f --> \top \implies this \lor f
-        } else if(negated && !f_negated) {
-            list.push_back(std::make_pair(util->trueformula, false));
-            return SetFormulaHorn::implies_union(list, this, false, f_horn, false);
-        // this \implies \lnot f --> this \land f is unsat
-        } else if(!negated && f_negated) {
-            list.push_back(std::make_pair(this, false));
-            list.push_back(std::make_pair(f_horn, false));
-            return !is_satisfiable(list);
-        // \lnot this \implies \lnot f --> f \implies this
-        } else {
-            list.push_back(std::make_pair(f_horn,false));
-            return SetFormulaHorn::implies(list, this, false);
-        }
-        break;
-    }
-    case SetFormulaType::BDD:
-        std::cerr << "not implemented yet";
-        return false;
-        break;
-    case SetFormulaType::TWOCNF:
-        std::cerr << "not implemented yet";
-        return false;
-        break;
-    case SetFormulaType::EXPLICIT:
-        std::cerr << "not implemented yet";
-        return false;
-        break;
-    default:
-        std::cerr << "L \\subseteq L' is not supported for Horn formula L "
-                     "and non-basic or constant formula L'" << std::endl;
-        return false;
-        break;
-    }
-}
-
-bool SetFormulaHorn::is_subset(SetFormula *f1, SetFormula *f2) {
-    if(f1->get_formula_type() == SetFormulaType::CONSTANT) {
-        f1 = get_constant_formula(static_cast<SetFormulaConstant *>(f1));
-    }
-    if(f2->get_formula_type() == SetFormulaType::CONSTANT) {
-        f2 = get_constant_formula(static_cast<SetFormulaConstant *>(f2));
-    }
-    if(f1->get_formula_type() != SetFormulaType::HORN || f2->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "X \\subseteq X' \\cup X'' is not supported for Horn formula X ";
-        std::cerr << "and non-Horn formula X' or X''" << std::endl;
-        return false;
-    }
-    const SetFormulaHorn *f1_horn = static_cast<SetFormulaHorn *>(f1);
-    const SetFormulaHorn *f2_horn = static_cast<SetFormulaHorn *>(f2);
-    return SetFormulaHorn::implies_union(HornFormulaList(1,std::make_pair(this, false)),
-                         f1_horn, false, f2_horn, false);
-
-}
-
-bool SetFormulaHorn::intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for Horn formula L";
-        std::cerr <<"and non-Horn formula L'" << std::endl;
-        return false;
-    }
-    const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
-    HornFormulaList list;
-    list.push_back(std::make_pair(util->goalformula, false));
-
-
-    // \this \cap S_G(\Pi) \implies f
-    if(!negated && !f_negated) {
-        list.push_back(std::make_pair(this, false));
-        return SetFormulaHorn::implies(list, f_horn, false);
-    // \lnot this \cap S_G(\Pi) \implies f --> \cap S_G(\Pi) \implies this \lor f
-    } else if(negated && !f_negated) {
-        return SetFormulaHorn::implies_union(list, this, false, f_horn, false);
-    // this \cap S_G(\Pi) \implies \lnot f --> this \cap S_G(\Pi) \land f is unsat
-    } else if(!negated && f_negated) {
-        list.push_back(std::make_pair(this, false));
-        list.push_back(std::make_pair(f_horn, false));
-        return !is_satisfiable(list);
-    // \lnot this \cap S_G(\Pi) \implies \lnot f --> f \cap S_G(\Pi) \implies this
-    } else {
-        list.push_back(std::make_pair(f_horn,false));
-        return SetFormulaHorn::implies(list, this, false);
-    }
-
-}
-
-bool SetFormulaHorn::progression_is_union_subset(SetFormula *f, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "X[A] \\subseteq X \\cup L is not supported for Horn formula X";
-        std::cerr << "and non-Horn formula L" << std::endl;
-        return false;
-    }
-    const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
-
-    HornFormulaList list;
-    list.push_back(std::make_pair(this, false));
-    if(f_negated) {
-        list.push_back(std::make_pair(f_horn, true));
-    }
-    //dummy initialization for actionformula
-    list.push_back(std::make_pair(nullptr, false));
-
-    if(util->actionformulas.size() == 0) {
-        util->build_actionformulas();
-    }
-
-    for(int i = 0; i < util->actionformulas.size(); ++i) {
-        list[list.size()-1] = std::make_pair(util->actionformulas[i],false);
-        if(f_negated) {
-            if(!SetFormulaHorn::implies(list, this, true)) {
-                return false;
-            }
-        } else {
-            if(!SetFormulaHorn::implies_union(list, this, true, f_horn, true)) {
-                return false;
-            }
-        }
-    }
+bool SetFormulaHorn::is_subset(std::vector<SetFormula *> &/*left*/,
+                               std::vector<SetFormula *> &/*right*/) {
+    // TODO:implement
     return true;
 }
 
-bool SetFormulaHorn::regression_is_union_subset(SetFormula *f, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::HORN) {
-        std::cerr << "[A]X \\subseteq X \\cup L is not supported for Horn formula X";
-        std::cerr << "and non-Horn formula L" << std::endl;
-        return false;
-    }
-    const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
+bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &/*left*/,
+                                                std::vector<SetFormula *> &/*right*/,
+                                                std::vector<SetFormula *> &/*prog*/,
+                                                std::unordered_set<int> &/*actions*/) {
+    // TODO:implement
+    return true;
+}
 
-    HornFormulaList list;
-    list.push_back(std::make_pair(this, true));
-    if(f_negated) {
-        list.push_back(std::make_pair(f_horn, false));
-    }
-    //dummy initialization for actionformula
-    list.push_back(std::make_pair(nullptr, false));
+bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &/*left*/,
+                                               std::vector<SetFormula *> &/*right*/,
+                                               std::vector<SetFormula *> &/*reg*/,
+                                               std::unordered_set<int> &/*actions*/) {
+    // TODO:implement
+    return true;
+}
 
-    if(util->actionformulas.size() == 0) {
-        util->build_actionformulas();
-    }
-
-
-    for(int i = 0; i< util->actionformulas.size(); ++i) {
-        list[list.size()-1] = std::make_pair(util->actionformulas[i], false);
-        if(f_negated) {
-            if(!SetFormulaHorn::implies(list, this, false)) {
-                return false;
-            }
-        } else {
-            if(!SetFormulaHorn::implies_union(list, this, false, f_horn, false)) {
-                return false;
-            }
-        }
-    }
+bool SetFormulaHorn::is_subset_of(SetFormula */*superset*/, bool /*left_positive*/, bool /*right_positive*/) {
+    // TODO:implement
     return true;
 }
 

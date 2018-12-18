@@ -9,11 +9,18 @@ public:
     SetFormulaCompound();
     virtual ~SetFormulaCompound() {}
 
-    virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
-    virtual bool is_subset(SetFormula *f1, SetFormula *f2);
-    virtual bool intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated);
-    virtual bool progression_is_union_subset(SetFormula *f, bool f_negated);
-    virtual bool regression_is_union_subset(SetFormula *f, bool f_negated);
+    virtual bool is_subset(std::vector<SetFormula *> &left,
+                           std::vector<SetFormula *> &right);
+    virtual bool is_subset_with_progression(std::vector<SetFormula *> &left,
+                                            std::vector<SetFormula *> &right,
+                                            std::vector<SetFormula *> &prog,
+                                            std::unordered_set<int> &actions);
+    virtual bool is_subset_with_regression(std::vector<SetFormula *> &left,
+                                           std::vector<SetFormula *> &right,
+                                           std::vector<SetFormula *> &reg,
+                                           std::unordered_set<int> &actions);
+
+    virtual bool is_subset_of(SetFormula *superset, bool left_positive, bool right_positive);
 
     virtual SetFormulaType get_formula_type() = 0;
 };
@@ -62,11 +69,13 @@ public:
 class SetFormulaProgression : public SetFormulaCompound {
 private:
     FormulaIndex subformula_index;
+    ActionSetIndex actionset_index;
 public:
-    SetFormulaProgression(FormulaIndex subformula_index);
+    SetFormulaProgression(FormulaIndex subformula_index, ActionSetIndex actionset_index);
     virtual ~SetFormulaProgression() {}
 
     FormulaIndex get_subformula_index();
+    ActionSetIndex get_actionset_index();
 
     virtual SetFormulaType get_formula_type();
 };
@@ -74,11 +83,13 @@ public:
 class SetFormulaRegression : public SetFormulaCompound {
 private:
     FormulaIndex subformula_index;
+    ActionSetIndex actionset_index;
 public:
-    SetFormulaRegression(FormulaIndex subformula_index);
+    SetFormulaRegression(FormulaIndex subformula_index, ActionSetIndex actionset_index);
     virtual ~SetFormulaRegression() {}
 
     FormulaIndex get_subformula_index();
+    ActionSetIndex get_actionset_index();
 
     virtual SetFormulaType get_formula_type();
 };

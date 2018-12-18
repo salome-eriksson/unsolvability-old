@@ -28,12 +28,121 @@ void ProofChecker::add_kbentry(std::unique_ptr<KBEntry> entry, KnowledgeIndex in
     kbentries.push_back(std::move(entry));
 }
 
+SetFormula *ProofChecker::gather_sets_intersection(SetFormula *f,
+                                            std::vector<SetFormula *> &positive,
+                                            std::vector<SetFormula *> &negative) {
+    SetFormula *ret = nullptr;
+    switch(f->get_formula_type()) {
+    case SetFormulaType::CONSTANT:
+    case SetFormulaType::BDD:
+    case SetFormulaType::HORN:
+    case SetFormulaType::TWOCNF:
+    case SetFormulaType::EXPLICIT:
+        positive.push_back(f);
+        ret = f;
+        break;
+    case SetFormulaType::NEGATION:
+        f = formulas[dynamic_cast<SetFormulaNegation *>(f)->get_subformula_index()].fpointer.get();
+        ret = gather_sets_intersection(f, negative, positive);
+        break;
+    case SetFormulaType::INTERSECTION: {
+        SetFormulaIntersection *fi = dynamic_cast<SetFormulaIntersection *>(f);
+        ret = gather_sets_intersection(formulas[fi->get_left_index()].fpointer.get(),
+                positive, negative);
+        if(ret) {
+            SetFormula *ret2 = gather_sets_intersection(formulas[fi->get_right_index()].fpointer.get(),
+                positive, negative);
+            if(ret->get_formula_type() == SetFormulaType::CONSTANT) {
+                ret = ret2;
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return ret;
+}
+
+SetFormula *ProofChecker::gather_sets_union(SetFormula *f,
+                                     std::vector<SetFormula *> &positive,
+                                     std::vector<SetFormula *> &negative) {
+    SetFormula *ret = nullptr;
+    switch(f->get_formula_type()) {
+    case SetFormulaType::CONSTANT:
+    case SetFormulaType::BDD:
+    case SetFormulaType::HORN:
+    case SetFormulaType::TWOCNF:
+    case SetFormulaType::EXPLICIT:
+        positive.push_back(f);
+        ret = f;
+        break;
+    case SetFormulaType::NEGATION:
+        f = formulas[dynamic_cast<SetFormulaNegation *>(f)->get_subformula_index()].fpointer.get();
+        ret = gather_sets_union(f, negative, positive);
+        break;
+    case SetFormulaType::UNION: {
+        SetFormulaUnion *fi = dynamic_cast<SetFormulaUnion *>(f);
+        ret = gather_sets_union(formulas[fi->get_left_index()].fpointer.get(),
+                positive, negative);
+        if(ret) {
+            SetFormula *ret2 = gather_sets_union(formulas[fi->get_right_index()].fpointer.get(),
+                positive, negative);
+            if(ret->get_formula_type() == SetFormulaType::CONSTANT) {
+                ret = ret2;
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return ret;
+}
+
+SetFormula *ProofChecker::update_reference_and_check_consistency(
+        SetFormula *reference_formula, SetFormula *tmp, std::string stmt) {
+    // if the current reference formula is constant, update to tmp
+    if (reference_formula->get_formula_type() == SetFormulaType::CONSTANT) {
+        reference_formula = tmp;
+    }
+    // if the types differ and neither is constant, throw an error
+    // (reference_formula can only be constant if tmp is also constant)
+    if (reference_formula->get_formula_type() != tmp->get_formula_type()
+            && tmp->get_formula_type() != SetFormulaType::CONSTANT) {
+        std::string msg = "Error when checking statement " + stmt
+                + ": set expressions invovle different types.";
+        throw std::runtime_error(msg);
+    }
+    return reference_formula;
+}
+
 void ProofChecker::add_formula(std::unique_ptr<SetFormula> formula, FormulaIndex index) {
     // first_pass() will guarantee that the entry for this index exists already
     assert(!formulas[index].fpointer);
     formulas[index].fpointer = std::move(formula);
 }
 
+void ProofChecker::add_actionset(std::unique_ptr<ActionSet> actionset, ActionSetIndex index) {
+    assert(index >= actionsets.size());
+    if(index > actionsets.size()) {
+        actionsets.resize(index);
+    }
+    actionsets.push_back(std::move(actionset));
+}
+
+void ProofChecker::add_actionset_union(ActionSetIndex left, ActionSetIndex right, ActionSetIndex index) {
+    assert(index >= actionsets.size());
+    if(index > actionsets.size()) {
+        actionsets.resize(index);
+    }
+    actionsets.push_back(std::unique_ptr<ActionSet>(
+                             new ActionSetUnion(actionsets[left].get(),
+                                                actionsets[right].get())));
+}
+
+// TOOD: rework this
+/*
 void ProofChecker::remove_formulas_if_obsolete(std::vector<int> indices, int current_ki) {
     for(int index: indices) {
         if(formulas[index].last_occ == current_ki) {
@@ -41,6 +150,7 @@ void ProofChecker::remove_formulas_if_obsolete(std::vector<int> indices, int cur
         }
     }
 }
+*/
 
 /*
  * This method goes over the entire certificate file and collects information
@@ -282,6 +392,11 @@ bool ProofChecker::check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
                   << " is not the progression of set expression #" << fi << "." << std::endl;
         return false;
     }
+    if(!actionsets[s_prog->get_actionset_index()].get()->is_constantall()) {
+        std::cerr << "Error when applying rule D6: "
+                     "the progression does not speak about all actions" << std::endl;
+        return false;
+    }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
             dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
@@ -360,6 +475,11 @@ bool ProofChecker::check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
                   << " is not the progression of set expression #" << si << "." << std::endl;
         return false;
     }
+    if(!actionsets[s_prog->get_actionset_index()].get()->is_constantall()) {
+        std::cerr << "Error when applying rule D7: "
+                     "the progression does not speak about all actions" << std::endl;
+        return false;
+    }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
             dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
@@ -435,6 +555,11 @@ bool ProofChecker::check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
                   << " is not the regression of set expression #" << si << "." << std::endl;
         return false;
     }
+    if(!actionsets[s_reg->get_actionset_index()].get()->is_constantall()) {
+        std::cerr << "Error when applying rule D8: "
+                     "the regression does not speak about all actions" << std::endl;
+        return false;
+    }
     // check f the right side of k1 is S \cup S'
     SetFormulaUnion *s_cup_sp =
             dynamic_cast<SetFormulaUnion *>(formulas[kbentries[ki1]->get_second()].fpointer.get());
@@ -502,6 +627,11 @@ bool ProofChecker::check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
     if ((!s_reg) || (s_reg->get_subformula_index() != fi)) {
         std::cerr << "Error when applying rule D9: the left side of subset knowledge #" << ki1
                   << " is not the regression of set expression #" << fi << "." << std::endl;
+        return false;
+    }
+    if(!actionsets[s_reg->get_actionset_index()].get()->is_constantall()) {
+        std::cerr << "Error when applying rule D9: "
+                     "the regression does not speak about all actions" << std::endl;
         return false;
     }
     // check f the right side of k1 is S \cup S'
@@ -652,202 +782,312 @@ bool ProofChecker::check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, Formul
 }
 
 
-// check if L \subseteq L'
+// check if \bigcap_{L \in \mathcal L} L \subseteq \bigcup_{L' \in \mathcal L'} L'
 bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
     bool ret = false;
 
-    FormulaIndex l_resolved = fi1;
-    FormulaIndex lp_resolved = fi2;
+    try {
+        std::vector<SetFormula *> left;
+        std::vector<SetFormula *> right;
 
-    // resolve negated formulas and instead pass bools if the formulas are negated
-    bool left_negated = false;
-    bool right_negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[fi1].fpointer.get());
-    if(neg) {
-        l_resolved = neg->get_subformula_index();
-        left_negated = true;
-    }
-    neg = dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer.get());
-    if(neg) {
-        lp_resolved = neg->get_subformula_index();
-        right_negated = true;
-    }
+        SetFormula *reference_formula = gather_sets_intersection(formulas[fi1].fpointer.get(), left, right);
+        if(!reference_formula) {
+            std::string msg = "Error when checking statement B1: set expression #"
+                    + std::to_string(fi1)
+                    + " is not a intersection of literals of the same type.";
+            throw std::runtime_error(msg);
+        }
+        SetFormula *tmp = gather_sets_union(formulas[fi2].fpointer.get(), right, left);
+        if (!tmp) {
+            std::string msg = "Error when checking statement B1: set expression #"
+                    + std::to_string(fi2)
+                    + " is not a union of literals of the same type.";
+            throw std::runtime_error(msg);
+        }
+        reference_formula =
+                update_reference_and_check_consistency(reference_formula, tmp, "B1");
 
-    if(formulas[l_resolved].fpointer->is_subset(formulas[lp_resolved].fpointer.get(), left_negated, right_negated)) {
-        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
+        if (!reference_formula->is_subset(left, right)) {
+            std::string msg = "Error when checking statement B1: set expression #"
+                    + std::to_string(fi1) + " is not a subset of set expression #"
+                    + std::to_string(fi2) + ".";
+            throw std::runtime_error(msg);
+        }
+
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1,fi2)), newki);
         ret = true;
-    } else {
-        std::cerr << "Error when checking statement B1: set expression #" << fi1
-                  << " is not a subset of set expression #" << fi2 << "." << std::endl;
+    } catch(std::runtime_error e) {
+        std::cerr << e.what() << std::endl;
     }
-
-    // TODO: move?
-    remove_formulas_if_obsolete({l_resolved, lp_resolved}, newki);
+    /*
+    remove_formulas_if_obsolete(left, newki);
+    remove_formulas_if_obsolete(right, newki);
+    */
     return ret;
 }
 
-// check if X \subseteq X' \cup X''
+// check if (\bigcap_{X \in \mathcal X} X)[A] \land \bigcap_{L \in \mathcal L} L \subseteq \bigcup_{L' \in \mathcal L'} L'
 bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
     bool ret = false;
 
-    // check if fi2 represents X' \cup X''
-    SetFormulaUnion *xp_cup_xpp = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer.get());
-    if(!xp_cup_xpp) {
-        std::cerr << "Error when checking statement B2: set expression #" << fi2
-                  << " is not a union." << std::endl;
-        return false;
-    }
-    FormulaIndex xpi = xp_cup_xpp->get_left_index();
-    FormulaIndex xppi = xp_cup_xpp->get_right_index();
+    try {
+        std::vector<SetFormula *> prog;
+        std::vector<SetFormula *> left;
+        std::vector<SetFormula *> right;
+        std::unordered_set<int> actions;
+        SetFormula *prog_formula = nullptr;
+        SetFormula *left_formula = nullptr;
 
-    if(formulas[fi1].fpointer->is_subset(formulas[xpi].fpointer.get(), formulas[xppi].fpointer.get())) {
-        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
+        SetFormulaType left_type = formulas[fi1].fpointer.get()->get_formula_type();
+        /*
+         * We expect the left side to either be a progression or an intersection with
+         * a progression on the left side
+         */
+        if (left_type == SetFormulaType::INTERSECTION) {
+            SetFormulaIntersection *intersection =
+                    dynamic_cast<SetFormulaIntersection *>(formulas[fi1].fpointer.get());
+            prog_formula = formulas[intersection->get_left_index()].fpointer.get();
+            left_formula = formulas[intersection->get_right_index()].fpointer.get();
+        } else if (left_type == SetFormulaType::PROGRESSION) {
+            prog_formula = formulas[fi1].fpointer.get();
+        }
+        // here, prog_formula should be S[A]
+        if (!prog_formula || prog_formula->get_formula_type() != SetFormulaType::PROGRESSION) {
+            std::string msg = "Error when checking statement B2: set expression #"
+                    + std::to_string(fi1)
+                    + " is not a progresison or intersection with progression on the left.";
+            throw std::runtime_error(msg);
+        }
+        SetFormulaProgression *progression = dynamic_cast<SetFormulaProgression *>(prog_formula);
+        actionsets[progression->get_actionset_index()]->get_actions(actions);
+        prog_formula = formulas[progression->get_subformula_index()].fpointer.get();
+        // here, prog_formula is S (without [A])
+
+        /*
+         * In the progression, we only allow set variables, not set literals.
+         * We abuse left here and know it will stay empty if the progression does
+         * not contain set literals.
+         */
+        SetFormula *reference_formula = gather_sets_intersection(prog_formula, prog, left);
+        if(!reference_formula || !left.empty()) {
+            std::string msg = "Error when checking statement B2: "
+                              "the progression in set expression #"
+                    + std::to_string(fi1)
+                    + " is not an intersection of set variables.";
+            throw std::runtime_error(msg);
+        }
+
+        // left_formula is empty if the left side contains only a progression
+        if(left_formula) {
+            SetFormula *tmp = gather_sets_intersection(left_formula, left, right);
+            if(!tmp) {
+                std::string msg = "Error when checking statement B2: "
+                                  "the non-progression part in set expression #"
+                        + std::to_string(fi1)
+                        + " is not an intersection of set literals.";
+                throw std::runtime_error(msg);
+            }
+            reference_formula =
+                    update_reference_and_check_consistency(reference_formula, tmp, "B2");
+        }
+        SetFormula *tmp = gather_sets_union(formulas[fi2].fpointer.get(), right, left);
+        if(!tmp) {
+            std::string msg = "Error when checking statement B2: set expression #"
+                    + std::to_string(fi2)
+                    + " is not a union of literals.";
+            throw std::runtime_error(msg);
+        }
+        reference_formula =
+                update_reference_and_check_consistency(reference_formula, tmp, "B2");
+
+        if(!reference_formula->is_subset_with_progression(
+                    left, right, prog, actions)) {
+            std::string msg = "Error when checking statement B2: set expression #"
+                    + std::to_string(fi1) + " is not a subset of set expression #"
+                    + std::to_string(fi2) + ".";
+            throw std::runtime_error(msg);
+        }
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1,fi2)), newki);
         ret = true;
-    } else {
-        std::cerr << "Error when checking statement B2: set expression #" << fi1
-                  << " is not a subset of set expression #" << fi2 << "." << std::endl;
+
+    } catch(std::runtime_error e) {
+        std::cerr << e.what() << std::endl;
     }
 
-    // TODO: move?
-    remove_formulas_if_obsolete({fi1, xpi, xppi}, newki);
+    //remove formulas if obsolete
+
     return ret;
 }
 
-// check if L \cap S_G(\Pi) \subseteq L'
+// check if [A](\bigcap_{X \in \mathcal X} X) \land \bigcap_{L \in \mathcal L} L \subseteq \bigcup_{L' \in \mathcal L'} L'
 bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
     bool ret = false;
 
-    // check if fi1 represents L \cap S_G(\Pi)
-    SetFormulaIntersection *l_cap_goal = dynamic_cast<SetFormulaIntersection *>(formulas[fi1].fpointer.get());
-    if(!l_cap_goal) {
-        std::cerr << "Error when checking statement B3: set expression #" << fi1
-                  << " is not an intersection." << std::endl;
-        return false;
-    }
-    SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[l_cap_goal->get_right_index()].fpointer.get());
-    if(!goal) {
-        std::cerr << "Error when checking statement B3: set expression #" << fi1
-                  << " is not an intersection with the constant goal on the right side." << std::endl;
-        return false;
-    }
+    try {
+        std::vector<SetFormula *> reg;
+        std::vector<SetFormula *> left;
+        std::vector<SetFormula *> right;
+        std::unordered_set<int> actions;
+        SetFormula *reg_formula = nullptr;
+        SetFormula *left_formula = nullptr;
 
-    FormulaIndex l_resolved = l_cap_goal->get_left_index();
-    FormulaIndex lp_resolved = fi2;
+        SetFormulaType left_type = formulas[fi1].fpointer.get()->get_formula_type();
+        /*
+         * We expect the left side to either be a regression or an intersection with
+         * a regression on the left side
+         */
+        if (left_type == SetFormulaType::INTERSECTION) {
+            SetFormulaIntersection *intersection =
+                    dynamic_cast<SetFormulaIntersection *>(formulas[fi1].fpointer.get());
+            reg_formula = formulas[intersection->get_left_index()].fpointer.get();
+            left_formula = formulas[intersection->get_right_index()].fpointer.get();
+        } else if (left_type == SetFormulaType::REGRESSION) {
+            reg_formula = formulas[fi1].fpointer.get();
+        }
+        // here, reg_formula should be [A]S
+        if (!reg_formula || reg_formula->get_formula_type() != SetFormulaType::REGRESSION) {
+            std::string msg = "Error when checking statement B3: set expression #"
+                    + std::to_string(fi1)
+                    + " is not a regresison or intersection with regression on the left.";
+            throw std::runtime_error(msg);
+        }
+        SetFormulaRegression *regression = dynamic_cast<SetFormulaRegression *>(reg_formula);
+        actionsets[regression->get_actionset_index()]->get_actions(actions);
+        reg_formula = formulas[regression->get_subformula_index()].fpointer.get();
+        // here, reg_formula is S (without [A])
 
-    // resolve negated formulas and instead pass bools if the formulas are negated
-    bool left_negated = false;
-    bool right_negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer.get());
-    if(neg) {
-        l_resolved = neg->get_subformula_index();
-        left_negated = true;
-    }
-    neg = dynamic_cast<SetFormulaNegation *>(formulas[fi2].fpointer.get());
-    if(neg) {
-        lp_resolved = neg->get_subformula_index();
-        right_negated = true;
-    }
+        /*
+         * In the regression, we only allow set variables, not set literals.
+         * We abuse left here and know it will stay empty if the regression does
+         * not contain set literals.
+         */
+        SetFormula *reference_formula = gather_sets_intersection(reg_formula, reg, left);
+        if(!reference_formula || !left.empty()) {
+            std::string msg = "Error when checking statement B3: "
+                              "the regression in set expression #"
+                    + std::to_string(fi1)
+                    + " is not an intersection of set variables.";
+            throw std::runtime_error(msg);
+        }
 
-    if(formulas[l_resolved].fpointer->intersection_with_goal_is_subset(formulas[lp_resolved].fpointer.get(), left_negated, right_negated)) {
-        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
+        // left_formula is empty if the left side contains only a progression
+        if(left_formula) {
+            SetFormula *tmp = gather_sets_intersection(left_formula, left, right);
+            if(!tmp) {
+                std::string msg = "Error when checking statement B3: "
+                                  "the non-regression part in set expression #"
+                        + std::to_string(fi1)
+                        + " is not an intersection of set literals.";
+                throw std::runtime_error(msg);
+            }
+            reference_formula =
+                    update_reference_and_check_consistency(reference_formula, tmp, "B2");
+        }
+        SetFormula *tmp = gather_sets_union(formulas[fi2].fpointer.get(), right, left);
+        if(!tmp) {
+            std::string msg = "Error when checking statement B3: set expression #"
+                    + std::to_string(fi2)
+                    + " is not a union of literals.";
+            throw std::runtime_error(msg);
+        }
+        reference_formula =
+                update_reference_and_check_consistency(reference_formula, tmp, "B2");
+
+        if(!reference_formula->is_subset_with_regression(
+                    left, right, reg, actions)) {
+            std::string msg = "Error when checking statement B3: set expression #"
+                    + std::to_string(fi1) + " is not a subset of set expression #"
+                    + std::to_string(fi2) + ".";
+            throw std::runtime_error(msg);
+        }
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1,fi2)), newki);
         ret = true;
-    } else {
-        std::cerr << "Error when checking statement B3: set expression #" << fi1
-                  << " is not a subset of set expression #" << fi2 << "." << std::endl;
+
+    } catch(std::runtime_error e) {
+        std::cerr << e.what() << std::endl;
     }
 
-    // TODO: move?
-    remove_formulas_if_obsolete({l_resolved, lp_resolved}, newki);
+    //remove formulas if obsolete
+
     return ret;
 }
 
 
-// check if X[A] \subseteq X \cup L
+// check if L \subseteq L', where L and L' might be represented by different formalisms
 bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    bool ret = false;
+    bool ret = true;
 
-    // check if fi1 represents X[A]
-    SetFormulaProgression *x_prog = dynamic_cast<SetFormulaProgression *>(formulas[fi1].fpointer.get());
-    if(!x_prog) {
-        std::cerr << "Error when checking statement B4: set expression #" << fi1
-                  << " is not a progression." << std::endl;
-        return false;
+    try {
+        SetFormula *left = formulas[fi1].fpointer.get();
+        bool left_positive = true;
+        SetFormula *right = formulas[fi2].fpointer.get();
+        bool right_positive = true;
+
+        if(left->get_formula_type() == SetFormulaType::NEGATION) {
+            SetFormulaNegation *f1neg = dynamic_cast<SetFormulaNegation *>(left);
+            left = formulas[f1neg->get_subformula_index()].fpointer.get();
+            left_positive = false;
+        }
+        switch (left->get_formula_type()) {
+        case SetFormulaType::NEGATION:
+        case SetFormulaType::INTERSECTION:
+        case SetFormulaType::UNION:
+        case SetFormulaType::PROGRESSION:
+        case SetFormulaType::REGRESSION:
+            std::string msg = "Error when checking statement B4: set expression #"
+                    + std::to_string(fi1) + " is not a set literal.";
+            throw std::runtime_error(msg);
+            break;
+        }
+
+        if(right->get_formula_type() == SetFormulaType::NEGATION) {
+            SetFormulaNegation *f2neg = dynamic_cast<SetFormulaNegation *>(right);
+            right = formulas[f2neg->get_subformula_index()].fpointer.get();
+            right_positive = false;
+        }
+        switch (right->get_formula_type()) {
+        case SetFormulaType::NEGATION:
+        case SetFormulaType::INTERSECTION:
+        case SetFormulaType::UNION:
+        case SetFormulaType::PROGRESSION:
+        case SetFormulaType::REGRESSION:
+            std::string msg = "Error when checking statement B4: set expression #"
+                    + std::to_string(fi2) + " is not a set literal.";
+            throw std::runtime_error(msg);
+            break;
+        }
+
+        if(!left->is_subset_of(right, left_positive, right_positive)) {
+            std::string msg = "Error when checking statement B4: set expression #"
+                    + std::to_string(fi1) + " is not a subset of set expression #"
+                    + std::to_string(fi2) + ".";
+            throw std::runtime_error(msg);
+        }
+
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1,fi2)), newki);
+    } catch (std::runtime_error e) {
+        std::cerr << e.what();
+        ret = false;
     }
-    FormulaIndex xi = x_prog->get_subformula_index();
-
-    //check if fi2 represents X \cup L
-    SetFormulaUnion *x_cup_l = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer.get());
-    if((!x_cup_l) || (x_cup_l->get_left_index() != xi)) {
-        std::cerr << "Error when checking statemnt B4: set expression #" << fi2
-                  << " is not a union with set expression #" << xi << " on the left side." << std::endl;
-        return false;
-    }
-    FormulaIndex l_resolved = x_cup_l->get_right_index();
-
-    //resolve negated formula and instead pass bool if the formula is negated
-    bool negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer.get());
-    if(neg) {
-        l_resolved = neg->get_subformula_index();
-        negated = true;
-    }
-
-    if(formulas[xi].fpointer->progression_is_union_subset(formulas[l_resolved].fpointer.get(), negated)) {
-        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
-        ret = true;
-    } else {
-
-        std::cerr << "Error when checking statement B4: set expression #" << fi1
-                  << " is not a subset of set expression #" << fi2 << "." << std::endl;    }
-
-    // TODO: move?
-    remove_formulas_if_obsolete({xi, l_resolved}, newki);
+    /*
+    remove_formulas_if_obsolete({left, right}, newki);
+    */
     return ret;
 }
 
 
-// check if [A]X \subseteq X \cup L
-bool ProofChecker::check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2) {
-    bool ret = false;
-
-    // check if fi1 represents [A]X
-    SetFormulaRegression *x_reg = dynamic_cast<SetFormulaRegression *>(formulas[fi1].fpointer.get());
-    if(!x_reg) {
-        std::cerr << "Error when checking statement B5: set expression #" << fi1
-                  << " is not a regression." << std::endl;
+// check if A \subseteq A'
+bool ProofChecker::check_statement_B5(KnowledgeIndex newki,
+                                      ActionSetIndex ai1,
+                                      ActionSetIndex ai2) {
+    if(!actionsets[ai1].get()->is_subset(actionsets[ai2].get())) {
+        std::cerr << "Error when checking statement B5: action set #"
+                  << ai1 << " is not a subset of action set #" << ai2 << "." << std::endl;
         return false;
-    }
-    FormulaIndex xi = x_reg->get_subformula_index();
-
-    //check if fi2 represents X \cup L
-    SetFormulaUnion *x_cup_l = dynamic_cast<SetFormulaUnion *>(formulas[fi2].fpointer.get());
-    if((!x_cup_l) || (x_cup_l->get_left_index() != xi)) {
-        std::cerr << "Error when checking statement B5: set expression #" << fi2
-                  << " is not a union with set expression #" << xi << " on the left side." << std::endl;
-        return false;
-    }
-    FormulaIndex l_resolved = x_cup_l->get_right_index();
-
-    //resolve negated formula and instead pass bool if the formula is negated
-    bool negated = false;
-    SetFormulaNegation *neg = dynamic_cast<SetFormulaNegation *>(formulas[l_resolved].fpointer.get());
-    if(neg) {
-        l_resolved = neg->get_subformula_index();
-        negated = true;
-    }
-
-    if(formulas[xi].fpointer->regression_is_union_subset(formulas[l_resolved].fpointer.get(), negated)) {
-        add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(fi1, fi2)), newki);
-        ret = true;
     } else {
-        std::cerr << "Error when checking statement B5: set expression #" << fi1
-                  << " is not a subset of set expression #" << fi2 << "." << std::endl;
+        add_kbentry(std::unique_ptr<KBEntry>(new KBEntryAction(ai1,ai2)), newki);
+        return true;
     }
-
-    // TODO: move?
-    remove_formulas_if_obsolete({xi, l_resolved}, newki);
-    return ret;
 }
 
 

@@ -11,6 +11,7 @@ CXXFLAGS += $(CUDD_CXXFLAGS)
 DEPEND = $(CXX) -MM
 
 HEADERS = \
+	  actionset.h \
           global_funcs.h \
           task.h \
 	  timer.h \
