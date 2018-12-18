@@ -130,6 +130,46 @@ void BDDUtil::build_actionformulas() {
     }
 }
 
+bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD> &bdds) {
+    assert(bdds.empty());
+    bdds.reserve(formulas.size());
+    std::vector<int> *varorder = nullptr;
+    for(size_t i = 0; i < formulas.size(); ++i) {
+        if (formulas[i]->get_formula_type() == SetFormulaType::CONSTANT) {
+            SetFormulaConstant *c_formula = static_cast<SetFormulaConstant *>(formulas[i]);
+            // see if we can use get_constant_formula
+            switch (c_formula->get_constant_type()) {
+            case ConstantType::EMPTY:
+                bdds.push_back(emptyformula.bdd);
+                break;
+            case ConstantType::GOAL:
+                bdds.push_back(goalformula.bdd);
+                break;
+            case ConstantType::INIT:
+                bdds.push_back(initformula.bdd);
+                break;
+            default:
+                std::cerr << "Unknown constant type " << std::endl;
+                exit_with(ExitCode::CRITICAL_ERROR);
+                break;
+            }
+        } else if(formulas[i]->get_formula_type() == SetFormulaType::BDD) {
+            SetFormulaBDD *b_formula = static_cast<SetFormulaBDD *>(formulas[i]);
+            if (varorder && b_formula->util->varorder != *varorder) {
+                std::cerr << "Error: Trying to combine BDDs with different varorder."
+                          << std::endl;
+                return false;
+            }
+            bdds.push_back(b_formula->bdd);
+        } else {
+            std::cerr << "Error: SetFormula of type other than BDD not allowed here."
+                      << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
 std::unordered_map<std::string, BDDUtil> SetFormulaBDD::utils;
 std::vector<int> SetFormulaBDD::prime_permutation;
 
@@ -171,25 +211,105 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     assert(declaration_end == ";");
 }
 
-bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &/*left*/,
-                              std::vector<SetFormula *> &/*right*/) {
-    // TODO:implement
+bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &left,
+                              std::vector<SetFormula *> &right) {
+    std::vector<BDD> left_bdds;
+    std::vector<BDD> right_bdds;
+    bool valid_bdds = util->get_bdd_vector(left, left_bdds)
+            && util->get_bdd_vector(right, right_bdds);
+    if(!valid_bdds) {
+        return false;
+    }
+
+    BDD left_singular = manager.bddOne();
+    for(size_t i = 0; i < left_bdds.size(); ++i) {
+        left_singular *= left_bdds[i];
+    }
+    BDD right_singular = manager.bddZero();
+    for(size_t i = 0; i < right_bdds.size(); ++i) {
+        right_singular += right_bdds[i];
+    }
+    return left_singular.Leq(right_singular);
+}
+
+bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
+                                               std::vector<SetFormula *> &right,
+                                               std::vector<SetFormula *> &prog,
+                                               std::unordered_set<int> &actions) {
+    std::vector<BDD> left_bdds;
+    std::vector<BDD> right_bdds;
+    std::vector<BDD> prog_bdds;
+    bool valid_bdds = util->get_bdd_vector(left, left_bdds)
+            && util->get_bdd_vector(right, right_bdds)
+            && util->get_bdd_vector(prog, prog_bdds);
+    if (!valid_bdds) {
+        return false;
+    }
+
+    BDD left_singular = manager.bddOne();
+    for (size_t i = 0; i < left_bdds.size(); ++i) {
+        left_singular *= left_bdds[i];
+    }
+    BDD right_singular = manager.bddZero();
+    for (size_t i = 0; i < right_bdds.size(); ++i) {
+        right_singular += right_bdds[i];
+    }
+
+    // prog[A] \cap left \subseteq right' iff prog[A] \subseteq !left \cup right'
+    BDD neg_left_or_right_primed = !left_singular + right_singular.Permute(&prime_permutation[0]);
+
+    BDD prog_singular = manager.bddOne();
+    for (size_t i = 0; i < prog_bdds.size(); ++i) {
+        prog_singular *= prog_bdds[i];
+    }
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
+
+    for (int action : actions) {
+        if (!( (prog_singular*util->actionformulas[action]).Leq(neg_left_or_right_primed) )) {
+            return false;
+        }
+    }
     return true;
 }
 
-bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &/*left*/,
-                                               std::vector<SetFormula *> &/*right*/,
-                                               std::vector<SetFormula *> &/*prog*/,
-                                               std::unordered_set<int> &/*actions*/) {
-    // TODO:implement
-    return true;
-}
+bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
+                                              std::vector<SetFormula *> &right,
+                                              std::vector<SetFormula *> &reg,
+                                              std::unordered_set<int> &actions) {
+    std::vector<BDD> left_bdds;
+    std::vector<BDD> right_bdds;
+    std::vector<BDD> reg_bdds;
+    bool valid_bdds = util->get_bdd_vector(left, left_bdds)
+            && util->get_bdd_vector(right, right_bdds)
+            && util->get_bdd_vector(reg, reg_bdds);
+    if (!valid_bdds) {
+        return false;
+    }
 
-bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &/*left*/,
-                                              std::vector<SetFormula *> &/*right*/,
-                                              std::vector<SetFormula *> &/*reg*/,
-                                              std::unordered_set<int> &/*actions*/) {
-    // TODO:implement
+    BDD left_singular = manager.bddOne();
+    for (size_t i = 0; i < left_bdds.size(); ++i) {
+        left_singular *= left_bdds[i];
+    }
+    BDD right_singular = manager.bddZero();
+    for (size_t i = 0; i < right_bdds.size(); ++i) {
+        right_singular += right_bdds[i];
+    }
+
+    // prog[A] \cap left \subseteq right' iff prog[A] \subseteq !left \cup right'
+    BDD neg_left_or_right_primed = !left_singular + right_singular.Permute(&prime_permutation[0]);
+
+    BDD reg_singular = manager.bddOne();
+    for (size_t i = 0; i < reg_bdds.size(); ++i) {
+        reg_singular *= reg_bdds[i];
+    }
+
+    for (int action : actions) {
+        if (!(reg_singular*util->actionformulas[action]).Leq(neg_left_or_right_primed)) {
+            return false;
+        }
+    }
     return true;
 }
 

@@ -77,6 +77,14 @@ private:
     BDD build_bdd_from_cube(const Cube &cube);
     BDD build_bdd_for_action(const Action &a);
     void build_actionformulas();
+
+    /*
+     * Returns a vector containing all BDDs contained in the vector of SetFormulas.
+     * The SetFormulas can only be of type SetFormulaBDD or SetFormulaConstant.
+     * All SetFormulaBDDs must share the same variable order.
+     * If either of these requirements is not satisfied, the method aborts and returns false.
+     */
+    bool get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD> &bdds);
 public:
     BDDUtil();
     BDDUtil(Task *task, std::string filename);
