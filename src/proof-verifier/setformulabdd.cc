@@ -171,242 +171,31 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     assert(declaration_end == ";");
 }
 
-bool SetFormulaBDD::is_subset(SetFormula *f, bool negated, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    }
-    switch (f->get_formula_type()) {
-    case SetFormulaType::HORN: {
-        if(negated || f_negated) {
-            std::cerr << "L \\subseteq L' not supported for BDD formula L and ";
-            std::cerr << "Horn formula L' if one of them is negated" << std::endl;
-            return false;
-        }
-
-        const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
-        for(int i : f_horn->get_forced_false()) {
-            BDD tmp = !(manager.bddVar(util->varorder[i]*2));
-            if(!bdd.Leq(tmp)) {
-                return false;
-            }
-        }
-
-        for(int i = 0; i < f_horn->get_forced_true().size(); ++i) {
-            BDD tmp = (manager.bddVar(util->varorder[i]*2));
-            if(!(bdd.Leq(tmp))) {
-                return false;
-            }
-        }
-
-        for(int i = 0; i < f_horn->get_size(); ++i) {
-            BDD tmp = manager.bddZero();
-            for(int j : f_horn->get_left_vars(i)) {
-                tmp += !(manager.bddVar(util->varorder[j]*2));
-            }
-            if(f_horn->get_right(i) != -1) {
-                tmp += (manager.bddVar(util->varorder[i]*2));
-            }
-            if(!(bdd.Leq(tmp))) {
-                return false;
-            }
-        }
-        return true;
-        break;
-    }
-    // TODO: check for different varorder
-    case SetFormulaType::BDD: {
-        const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-
-        if(util->varorder != f_bdd->util->varorder) {
-            std::cerr << "L \\subseteq L' not supported for BDD formulas L and "
-                      << "L' with different variable order." << std::endl;
-            return false;
-        }
-
-        BDD left = bdd;
-        if(negated) {
-            left = !left;
-        }
-        BDD right = f_bdd->bdd;
-        if(f_negated) {
-            right = !right;
-        }
-        return left.Leq(right);
-        break;
-    }
-    case SetFormulaType::TWOCNF:
-        std::cerr << "not implemented yet";
-        return false;
-        break;
-    case SetFormulaType::EXPLICIT: {
-        if(negated || f_negated) {
-            std::cerr << "L \\subseteq L' not supported for BDD formula L and "
-                      << "explicit formula L' if one of them is negated" << std::endl;
-            return false;
-        }
-
-        if(bdd.IsZero()) {
-            return true;
-        }
-
-        SetFormulaExplicit *f_explicit = static_cast<SetFormulaExplicit *>(f);
-
-        int* bdd_model;
-        // TODO: find a better way to find out how many variables we have
-        Cube statecube(util->varorder.size(),-1);
-        CUDD_VALUE_TYPE value_type;
-        DdGen *cubegen = Cudd_FirstCube(manager.getManager(),bdd.getNode(),&bdd_model, &value_type);
-        // TODO: can the models contain don't cares?
-        // Since we checked for ZeroBDD above we will always have at least 1 cube.
-        do{
-            for(int i = 0; i < statecube.size(); ++i) {
-                statecube[i] = bdd_model[2*util->varorder[i]];
-            }
-            if(!f_explicit->contains(statecube)) {
-                std::cout << "SetFormulaExplicit does not contain the following cube:";
-                for(int i = 0; i < statecube.size(); ++i) {
-                    std::cout << statecube[i] << " ";
-                } std::cout << std::endl;
-                Cudd_GenFree(cubegen);
-                return false;
-            }
-        } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
-        Cudd_GenFree(cubegen);
-        return true;
-        break;
-    }
-    default:
-        std::cerr << "L \\subseteq L' is not supported for BDD formula L "
-                     "and non-basic or constant formula L'" << std::endl;
-        return false;
-        break;
-    }
+bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &/*left*/,
+                              std::vector<SetFormula *> &/*right*/) {
+    // TODO:implement
+    return true;
 }
 
-
-bool SetFormulaBDD::is_subset(SetFormula *f1, SetFormula *f2) {
-    if(f1->get_formula_type() == SetFormulaType::CONSTANT) {
-        f1 = get_constant_formula(static_cast<SetFormulaConstant *>(f1));
-    }
-    if(f2->get_formula_type() == SetFormulaType::CONSTANT) {
-        f2 = get_constant_formula(static_cast<SetFormulaConstant *>(f2));
-    }
-    if(f1->get_formula_type() != SetFormulaType::BDD || f2->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "X \\subseteq X' \\cup X'' is not supported for BDD formula X ";
-        std::cerr << "and non-BDD formula X' or X''" << std::endl;
-        return false;
-    }
-    const SetFormulaBDD *f1_bdd = static_cast<SetFormulaBDD *>(f1);
-    const SetFormulaBDD *f2_bdd = static_cast<SetFormulaBDD *>(f2);
-
-    if(util->varorder != f1_bdd->util->varorder || util->varorder != f2_bdd->util->varorder) {
-        std::cerr << "X \\subseteq X' \\cup X'' is not supported for BDD formulas X ";
-        std::cerr << "X' and X'' with different variable order." << std::endl;
-        return false;
-    }
-
-    return bdd.Leq(f1_bdd->bdd + f2_bdd->bdd);
+bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &/*left*/,
+                                               std::vector<SetFormula *> &/*right*/,
+                                               std::vector<SetFormula *> &/*prog*/,
+                                               std::unordered_set<int> &/*actions*/) {
+    // TODO:implement
+    return true;
 }
 
-
-bool SetFormulaBDD::intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for BDD formula L ";
-        std::cerr << "and non-BDD formula L'" << std::endl;
-        return false;
-    }
-    const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-
-    if(util->varorder != f_bdd->util->varorder) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' not supported for BDD formulas L and "
-                  << "L' with different variable order." << std::endl;
-        return false;
-    }
-
-    BDD left = bdd;
-    if(negated) {
-        left = !left;
-    }
-    left = left * util->goalformula.bdd;
-    BDD right = f_bdd->bdd;
-    if(f_negated) {
-        right = !right;
-    }
-    return left.Leq(right);
-}
-
-
-bool SetFormulaBDD::progression_is_union_subset(SetFormula *f, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "X[A] \\subseteq X \\land L is not supported for BDD formula X ";
-        std::cerr << "and non-BDD formula L" << std::endl;
-        return false;
-    }
-    const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-
-    if(util->varorder != f_bdd->util->varorder) {
-        std::cerr << "X[A] \\subseteq X \\land L is not supported for BDD formulas X and "
-                  << "L with different variable order." << std::endl;
-        return false;
-    }
-
-    BDD possible_successors = f_bdd->bdd;
-    if(f_negated) {
-        possible_successors = !possible_successors;
-    }
-    possible_successors += bdd;
-    possible_successors = possible_successors.Permute(&prime_permutation[0]);
-
-    if(util->actionformulas.size() == 0) {
-        util->build_actionformulas();
-    }
-
-    for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD succ = bdd * util->actionformulas[i];
-        if(!succ.Leq(possible_successors)) {
-            return false;
-        }
-    }
+bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &/*left*/,
+                                              std::vector<SetFormula *> &/*right*/,
+                                              std::vector<SetFormula *> &/*reg*/,
+                                              std::unordered_set<int> &/*actions*/) {
+    // TODO:implement
     return true;
 }
 
 
-bool SetFormulaBDD::regression_is_union_subset(SetFormula *f, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::BDD) {
-        std::cerr << "[A]X \\subseteq X \\land L is not supported for BDD formula X ";
-        std::cerr << "and non-BDD formula L" << std::endl;
-        return false;
-    }
-    const SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-
-    if(util->varorder != f_bdd->util->varorder) {
-        std::cerr << "[A]X \\subseteq X \\land L is not supported for BDD formulas X and "
-                  << "L with different variable order." << std::endl;
-        return false;
-    }
-
-    BDD possible_predecessors = f_bdd->bdd;
-    if(f_negated) {
-        possible_predecessors = !possible_predecessors;
-    }
-    possible_predecessors += bdd;
-
-    if(util->actionformulas.size() == 0) {
-        util->build_actionformulas();
-    }
-
-    for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD pred = bdd.Permute(&prime_permutation[0]) * util->actionformulas[i];
-        if(!pred.Leq(possible_predecessors)) {
-            return false;
-        }
-    }
+bool SetFormulaBDD::is_subset_of(SetFormula */*superset*/, bool /*left_positive*/, bool /*right_positive*/) {
+    // TODO:implement
     return true;
 }
 

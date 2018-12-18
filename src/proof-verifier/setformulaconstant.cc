@@ -47,51 +47,31 @@ SetFormulaBasic *SetFormulaConstant::get_concrete_formula_instance(SetFormula *f
     }
 }
 
-bool SetFormulaConstant::is_subset(SetFormula *f, bool negated, bool f_negated) {
-    SetFormulaBasic *concrete_instance = get_concrete_formula_instance(f, nullptr);
-    if(!concrete_instance) {
-        std::cerr << "X \\subseteq X' is not supported for constant formula X "
-                     "and non-basic or constant formula X'" << std::endl;
-        return false;
-    }
-    return concrete_instance->is_subset(f, negated, f_negated);
+bool SetFormulaConstant::is_subset(std::vector<SetFormula *> &,
+                       std::vector<SetFormula *> &) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::is_subset(SetFormula *f1, SetFormula *f2) {
-    SetFormulaBasic *concrete_instance = get_concrete_formula_instance(f1, f2);
-    if(!concrete_instance) {
-        std::cerr << "X \\subseteq X' \\cup X'' is not supported for constant formula X ";
-        std::cerr << "and non-basic or constant formula X' or X''" << std::endl;
-        return false;
-    }
-    return concrete_instance->is_subset(f1, f2);
+bool SetFormulaConstant::is_subset_with_progression(std::vector<SetFormula *> &,
+                                                    std::vector<SetFormula *> &,
+                                                    std::vector<SetFormula *> &,
+                                                    std::unordered_set<int> &) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) {
-    SetFormulaBasic *concrete_instance = get_concrete_formula_instance(f, nullptr);
-    if(!concrete_instance) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for constant formula L";
-        std::cerr <<"and non-basic or constant formula L'" << std::endl;
-    }
-    return concrete_instance->intersection_with_goal_is_subset(f, negated, f_negated);
+bool SetFormulaConstant::is_subset_with_regression(std::vector<SetFormula *> &,
+                                                   std::vector<SetFormula *> &,
+                                                   std::vector<SetFormula *> &,
+                                                   std::unordered_set<int> &) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::progression_is_union_subset(SetFormula *f, bool f_negated) {
-    SetFormulaBasic *concrete_instance = get_concrete_formula_instance(f, nullptr);
-    if(!concrete_instance) {
-        std::cerr << "X[A] \\subseteq X \\cup L is not supported for constant formula X";
-        std::cerr << "and non-basic or constant formula L" << std::endl;
-    }
-    return concrete_instance->progression_is_union_subset(f, f_negated);
-}
-
-bool SetFormulaConstant::regression_is_union_subset(SetFormula *f, bool f_negated) {
-    SetFormulaBasic *concrete_instance = get_concrete_formula_instance(f, nullptr);
-    if(!concrete_instance) {
-        std::cerr << "[A]X \\subseteq X \\cup L is not supported for constant formula X";
-        std::cerr << "and non-basic or constant formula L" << std::endl;
-    }
-    return concrete_instance->regression_is_union_subset(f, f_negated);
+bool SetFormulaConstant::is_subset_of(SetFormula *, bool, bool) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
 SetFormulaType SetFormulaConstant::get_formula_type() {

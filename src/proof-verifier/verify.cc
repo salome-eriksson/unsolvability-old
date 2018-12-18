@@ -52,18 +52,51 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
         in >> right;
         expression = std::unique_ptr<SetFormula>(new SetFormulaUnion(left, right));
     } else if(type == "p") {
-        FormulaIndex subformulaindex;
+        FormulaIndex subformulaindex, actionsetindex;
         in >> subformulaindex;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaProgression(subformulaindex));
+        in >> actionsetindex;
+        expression = std::unique_ptr<SetFormula>(new SetFormulaProgression(subformulaindex, actionsetindex));
     } else if(type == "r") {
-        FormulaIndex subformulaindex;
+        FormulaIndex subformulaindex, actionsetindex;
         in >> subformulaindex;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaRegression(subformulaindex));
+        in >> actionsetindex;
+        expression = std::unique_ptr<SetFormula>(new SetFormulaRegression(subformulaindex, actionsetindex));
     } else {
         std::cerr << "unknown expression type " << type << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }
     proofchecker.add_formula(std::move(expression), expression_index);
+}
+
+void read_in_actionset(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
+    ActionSetIndex action_index;
+    in >> action_index;
+    std::string type;
+    // read in action type
+    in >> type;
+    if(type == "b") {
+        int amount;
+        std::unordered_set<int> actions;
+        in >> amount;
+        int a;
+        for(int i = 0; i < amount; ++i) {
+            in >> a;
+            actions.insert(a);
+        }
+        proofchecker.add_actionset(std::unique_ptr<ActionSet>(new ActionSetBasic(actions)),
+                                   action_index);
+    } else if(type == "u") {
+        int left, right;
+        in >> left;
+        in >> right;
+        proofchecker.add_actionset_union(left, right, action_index);
+    } else if(type == "a") {
+        proofchecker.add_actionset(std::unique_ptr<ActionSet>(new ActionSetConstantAll(task)),
+                                   action_index);
+    } else {
+        std::cerr << "unknown actionset type " << type << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
 }
 
 void read_and_check_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
@@ -258,6 +291,8 @@ int main(int argc, char** argv) {
             // comment - ignore
             // TODO: is this safe even if the line conssits only of "#"? Or will it skip a line?
             std::getline(certstream, input);
+        } else if(input.compare("a") == 0) {
+            read_in_actionset(certstream, proofchecker, task);
         } else {
             std::cerr << "unknown start of line: " << input << std::endl;
             exit_with(ExitCode::CRITICAL_ERROR);

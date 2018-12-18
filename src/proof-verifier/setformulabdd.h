@@ -26,12 +26,18 @@ public:
     SetFormulaBDD();
     SetFormulaBDD(std::ifstream &input, Task *task);
 
-    // TODO: check everywhere if the varorder is the same
-    virtual bool is_subset(SetFormula *f, bool negated, bool f_negated);
-    virtual bool is_subset(SetFormula *f1, SetFormula *f2);
-    virtual bool intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated);
-    virtual bool progression_is_union_subset(SetFormula *f, bool f_negated);
-    virtual bool regression_is_union_subset(SetFormula *f, bool f_negated);
+    virtual bool is_subset(std::vector<SetFormula *> &left,
+                           std::vector<SetFormula *> &right);
+    virtual bool is_subset_with_progression(std::vector<SetFormula *> &left,
+                                            std::vector<SetFormula *> &right,
+                                            std::vector<SetFormula *> &prog,
+                                            std::unordered_set<int> &actions);
+    virtual bool is_subset_with_regression(std::vector<SetFormula *> &left,
+                                           std::vector<SetFormula *> &right,
+                                           std::vector<SetFormula *> &reg,
+                                           std::unordered_set<int> &actions);
+
+    virtual bool is_subset_of(SetFormula *superset, bool left_positive, bool right_positive);
 
     virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
@@ -63,7 +69,7 @@ private:
     /*
      * This array stores that actual DdNodes for the BDD file pased by this util.
      * As soon as a SetFormulaBDD claims ownership of an element, the reference count
-     * to the DdNode is decreased. This means that when the SetFormulaBDD is destructed,
+     * to the DdNode is decreased. This means that when the SetFormulaBDD is destroyed,
      * the DdNode reference count will be 0 and the DdNode will be deleted by Cudd.
      */
     std::vector<DdNode *>dd_nodes;

@@ -1,34 +1,38 @@
 #include "setformulacompound.h"
 
+#include "global_funcs.h"
+
 #include <iostream>
 
 SetFormulaCompound::SetFormulaCompound() {
 
 }
 
-bool SetFormulaCompound::is_subset(SetFormula *, bool, bool) {
-    std::cerr << "L \\subseteq L' is not supported for compound formulas L" << std::endl;
-    return false;
+bool SetFormulaCompound::is_subset(std::vector<SetFormula *> &,
+                       std::vector<SetFormula *> &) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaCompound::is_subset(SetFormula *, SetFormula *) {
-    std::cerr << "X \\subseteq X' \\cup X'' is not supported for compound formulas X" << std::endl;
-    return false;
+bool SetFormulaCompound::is_subset_with_progression(std::vector<SetFormula *> &,
+                                                    std::vector<SetFormula *> &,
+                                                    std::vector<SetFormula *> &,
+                                                    std::unordered_set<int> &) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaCompound::intersection_with_goal_is_subset(SetFormula *, bool, bool) {
-    std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for compound formulas L" << std::endl;
-    return false;
+bool SetFormulaCompound::is_subset_with_regression(std::vector<SetFormula *> &,
+                                                   std::vector<SetFormula *> &,
+                                                   std::vector<SetFormula *> &,
+                                                   std::unordered_set<int> &) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaCompound::progression_is_union_subset(SetFormula *, bool) {
-    std::cerr << "X[A] \\subseteq X \\cup X' is not supported for compound formulas x" << std::endl;
-    return false;
-}
-
-bool SetFormulaCompound::regression_is_union_subset(SetFormula *, bool) {
-    std::cerr << "[A]X \\subseteq X \\cup X' is not supported for compound formulas X" << std::endl;
-    return false;
+bool SetFormulaCompound::is_subset_of(SetFormula *, bool, bool) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
 
@@ -82,8 +86,9 @@ SetFormulaType SetFormulaUnion::get_formula_type() {
 }
 
 
-SetFormulaProgression::SetFormulaProgression(FormulaIndex subformula_index)
-    : subformula_index(subformula_index) {
+SetFormulaProgression::SetFormulaProgression(
+        FormulaIndex subformula_index, ActionSetIndex actionset_index)
+    : subformula_index(subformula_index), actionset_index(actionset_index) {
 
 }
 
@@ -91,17 +96,26 @@ FormulaIndex SetFormulaProgression::get_subformula_index() {
     return subformula_index;
 }
 
+ActionSetIndex SetFormulaProgression::get_actionset_index() {
+    return actionset_index;
+}
+
 SetFormulaType SetFormulaProgression::get_formula_type() {
     return SetFormulaType::PROGRESSION;
 }
 
 
-SetFormulaRegression::SetFormulaRegression(FormulaIndex subformula_index)
-    : subformula_index(subformula_index) {
+SetFormulaRegression::SetFormulaRegression(
+        FormulaIndex subformula_index, ActionSetIndex actionset_index)
+    : subformula_index(subformula_index), actionset_index(actionset_index) {
 }
 
 FormulaIndex SetFormulaRegression::get_subformula_index() {
     return subformula_index;
+}
+
+ActionSetIndex SetFormulaRegression::get_actionset_index() {
+    return actionset_index;
 }
 
 SetFormulaType SetFormulaRegression::get_formula_type() {

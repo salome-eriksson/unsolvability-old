@@ -1,6 +1,7 @@
 #ifndef PROOFCHECKER_H
 #define PROOFCHECKER_H
 
+#include "actionset.h"
 #include "setformula.h"
 
 #include <iostream>
@@ -12,6 +13,7 @@ typedef int KnowledgeIndex;
 enum class KBType {
     SUBSET,
     DEAD,
+    ACTION,
     UNSOLVABLE
 };
 
@@ -49,6 +51,18 @@ public:
     virtual KBType get_kbentry_type() { return KBType::DEAD; }
 };
 
+class KBEntryAction : public KBEntry {
+private:
+    ActionSetIndex first;
+    ActionSetIndex second;
+public:
+    KBEntryAction(FormulaIndex first, FormulaIndex second)
+        : first(first), second(second) {}
+    virtual FormulaIndex get_first() { return first; }
+    virtual FormulaIndex get_second() { return second; }
+    virtual KBType get_kbentry_type() { return KBType::ACTION; }
+};
+
 class KBEntryUnsolvable : public KBEntry {
 public:
     KBEntryUnsolvable() {}
@@ -72,14 +86,33 @@ class ProofChecker
 private:
     std::deque<FormulaEntry> formulas;
     std::deque<std::unique_ptr<KBEntry>> kbentries;
+    std::deque<std::unique_ptr<ActionSet>> actionsets;
     bool unsolvability_proven;
 
     void add_kbentry(std::unique_ptr<KBEntry> entry, KnowledgeIndex index);
-    void remove_formulas_if_obsolete(std::vector<int> indices, int current_ki);
+    //void remove_formulas_if_obsolete(std::vector<int> indices, int current_ki);
+
+    /*
+     * The return formula serves as a reference which basic formula type is involved.
+     * If it is null, then the set is not an intersection of set literals of the same type.
+     * If it is a constant formula, then all set variables involved are constant.
+     * If it is a concrete type, then all set variables invovled are of this type or constant.
+     */
+    SetFormula *gather_sets_intersection(SetFormula *f,
+                                 std::vector<SetFormula *>&positive,
+                                 std::vector<SetFormula *>&negative);
+    SetFormula *gather_sets_union(SetFormula *f,
+                           std::vector<SetFormula *>&positive,
+                           std::vector<SetFormula *>&negative);
+    SetFormula *update_reference_and_check_consistency(SetFormula *reference_formula,
+                                                       SetFormula *tmp, std::string stmt);
 public:
     ProofChecker();
 
     void add_formula(std::unique_ptr<SetFormula> formula, FormulaIndex index);
+    // TODO one function for both types of actionsets would be nicer...
+    void add_actionset(std::unique_ptr<ActionSet> actionset, ActionSetIndex index);
+    void add_actionset_union(ActionSetIndex left, ActionSetIndex right, ActionSetIndex index);
     void first_pass(std::string certfile);
 
     bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);
@@ -106,7 +139,7 @@ public:
     bool check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
     bool check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
     bool check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool check_statement_B5(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
+    bool check_statement_B5(KnowledgeIndex newki, ActionSetIndex ai1, ActionSetIndex ai2);
 
     bool is_unsolvability_proven();
 };

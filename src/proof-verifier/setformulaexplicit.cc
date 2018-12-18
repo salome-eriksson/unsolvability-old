@@ -123,204 +123,30 @@ SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
 }
 
 
-bool SetFormulaExplicit::is_subset(SetFormula *f, bool negated, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    }
-    switch (f->get_formula_type()) {
-    case SetFormulaType::HORN: {
-        if(negated || f_negated) {
-            std::cerr << "L \\subseteq L' not supported for Explicit formula L and ";
-            std::cerr << "Horn formula L' if one of them is negated" << std::endl;
-            return false;
-        }
-
-        const SetFormulaHorn *f_horn = static_cast<SetFormulaHorn *>(f);
-        for(int i : f_horn->get_forced_false()) {
-            BDD tmp = !(manager.bddVar(i*2));
-            if(!(set.Leq(tmp))) {
-                return false;
-            }
-        }
-
-        for(int i = 0; i < f_horn->get_forced_true().size(); ++i) {
-            BDD tmp = (manager.bddVar(i*2));
-            if(!(set.Leq(tmp))) {
-                return false;
-            }
-        }
-
-        for(int i = 0; i < f_horn->get_size(); ++i) {
-            BDD tmp = manager.bddZero();
-            for(int j : f_horn->get_left_vars(i)) {
-                tmp += !(manager.bddVar(j*2));
-            }
-            if(f_horn->get_right(i) != -1) {
-                tmp += (manager.bddVar(i*2));
-            }
-            if(!(set.Leq(tmp))) {
-                return false;
-            }
-        }
-        return true;
-        break;
-    }
-    case SetFormulaType::BDD: {
-        if(negated || f_negated) {
-            std::cerr << "L \\subseteq L' not supported for Explicit formula L and ";
-            std::cerr << "BDD formula L' if one of them is negated" << std::endl;
-            return false;
-        }
-
-        SetFormulaBDD *f_bdd = static_cast<SetFormulaBDD *>(f);
-
-        int* bdd_model;
-        // TODO: find a better way to find out how many variables we have
-        Cube statecube(util->prime_permutation.size()/2,-1);
-        CUDD_VALUE_TYPE value_type;
-        DdGen *cubegen = Cudd_FirstCube(manager.getManager(), set.getNode(), &bdd_model, &value_type);
-        /* the models gotten with FirstCube and NextCube can contain don't cares,
-         * but SetFormulaBDD::contains can handle this
-         */
-        do{
-            for(int i = 0; i < statecube.size(); ++i) {
-                statecube[i] = bdd_model[2*i];
-            }
-            if(!f_bdd->contains(statecube)) {
-                std::cout << "SetFormulaBDD does not contain the following cube:";
-                for(int i = 0; i < statecube.size(); ++i) {
-                    std::cout << statecube[i] << " ";
-                } std::cout << std::endl;
-                Cudd_GenFree(cubegen);
-                return false;
-            }
-        } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
-        Cudd_GenFree(cubegen);
-        return true;
-        break;
-    }
-    case SetFormulaType::TWOCNF:
-        std::cerr << "not implemented yet";
-        return false;
-        break;
-    case SetFormulaType::EXPLICIT: {
-        const SetFormulaExplicit *f_expl = static_cast<SetFormulaExplicit *>(f);
-        BDD left = set;
-        if(negated) {
-            left = !left;
-        }
-        BDD right = f_expl->set;
-        if(f_negated) {
-            right = !right;
-        }
-        return left.Leq(right);
-        break;
-    }
-    default:
-        std::cerr << "L \\subseteq L' is not supported for explicit formula L "
-                     "and non-basic or constant formula L'" << std::endl;
-        return false;
-        break;
-    }
-}
-
-
-bool SetFormulaExplicit::is_subset(SetFormula *f1, SetFormula *f2) {
-    if(f1->get_formula_type() == SetFormulaType::CONSTANT) {
-        f1 = get_constant_formula(static_cast<SetFormulaConstant *>(f1));
-    }
-    if(f2->get_formula_type() == SetFormulaType::CONSTANT) {
-        f2 = get_constant_formula(static_cast<SetFormulaConstant *>(f2));
-    }
-    if(f1->get_formula_type() != SetFormulaType::EXPLICIT ||
-            f2->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "X \\subseteq X' \\cup X'' is not supported for explicit formula X ";
-        std::cerr << "and non-explicit formula X' or X''" << std::endl;
-        return false;
-    }
-    const SetFormulaExplicit *f1_expl = static_cast<SetFormulaExplicit *>(f1);
-    const SetFormulaExplicit *f2_expl = static_cast<SetFormulaExplicit *>(f2);
-    return set.Leq(f1_expl->set + f2_expl->set);
-}
-
-
-bool SetFormulaExplicit::intersection_with_goal_is_subset(SetFormula *f, bool negated, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "L \\cap S_G(\\Pi) \\subseteq L' is not supported for explicit formula L ";
-        std::cerr << "and non-explicit formula L'" << std::endl;
-        return false;
-    }
-    const SetFormulaExplicit *f_expl = static_cast<SetFormulaExplicit *>(f);
-    BDD left = set;
-    if(negated) {
-        left = !left;
-    }
-    left = left * util->goalformula.set;
-    BDD right = f_expl->set;
-    if(f_negated) {
-        right = !right;
-    }
-    return left.Leq(right);
-}
-
-
-bool SetFormulaExplicit::progression_is_union_subset(SetFormula *f, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "X[A] \\subseteq X \\land L is not supported for explicit formula X ";
-        std::cerr << "and non-explicit formula L" << std::endl;
-        return false;
-    }
-    const SetFormulaExplicit *f_expl = static_cast<SetFormulaExplicit *>(f);
-    BDD possible_successors = f_expl->set;
-    if(f_negated) {
-        possible_successors = !possible_successors;
-    }
-    possible_successors += set;
-    possible_successors = possible_successors.Permute(&util->prime_permutation[0]);
-
-    if(util->actionformulas.size() == 0) {
-        util->build_actionformulas();
-    }
-
-    for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD succ = set * util->actionformulas[i];
-        if(!succ.Leq(possible_successors)) {
-            return false;
-        }
-    }
+bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &/*left*/,
+                                   std::vector<SetFormula *> &/*right*/) {
+    // TODO:implement
     return true;
 }
 
+bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &/*left*/,
+                                                    std::vector<SetFormula *> &/*right*/,
+                                                    std::vector<SetFormula *> &/*prog*/,
+                                                    std::unordered_set<int> &/*actions*/) {
+    // TODO:implement
+    return true;
+}
 
-bool SetFormulaExplicit::regression_is_union_subset(SetFormula *f, bool f_negated) {
-    if(f->get_formula_type() == SetFormulaType::CONSTANT) {
-        f = get_constant_formula(static_cast<SetFormulaConstant *>(f));
-    } else if(f->get_formula_type() != SetFormulaType::EXPLICIT) {
-        std::cerr << "[A]X \\subseteq X \\land L is not supported for explicit formula X ";
-        std::cerr << "and non-explicit formula L" << std::endl;
-        return false;
-    }
-    const SetFormulaExplicit *f_expl = static_cast<SetFormulaExplicit *>(f);
-    BDD possible_predecessors = f_expl->set;
-    if(f_negated) {
-        possible_predecessors = !possible_predecessors;
-    }
-    possible_predecessors += set;
+bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &/*left*/,
+                                                   std::vector<SetFormula *> &/*right*/,
+                                                   std::vector<SetFormula *> &/*reg*/,
+                                                   std::unordered_set<int> &/*actions*/) {
+    // TODO:implement
+    return true;
+}
 
-    if(util->actionformulas.size() == 0) {
-        util->build_actionformulas();
-    }
-
-    for(int i = 0; i < util->actionformulas.size(); ++i) {
-        BDD pred = set.Permute(&util->prime_permutation[0]) * util->actionformulas[i];
-        if(!pred.Leq(possible_predecessors)) {
-            return false;
-        }
-    }
+bool SetFormulaExplicit::is_subset_of(SetFormula */*superset*/, bool /*left_positive*/, bool right_/*positive*/) {
+    // TODO:implement
     return true;
 }
 
