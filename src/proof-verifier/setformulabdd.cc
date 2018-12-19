@@ -297,16 +297,17 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
         right_singular += right_bdds[i];
     }
 
-    // prog[A] \cap left \subseteq right' iff prog[A] \subseteq !left \cup right'
-    BDD neg_left_or_right_primed = !left_singular + right_singular.Permute(&prime_permutation[0]);
+    // [A]reg' \cap left' \subseteq right iff [A]reg' \subseteq !left' \cup right'
+    BDD neg_left_primed_or_right_ = !(left_singular.Permute(&prime_permutation[0])) + right_singular;
 
     BDD reg_singular = manager.bddOne();
     for (size_t i = 0; i < reg_bdds.size(); ++i) {
         reg_singular *= reg_bdds[i];
     }
+    BDD reg_primed = reg_singular.Permute(&prime_permutation[0]);
 
     for (int action : actions) {
-        if (!(reg_singular*util->actionformulas[action]).Leq(neg_left_or_right_primed)) {
+        if (!(reg_primed*util->actionformulas[action]).Leq(neg_left_primed_or_right_)) {
             return false;
         }
     }
