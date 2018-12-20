@@ -1,7 +1,6 @@
 #include "setformulahorn.h"
 
 #include <fstream>
-//#include <stack>
 #include <deque>
 #include <algorithm>
 #include <cassert>
@@ -114,434 +113,6 @@ bool HornUtil::get_horn_vector(std::vector<SetFormula *> &formulas, std::vector<
     return true;
 }
 
-/*bool HornUtil::is_satisfiable(const HornFormulaList &formulas, bool partial) {
-    Cube restrictions, solution;
-    return is_restricted_satisfiable(formulas, restrictions, solution, partial);
-}
-
-bool HornUtil::is_satisfiable(const HornFormulaList &formulas, Cube &solution,
-                                          bool partial) {
-    Cube restrictions;
-    return is_restricted_satisfiable(formulas, restrictions, solution, partial);
-}
-
-bool HornUtil::is_restricted_satisfiable(const HornFormulaList &formulas,
-                                                     const Cube &restrictions, bool partial) {
-    Cube solution;
-    return is_restricted_satisfiable(formulas, restrictions, solution, partial);
-}
-
-
-bool HornUtil::is_restricted_satisfiable(const HornFormulaList &formulas,
-                                                     const Cube &restrictions, Cube &solution,
-                                                     bool partial) {
-    assert(formulas.size() >= 1);
-    int varamount = formulas[0].first->get_varamount();
-    // total amount of implications
-    int implamount = 0;
-    // the index for which the implications for this formula start in left_count
-    std::vector<int> implstart(formulas.size());
-
-    // count amount of implication and total varamount
-    for(size_t i = 0; i < formulas.size(); ++i) {
-        implstart[i] = implamount;
-        int localvaramount = formulas[i].first->get_varamount();
-        if(formulas[i].second) {
-            localvaramount *= 2;
-        }
-        varamount = std::max(varamount, localvaramount);
-        implamount += formulas[i].first->get_size();
-
-        const SetFormulaHorn *f = formulas[i].first;
-        if(f->get_size() == 1 && f->get_left(0) == 0 && f->get_right(0) == -1) {
-            return false;
-        }
-    }
-
-    Cube local_restrictions(restrictions);
-    local_restrictions.resize(varamount,2);
-
-    // set forced true/false vars in the local restriction cube
-    for(auto fentry : formulas) {
-        int offset = 0;
-        if(fentry.second) {
-            offset = fentry.first->get_varamount();
-        }
-        for(int ff : fentry.first->get_forced_false()) {
-            if(local_restrictions[ff+offset] == 1) {
-                return false;
-            } else {
-                local_restrictions[ff+offset] = 0;
-            }
-        }
-        for(int ft : fentry.first->get_forced_true()) {
-            if(local_restrictions[ft+offset] == 0) {
-                return false;
-            } else {
-                local_restrictions[ft+offset] = 1;
-            }
-        }
-    }
-
-    std::stack<int> forced_true;
-    for(int i = 0; i < varamount; ++i) {
-        if(local_restrictions[i] == 1) {
-            forced_true.push(i);
-        }
-    }
-
-    // setting up left size count for implications
-    // left count cannot be 0 anywhere since we simplify the formulas by construction time
-    std::vector<int> left_count;
-    left_count.reserve(implamount);
-    for(auto fentry : formulas) {
-        const SetFormulaHorn *formula = fentry.first;
-        left_count.insert(left_count.end(), formula->get_left_sizes().begin(), formula->get_left_sizes().end());
-    }
-
-    solution.resize(varamount);
-    std::fill(solution.begin(), solution.end(), 0);
-
-    while(!forced_true.empty()) {
-        int var = forced_true.top();
-        forced_true.pop();
-        if(solution[var] == 1) {
-            continue;
-        }
-        solution[var] = 1;
-        for(size_t findex = 0; findex < formulas.size(); ++findex) {
-            int local_varamount = formulas[findex].first->get_varamount();
-            // if the variable is primed but not the formula or vice versa we don't need to change anything
-            if((var >= local_varamount && !formulas[findex].second) ||
-               (var < local_varamount && formulas[findex].second)) {
-                continue;
-            }
-            int offset = 0;
-            if(formulas[findex].second) {
-                offset = local_varamount;
-            }
-            const SetFormulaHorn *formula = formulas[findex].first;
-            const std::unordered_set<int> &var_occurences = formula->get_variable_occurence_left(var-offset);
-            for(int internal_impl_number: var_occurences) {
-                int impl_number = internal_impl_number + implstart[findex];
-                left_count[impl_number]--;
-                // right side is forced true
-                if(left_count[impl_number] == 0) {
-                    int right = formula->get_right(internal_impl_number);
-                    if(right == -1 || local_restrictions[right+offset] == 0) {
-                        return false;
-                    }
-                    forced_true.push(right+offset);
-                    local_restrictions[right+offset] = 1;
-                // last element in left side and no right side --> forced false
-                } else if(left_count[impl_number] == 1 &&
-                          (formula->get_right(internal_impl_number) == -1 ||
-                           local_restrictions[formula->get_right(internal_impl_number)] == 0)) {
-                    bool found = false;
-                    for(int left_var : formula->get_left_vars(internal_impl_number)) {
-                        if(local_restrictions[left_var+offset] != 1) {
-                            found = true;
-                            local_restrictions[left_var+offset] = 0;
-                            break;
-                        }
-                    }
-                    if(!found) {
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-    if(partial) {
-        std::stack<int> forced_false;
-        for(size_t i = 0; i < local_restrictions.size(); ++i) {
-            if(local_restrictions[i] == 0) {
-                forced_false.push(i);
-                local_restrictions[i] = 2;
-            }
-        }
-        for(size_t findex = 0; findex < formulas.size(); ++findex) {
-            const SetFormulaHorn *f = formulas[findex].first;
-            int offset = 0;
-            if(formulas[findex].second) {
-                offset += f->get_varamount();
-            }
-        }
-        while(!forced_false.empty()) {
-            int var = forced_false.top();
-            forced_false.pop();
-            if(local_restrictions[var] == 0) {
-                continue;
-            }
-            local_restrictions[var] = 0;
-            for(int findex = 0; findex < formulas.size(); ++findex) {
-                int local_varamount = formulas[findex].first->get_varamount();
-                // if the variable is primed but not the formula or vice versa we don't need to change anything
-                if((var >= local_varamount && !formulas[findex].second) ||
-                   (var < local_varamount && formulas[findex].second)) {
-                    continue;
-                }
-                int offset = 0;
-                if(formulas[findex].second) {
-                    offset = local_varamount;
-                }
-                const SetFormulaHorn *formula = formulas[findex].first;
-                const std::unordered_set<int> &var_occurences = formula->get_variable_occurence_right(var-offset);
-                for(int internal_impl_number: var_occurences) {
-                    int impl_number = internal_impl_number + implstart[findex];
-                    if(left_count[impl_number] == 1) {
-                        const std::vector<int> left = formula->get_left_vars(internal_impl_number);
-                        for(int pos = 0; pos < left.size(); ++ pos) {
-                            if(local_restrictions[left[pos]+offset] ==2) {
-                                forced_false.push(left[pos]+offset);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        solution.swap(local_restrictions);
-    }
-    return true;
-}
-
-
-/* If formula1 implies formula2, then formula1 \land \lnot formula 2 is unsatisfiable.
- * Since Horn formulas don't support negation but the negation is a disjunction over
- * unit clauses we can test for each disjunction separately if
- * formula1 \land disjunction is unsatisfiable.
- * special cases:
- *  - if the right formula is empty (= true) then it correctly returns true since we don't enter the loop
- *  - if the right formula contains an empty implication (no left side, right side = -1 --> empty)
- *    we return false only if the formulalist is satisfiable without restrictions (since we do not set any)
- */
-/*bool HornUtil::implies(const HornFormulaList &formulas,
-                                    const SetFormulaHorn *right, bool right_primed) {
-    assert(formulas.size() >= 1);
-
-    Cube left_solution_partial;
-    if(!is_satisfiable(formulas, left_solution_partial, true)) {
-        return true;
-    }
-
-    int right_varamount = right->get_varamount();
-    int offset = 0;
-    if(right_primed) {
-        offset += right_varamount;
-        right_varamount *= 2;
-    }
-
-    Cube restrictions = Cube(right_varamount,2);
-    // first loop over all forced true
-    for(size_t i = 0; i < right->get_forced_true().size(); ++ i) {
-        int forced_true = right->get_forced_true().at(i)+offset;
-        // if left also forces the same variable true, then we don't need to check
-        if(left_solution_partial[forced_true] == 1) {
-            continue;
-        }
-        restrictions[forced_true] = 0;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
-        }
-        restrictions[forced_true] = 2;
-    }
-
-    // then loop over all forced false
-    for(size_t i = 0; i < right->get_forced_false().size(); ++i) {
-        int forced_false = right->get_forced_false().at(i)+offset;
-        if(left_solution_partial[forced_false] == 0) {
-            continue;
-        }
-        // it is still possible that ie right forces \lnot a true, but we don't reach that conclusion
-        // with left, e.g. left has the clauses (\lot a \lor b) \land (\lnot a \lor \lnot b)
-        restrictions[forced_false] = 1;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
-        }
-        restrictions[forced_false] = 2;
-    }
-
-    // now loop over implications
-    for(size_t i = 0; i < right->get_size(); ++i) {
-        const std::vector<int> &left_vars = right->get_left_vars(i);
-        /* We want to check for each clause if it is implied. If one variable of the clause
-         * is already part of the solution to formulas then it is implied and we don't need
-         * to check anything for this clause.
-
-        bool covered = false;
-        for(size_t j = 0; j < left_vars.size(); ++j) {
-            if(left_solution_partial[left_vars.at(j)+offset] == 0) {
-                covered = true;
-                break;
-            }
-            restrictions[left_vars.at(j)+offset] = 1;
-        }
-        int r = right->get_right(i);
-        if(!covered && r != -1) {
-            /* First part: var is already directly implied from formulas.
-             * Second part: if the current implication is (\lnot a \lor \lnot ... \lor a)
-             * it equals true and is thus implied by formulas
-
-            if(left_solution_partial[r+offset] == 1 || restrictions[r+offset] == 1) {
-                covered = true;
-            } else {
-                restrictions[r+offset] = 0;
-            }
-        }
-        if(!covered && is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
-        }
-        std::fill(restrictions.begin(), restrictions.end(),2);
-    }
-    return true;
-}
-*/
-
-// Given restrictions for a clause of the left formula, go through all right formulas
-/*bool HornUtil::implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
-                          const SetFormulaHorn *right_formula, int right_offset,
-                          const Cube &formulas_solution_partial) {
-    // right forced true
-    for(int ft_right : right_formula->get_forced_true()) {
-        if(formulas_solution_partial[ft_right+right_offset] == 1 ||
-                restrictions[ft_right+right_offset] == 1) {
-            continue;
-        }
-        restrictions[ft_right+right_offset] = 0;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
-        }
-        restrictions[ft_right+right_offset] = 2;
-    }
-
-    // right forced false;
-    for(int ff_right : right_formula->get_forced_false()) {
-        if(formulas_solution_partial[ff_right+right_offset] == 0 ||
-                restrictions[ff_right+right_offset] == 0) {
-            continue;
-        }
-        restrictions[ff_right+right_offset] = 1;
-        if(is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
-        }
-        restrictions[ff_right+right_offset] = 2;
-    }
-
-    // right implications
-    // TODO: maybe this copy can be done nicer...
-    Cube restrictions_copy = restrictions;
-    for(size_t i = 0; i < right_formula->get_size(); ++i) {
-        const std::vector<int> &neg_vars = right_formula->get_left_vars(i);
-        bool covered = false;
-        for(int neg_var : neg_vars) {
-            if(formulas_solution_partial[neg_var+right_offset] == 0 ||
-                    restrictions[neg_var+right_offset] == 0) {
-                covered = true;
-                break;
-            }
-            restrictions[neg_var+right_offset] = 1;
-        }
-        int r = right_formula->get_right(i);
-        if(!covered && r != -1) {
-            if(formulas_solution_partial[r+right_offset] == 1 ||
-                    restrictions[r+right_offset] == 1) {
-                covered = true;
-            } else {
-                restrictions[r+right_offset] = 0;
-            }
-        }
-        if(!covered && is_restricted_satisfiable(formulas, restrictions)) {
-            return false;
-        }
-
-        restrictions = restrictions_copy;
-    }
-
-    return true;
-}
-
-// TODO: needs refactoring
-bool HornUtil::implies_union(const HornFormulaList &formulas,
-                                  const SetFormulaHorn *union_left, bool left_primed,
-                                  const SetFormulaHorn *union_right, bool right_primed) {
-    //we currently demand that the union formula parts are "atomic"
-    assert(formulas.size() >= 1);
-
-    Cube formulas_solution_partial;
-    if(!is_satisfiable(formulas, formulas_solution_partial, true)) {
-        return true;
-    }
-
-    int left_varamount = union_left->get_varamount();
-    int left_offset = 0;
-    if(left_primed) {
-        left_offset += left_varamount;
-        left_varamount *= 2;
-    }
-    int right_varamount = union_right->get_varamount();
-    int right_offset = 0;
-    if(right_primed) {
-        right_offset += right_varamount;
-        right_varamount *= 2;
-    }
-
-    Cube restrictions = Cube(std::max(left_varamount, right_varamount),2);
-    // left forced true
-    for(int ft_left: union_left->get_forced_true()) {
-        if (formulas_solution_partial[ft_left+left_offset] == 1) {
-            continue;
-        }
-        restrictions[ft_left+left_offset] = 0;
-        if (!implies_union_helper(formulas, restrictions,
-                                 union_right, right_offset, formulas_solution_partial)) {
-            return false;
-        }
-        restrictions[ft_left+left_offset] = 2;
-    }
-
-    // left forced false
-    for(int ff_left: union_left->get_forced_false()) {
-        if (formulas_solution_partial[ff_left+left_offset] == 0) {
-            continue;
-        }
-        restrictions[ff_left+left_offset] = 1;
-        if (!implies_union_helper(formulas, restrictions,
-                                 union_right, right_offset, formulas_solution_partial)) {
-            return false;
-        }
-        restrictions[ff_left+left_offset] = 2;
-    }
-
-    // left implications
-    for(size_t i = 0; i < union_left->get_size(); ++i) {
-        const std::vector<int> &neg_vars = union_left->get_left_vars(i);
-        bool covered = false;
-        for(int neg_var : neg_vars) {
-            if(formulas_solution_partial[neg_var+left_offset] == 0) {
-                covered = true;
-                break;
-            }
-            restrictions[neg_var+left_offset] = 1;
-        }
-        int r = union_left->get_right(i);
-        if (!covered && r != -1) {
-            std::cout << r << std::endl;
-            if (formulas_solution_partial[r+left_offset] == 1 || restrictions[r+left_offset] == 1) {
-                covered = true;
-            } else {
-                restrictions[r+left_offset] = 0;
-            }
-        }
-        if (!covered && !implies_union_helper(formulas, restrictions,
-                                     union_right, right_offset, formulas_solution_partial)) {
-            return false;
-        }
-        std::fill(restrictions.begin(), restrictions.end(),2);
-    }
-    return true;
-}
-*/
-
 // returns false if the unit clause is in conflict of the partial assignment
 inline bool is_in_conflict(int var, bool assignment, const Cube &partial_assignment) {
     if((partial_assignment[var] == 0 && assignment) ||
@@ -549,6 +120,11 @@ inline bool is_in_conflict(int var, bool assignment, const Cube &partial_assignm
         return true;
     }
     return false;
+}
+
+inline bool is_already_queued(int var, bool assignment, const Cube &partial_assignment) {
+    return (partial_assignment[var] == 0 && !assignment) ||
+           (partial_assignment[var] == 1 && assignment);
 }
 
 bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment) {
@@ -566,10 +142,8 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
     for(size_t var = 0; var < partial_assignment.size(); ++var) {
         if (partial_assignment[var] == 0) {
             unit_clauses.push_back(std::make_pair(var,false));
-            partial_assignment[var] = 2;
         } else if (partial_assignment[var] == 1) {
             unit_clauses.push_back(std::make_pair(var,true));
-            partial_assignment[var] = 2;
         }
     }
 
@@ -594,33 +168,41 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
             var += primeshift[i];
             if(is_in_conflict(var, false, partial_assignment)) {
                 return false;
+            } else if (is_already_queued(var, false, partial_assignment)) {
+                continue;
             }
             unit_clauses.push_back(std::make_pair(var, false));
-            //partial_assignment[var] = 0;
+            partial_assignment[var] = 0;
         }
         for(int var : conjunct.formula->get_forced_true()) {
             var += primeshift[i];
             if(is_in_conflict(var, true, partial_assignment)) {
                 return false;
+            } else if (is_already_queued(var, true, partial_assignment)) {
+                continue;
             }
             unit_clauses.push_back(std::make_pair(var, true));
-            //partial_assignment[var] = 1;
+            partial_assignment[var] = 1;
         }
         for (size_t impl = 0; impl < conjunct.formula->get_size(); ++impl) {
             if (conjunct.formula->get_left(impl) == 0) {
                 int var = conjunct.formula->get_right(impl) + primeshift[i];
                 if (var-primeshift[i] == -1 || is_in_conflict(var, true, partial_assignment)) {
                     return false;
+                } else if (is_already_queued(var, true, partial_assignment)) {
+                    continue;
                 }
                 unit_clauses.push_back(std::make_pair(var,true));
-                //partial_assignment[var] = 1;
+                partial_assignment[var] = 1;
             } else if (conjunct.formula->get_left(impl) == 1 && conjunct.formula->get_right(impl) == -1) {
                 int var = conjunct.formula->get_left_vars(impl)[0] + primeshift[i];
                 if (is_in_conflict(var, false, partial_assignment)) {
                     return false;
+                }  else if (is_already_queued(var, false, partial_assignment)) {
+                    continue;
                 }
                 unit_clauses.push_back(std::make_pair(var,false));
-                //partial_assignment[var] = 0;
+                partial_assignment[var] = 0;
             }
         }
     }
@@ -651,9 +233,11 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                         assert(newvar != -1+primeshift[i]);
                         if (is_in_conflict(newvar, true, partial_assignment)) {
                             return false;
+                        }  else if (is_already_queued(newvar, true, partial_assignment)) {
+                            continue;
                         }
                         unit_clauses.push_back(std::make_pair(newvar, true));
-                        //partial_assignment[var] = 1;
+                        partial_assignment[newvar] = 1;
                     // deleted second last negative literal and no positive literal
                     } else if (leftcount[implstart[i]+left_occ] == 1 && rightvars_local[implstart[i]+left_occ] == -1) {
                         // find corresponding variable in left (the only one not set by Cube)
@@ -667,9 +251,11 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                         assert(newvar != -1);
                         if (is_in_conflict(newvar, false, partial_assignment)) {
                             return false;
+                        }  else if (is_already_queued(newvar, false, partial_assignment)) {
+                            continue;
                         }
                         unit_clauses.push_back(std::make_pair(newvar, false));
-                        //partial_assignment[var] = 0;
+                        partial_assignment[newvar] = 0;
                     }
                 }
                 for(int right_occ: right_occurences) {
@@ -698,8 +284,11 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                         assert(newvar != -1);
                         if (is_in_conflict(newvar, false, partial_assignment)) {
                             return false;
+                        }  else if (is_already_queued(newvar, false, partial_assignment)) {
+                            continue;
                         }
                         unit_clauses.push_back(std::make_pair(newvar, false));
+                        partial_assignment[newvar] = 0;
                     }
                 }
             } // end iterate over formulas
@@ -727,28 +316,41 @@ inline bool update_current_clauses(std::vector<int> &current_clauses, std::vecto
 }
 
 
-bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElement> &conjuncts, std::vector<SetFormulaHorn *> &disjuncts) {
+bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElement> &conjuncts,
+                                               std::vector<HornDisjunctionElement> &disjuncts) {
 
-    if(disjuncts.size() == 0) {
+    if (disjuncts.size() == 0) {
         Cube partial_assignment;
         return !simplify_conjunction(conjuncts, partial_assignment);
+    } else if (conjuncts.size() == 0) {
+        conjuncts.push_back(HornConjunctionElement(trueformula, false));
     }
     std::vector<int> clause_amounts;
     clause_amounts.reserve(disjuncts.size());
     int disj_varamount = 0;
     std::vector<int> current_clauses(disjuncts.size(), 0);
-    for (SetFormulaHorn *formula : disjuncts) {
+    std::vector<int> primeshift(disjuncts.size(), 0);
+    for (size_t i = 0; i < disjuncts.size(); ++i) {
+        HornDisjunctionElement elem = disjuncts[i];
         /*
          * An empty formula is equivalent to \top
          * -> return true since everything is a subset of a union containing \top
          */
-        if (formula->get_size() == 0) {
+        if (elem.formula->get_size() == 0) {
             return true;
         }
-        clause_amounts.push_back(formula->get_size());
-        disj_varamount = std::max(disj_varamount, formula->get_varamount());
+        clause_amounts.push_back(elem.formula->get_size());
+        int local_varamount = elem.formula->get_varamount();
+        if (elem.primed) {
+            primeshift[i] = local_varamount;
+            local_varamount *= 2;
+        }
+        disj_varamount = std::max(disj_varamount, local_varamount);
     }
 
+    SetFormulaHorn conjunction_formula(conjuncts);
+
+    // try for each clause combination if its negation together with conjuncts is unsat
     do {
         bool unsatisfiable = false;
         Cube partial_assignment(disj_varamount, 2);
@@ -756,23 +358,23 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
             if (unsatisfiable) {
                 break;
             }
-            SetFormulaHorn *formula = disjuncts[i];
+            const SetFormulaHorn *formula = disjuncts[i].formula;
             for (int left_var : formula->get_left_vars(current_clauses[i])) {
-                if (partial_assignment[left_var] == 1) {
+                if (partial_assignment[left_var+primeshift[i]] == 1) {
                     unsatisfiable = true;
                     break;
                 }
-                partial_assignment[left_var] = 0;
+                partial_assignment[left_var+primeshift[i]] = 0;
             }
             if (unsatisfiable) {
                 break;
             }
             int right_var = formula->get_right(current_clauses[i]);
             if (right_var != -1) {
-                if (partial_assignment[right_var] == 0) {
+                if (partial_assignment[right_var+primeshift[i]] == 0) {
                     unsatisfiable = true;
                 } else {
-                    partial_assignment[right_var] =1 ;
+                    partial_assignment[right_var+primeshift[i]] =1 ;
                 }
             }
         }
@@ -781,7 +383,7 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
             continue;
         }
 
-        if (simplify_conjunction(conjuncts, partial_assignment)) {
+        if (is_restricted_satisfiable(&conjunction_formula, partial_assignment)) {
             return false;
         }
     } while (update_current_clauses(current_clauses, clause_amounts));
@@ -1096,10 +698,6 @@ void SetFormulaHorn::dump() const{
 bool SetFormulaHorn::is_subset(std::vector<SetFormula *> &left,
                                std::vector<SetFormula *> &right) {
 
-    if(left.size == 0) {
-        // TODO: implement
-    }
-
     std::vector<SetFormulaHorn *> horn_formulas_left;
     std::vector<SetFormulaHorn *> horn_formulas_right;
     bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
@@ -1114,22 +712,110 @@ bool SetFormulaHorn::is_subset(std::vector<SetFormula *> &left,
         conjunction.push_back(HornConjunctionElement(formula,false));
     }
 
-    return util->conjunction_implies_disjunction(conjunction, horn_formulas_right);
+    std::vector<HornDisjunctionElement> disjunction;
+    disjunction.reserve(horn_formulas_right.size());
+    for (SetFormulaHorn *formula : horn_formulas_right) {
+        disjunction.push_back(HornDisjunctionElement(formula, false));
+    }
+
+    return util->conjunction_implies_disjunction(conjunction, disjunction);
 }
 
-bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &/*left*/,
-                                                std::vector<SetFormula *> &/*right*/,
-                                                std::vector<SetFormula *> &/*prog*/,
-                                                std::unordered_set<int> &/*actions*/) {
-    // TODO:implement
+bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
+                                                std::vector<SetFormula *> &right,
+                                                std::vector<SetFormula *> &prog,
+                                                std::unordered_set<int> &actions) {
+    std::vector<SetFormulaHorn *> horn_formulas_left;
+    std::vector<SetFormulaHorn *> horn_formulas_right;
+    std::vector<SetFormulaHorn *> horn_formulas_prog;
+    bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
+            && util->get_horn_vector(right, horn_formulas_right)
+            && util->get_horn_vector(prog, horn_formulas_prog);
+    if (!valid_horn_formulas) {
+        return false;
+    }
+
+    std::vector<HornDisjunctionElement> disjunction;
+    disjunction.reserve(horn_formulas_right.size());
+    for (SetFormulaHorn *formula : horn_formulas_right) {
+        disjunction.push_back(HornDisjunctionElement(formula, true));
+    }
+
+    std::vector<HornConjunctionElement> conjunction;
+    conjunction.reserve(horn_formulas_prog.size()+horn_formulas_left.size());
+    for (SetFormulaHorn *formula : horn_formulas_prog) {
+        conjunction.push_back(HornConjunctionElement(formula,false));
+    }
+    for (SetFormulaHorn *formula : horn_formulas_left) {
+        conjunction.push_back(HornConjunctionElement(formula,true));
+    }
+
+    SetFormulaHorn left_singular(conjunction);
+    conjunction.clear();
+    conjunction.reserve(2);
+    conjunction.push_back(HornConjunctionElement(&left_singular, false));
+
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
+
+    for (int action : actions) {
+        conjunction.push_back(HornConjunctionElement(util->actionformulas[action], false));
+        if (!util->conjunction_implies_disjunction(conjunction, disjunction)) {
+            return false;
+        }
+        conjunction.pop_back();
+    }
+
     return true;
 }
 
-bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &/*left*/,
-                                               std::vector<SetFormula *> &/*right*/,
-                                               std::vector<SetFormula *> &/*reg*/,
-                                               std::unordered_set<int> &/*actions*/) {
-    // TODO:implement
+bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
+                                               std::vector<SetFormula *> &right,
+                                               std::vector<SetFormula *> &reg,
+                                               std::unordered_set<int> &actions) {
+    std::vector<SetFormulaHorn *> horn_formulas_left;
+    std::vector<SetFormulaHorn *> horn_formulas_right;
+    std::vector<SetFormulaHorn *> horn_formulas_reg;
+    bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
+            && util->get_horn_vector(right, horn_formulas_right)
+            && util->get_horn_vector(reg, horn_formulas_reg);
+    if (!valid_horn_formulas) {
+        return false;
+    }
+
+    std::vector<HornDisjunctionElement> disjunction;
+    disjunction.reserve(horn_formulas_right.size());
+    for (SetFormulaHorn *formula : horn_formulas_right) {
+        disjunction.push_back(HornDisjunctionElement(formula, false));
+    }
+
+    std::vector<HornConjunctionElement> conjunction;
+    conjunction.reserve(horn_formulas_reg.size()+horn_formulas_left.size());
+    for (SetFormulaHorn *formula : horn_formulas_reg) {
+        conjunction.push_back(HornConjunctionElement(formula,true));
+    }
+    for (SetFormulaHorn *formula : horn_formulas_left) {
+        conjunction.push_back(HornConjunctionElement(formula,false));
+    }
+
+    SetFormulaHorn left_singular(conjunction);
+    conjunction.clear();
+    conjunction.reserve(2);
+    conjunction.push_back(HornConjunctionElement(&left_singular, false));
+
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
+
+    for (int action : actions) {
+        conjunction.push_back(HornConjunctionElement(util->actionformulas[action], false));
+        if (!util->conjunction_implies_disjunction(conjunction, disjunction)) {
+            return false;
+        }
+        conjunction.pop_back();
+    }
+
     return true;
 }
 
