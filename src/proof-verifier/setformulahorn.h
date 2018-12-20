@@ -18,6 +18,15 @@ struct HornConjunctionElement {
     }
 };
 
+struct HornDisjunctionElement {
+    const SetFormulaHorn *formula;
+    const bool primed;
+
+    HornDisjunctionElement (SetFormulaHorn *formula, bool primed)
+        : formula(formula), primed(primed) {
+    }
+};
+
 typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
 typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurence;
 
@@ -43,26 +52,8 @@ private:
     bool simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment);
     bool is_restricted_satisfiable(SetFormulaHorn *formula, Cube &restriction);
 
-    bool conjunction_implies_disjunction(std::vector<HornConjunctionElement> &conjuncts, std::vector<SetFormulaHorn *> &disjuncts);
-
-    /*bool is_satisfiable(const HornFormulaList &formulas, bool partial = false);
-    bool is_satisfiable(const HornFormulaList &formulas, Cube &solution, bool partial = false);
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions, bool partial = false);
-    // restriction is a partial assignment to the variables (0 = false, 1 = true, 2 = dont care).
-    // Any content in solution will get overwritten (even if the formula is not satisfiable).
-    // If partial is true, then the solution will return 0 for forced false vars, 1 for forced true, and
-    // 2 for others. A concrete solution would be to set all don't cares to false
-    bool is_restricted_satisfiable(const HornFormulaList &formulas, const Cube &restrictions,
-                                   Cube &solution, bool partial= false);
-    bool implies(const HornFormulaList &formulas,
-                        const SetFormulaHorn *right, bool right_primed);
-    bool implies_union(const HornFormulaList &formulas,
-                                      const SetFormulaHorn *union_left, bool left_primed,
-                                      const SetFormulaHorn *union_right, bool right_primed);
-    bool implies_union_helper(const HornFormulaList &formulas, Cube &restrictions,
-                              const SetFormulaHorn *right_formula, int right_offset,
-                              const Cube &formulas_solution_partial);
-                              */
+    bool conjunction_implies_disjunction(std::vector<HornConjunctionElement> &conjuncts,
+                                         std::vector<HornDisjunctionElement> &disjuncts);
 };
 
 
