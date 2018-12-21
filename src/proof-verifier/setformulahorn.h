@@ -28,7 +28,7 @@ struct HornDisjunctionElement {
 };
 
 typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
-typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurence;
+typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurences;
 
 class HornUtil {
     friend class SetFormulaHorn;
@@ -77,7 +77,7 @@ private:
     std::vector<std::vector<int>> left_vars;
     std::vector<int> left_sizes;
     std::vector<int> right_side;
-    VariableOccurence variable_occurences;
+    VariableOccurences variable_occurences;
     std::vector<int> forced_true;
     std::vector<int> forced_false;
     int varamount;

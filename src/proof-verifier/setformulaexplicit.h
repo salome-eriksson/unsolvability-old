@@ -4,19 +4,37 @@
 #include "setformulabasic.h"
 #include "task.h"
 
-#include <memory>
 #include "cuddObj.hh"
-#include "unordered_map"
+#include <memory>
+#include <unordered_set>
 
 class ExplicitUtil;
+typedef std::vector<std::vector<bool>> ModelExtensions;
+typedef std::vector<const std::vector<bool> *>GlobalModel;
+typedef std::pair<int,int> GlobalModelVarOcc;
 
 class SetFormulaExplicit : public SetFormulaBasic
 {
     friend class ExplicitUtil;
 private:
     static std::unique_ptr<ExplicitUtil> util;
-    BDD set;
-    SetFormulaExplicit(BDD bdd);
+    std::vector<int> vars;
+    std::unordered_set<std::vector<bool>> models;
+    SetFormulaExplicit(std::vector<int> &&vars, std::unordered_set<std::vector<bool>> &&models);
+    SetFormulaExplicit(std::vector<const SetFormulaExplicit &> &conjuncts);
+
+    struct OtherFormula {
+        SetFormulaExplicit *formula;
+        // tells for each var in formula->vars, where in the extended model this var is
+        std::vector<GlobalModelVarOcc> var_occurences;
+        // positions of vars that first occured in this formula
+        std::vector<int> newvars_pos;
+
+        OtherFormula(SetFormulaExplicit *f) {
+            formula = f;
+            var_occurences.reserve(formula->vars.size());
+        }
+    };
 public:
     SetFormulaExplicit();
     SetFormulaExplicit(std::ifstream &input, Task *task);
@@ -38,29 +56,34 @@ public:
     virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
 
-    bool contains(const Cube &statecube);
+    // model is expected to have the same varorder (ie we need no transformation).
+    bool contains(const std::vector<bool> &model) const;
+    /*
+     * model is expected to have the same varorder (ie we need no transformation).
+     * However, the values at position missing_vars can be discarded.
+     * Instead we need to consider each combination of the missing vars.
+     * Returns those combinations where the (filled out) model is contained.
+     */
+    std::vector<std::vector<bool>> get_missing_var_values(
+            std::vector<bool> &model, const std::vector<int> &missing_vars_pos) const;
 };
 
 class ExplicitUtil {
     friend class SetFormulaExplicit;
 private:
     Task *task;
-    std::vector<int> prime_permutation;
     SetFormulaExplicit emptyformula;
+    SetFormulaExplicit trueformula;
     SetFormulaExplicit initformula;
     SetFormulaExplicit goalformula;
     std::vector<BDD> actionformulas;
-    std::vector<std::vector<int>> hex;
-    std::unordered_map<std::string, BDD> statebdds;
+    std::vector<std::vector<bool>> hex;
 
     ExplicitUtil(Task *task);
 
-    BDD build_bdd_from_cube(const Cube &cube);
-    BDD build_bdd_for_action(const Action &a);
-    void build_actionformulas();
+    bool get_explicit_vector(std::vector<SetFormula *> &formulas,
+                             std::vector<SetFormulaExplicit *> &explicit_formulas);
 
-    Cube parseCube(const std::string &param, int size);
-    void add_state_to_bdd(BDD &bdd, std::string state);
 };
 
 #endif // SETFORMULAEXPLICIT_H
