@@ -83,7 +83,24 @@ private:
 
     bool get_explicit_vector(std::vector<SetFormula *> &formulas,
                              std::vector<SetFormulaExplicit *> &explicit_formulas);
-
+    bool check_same_vars(std::vector<SetFormulaExplicit *> &formulas);
+    bool is_model_contained(const std::vector<bool> &model,
+                            std::vector<SetFormulaExplicit *> &same_varorder_left_formulas,
+                            std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
+                            std::vector<SetFormulaExplicit *> &same_varorder_right_formulas,
+                            std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
+                            GlobalModel &global_model,
+                            std::vector<ModelExtensions> &model_extensions);
+    // splits the formulas in formulas according to whether they have the same varorder as reference
+    void split_formulas(SetFormulaExplicit *reference,
+                        std::vector<SetFormulaExplicit *> &formulas,
+                        std::vector<SetFormulaExplicit *> &same_varorder,
+                        std::vector<SetFormulaExplicit::OtherFormula> &other_varorder);
+    void setup_other_formulas(SetFormulaExplicit *reference_formula,
+                              std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
+                              std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
+                              std::vector<ModelExtensions> &model_extensions,
+                              GlobalModel &global_model);
 };
 
 #endif // SETFORMULAEXPLICIT_H

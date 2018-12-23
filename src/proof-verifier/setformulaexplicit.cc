@@ -90,6 +90,186 @@ bool ExplicitUtil::get_explicit_vector(std::vector<SetFormula *> &formulas,
     return true;
 }
 
+bool ExplicitUtil::check_same_vars(std::vector<SetFormulaExplicit *> &formulas) {
+    for(size_t i = 1; i < formulas.size(); ++i) {
+        if(!std::is_permutation(formulas[i-1]->vars.begin(), formulas[i-1]->vars.end(),
+                                formulas[i]->vars.begin())) {
+            return false;
+        }
+    }
+    return true;
+}
+
+inline std::vector<bool> get_transformed_model(GlobalModel &global_model,
+                                               std::vector<GlobalModelVarOcc> var_occurences) {
+    std::vector<bool> f_model(var_occurences.size(), false);
+    for (size_t i = 0; i < var_occurences.size(); ++i) {
+        GlobalModelVarOcc &var_occ = var_occurences[i];
+        f_model[i] = global_model.at(var_occ.first)->at(var_occ.second);
+    }
+    return f_model;
+}
+
+void ExplicitUtil::split_formulas(SetFormulaExplicit *reference,
+                                  std::vector<SetFormulaExplicit *> &formulas,
+                                  std::vector<SetFormulaExplicit *> &same_varorder,
+                                  std::vector<SetFormulaExplicit::OtherFormula> &other_varorder) {
+    for (SetFormulaExplicit *formula : formulas) {
+        if (formula->vars == reference->vars) {
+            same_varorder.push_back(formula);
+        } else {
+            other_varorder.push_back(SetFormulaExplicit::OtherFormula(formula));
+        }
+    }
+}
+
+/*
+ * The global model is over the union of vars occuring in any formula.
+ * The first vector<bool> covers the vars of left[0], then each entry i until size-1
+ * covers the variables newly introduced in other_left_formulas[i+1]
+ * (if other_left_formulas[i] does not contain any new vars, the vector is empt<).
+ * The last entry covers the variables occuring on the right side.
+ * Note that all formulas on the right side must contain the same vars.
+ * Also note that the global_model might point to deleted vectors, but those should never be accessed.
+ */
+void ExplicitUtil::setup_other_formulas(SetFormulaExplicit *reference_formula,
+                                        std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
+                                        std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
+                                        std::vector<ModelExtensions> &model_extensions,
+                                        GlobalModel &global_model) {
+    global_model.resize(other_left_formulas.size()+2, nullptr);
+    model_extensions.resize(other_left_formulas.size()+1);
+
+    // Stores for each variable where in the "global model" it occurs.
+    std::unordered_map <int,GlobalModelVarOcc> var_occurence_map;
+    for (size_t i = 0; i < reference_formula->vars.size(); ++i)  {
+        var_occurence_map.insert(std::make_pair(reference_formula->vars[i],
+                                                std::make_pair(0,i)));
+    }
+    // Find for each other_formula where the variables occur.
+    int index = 0;
+    for (SetFormulaExplicit::OtherFormula &other_formula : other_left_formulas) {
+        int newvar_amount = 0;
+        for (size_t i = 0; i < other_formula.formula->vars.size(); ++i) {
+            int var = other_formula.formula->vars[i];
+            auto pos = var_occurence_map.find(var);
+            if (pos == var_occurence_map.end()) {
+                GlobalModelVarOcc occ(index+1,newvar_amount++);
+                pos = var_occurence_map.insert({var,occ}).first;
+                other_formula.newvars_pos.push_back(i);
+            }
+            other_formula.var_occurences.push_back(pos->second);
+        }
+        // fill model_extensions with dummy vector
+        model_extensions[index] = ModelExtensions(1,std::vector<bool>(other_formula.newvars_pos.size()));
+        global_model[index+1] = &model_extensions[index][0];
+        index++;
+    }
+    int right_newvars = 0;
+    for (SetFormulaExplicit::OtherFormula &other_formula : other_right_formulas) {
+        for (size_t i = 0; i < other_formula.formula->vars.size(); ++i) {
+            int var = other_formula.formula->vars[i];
+            auto pos = var_occurence_map.find(var);
+            if (pos == var_occurence_map.end()) {
+                /*
+                 * All formulas on the right must contain the same vars
+                 * --> only the first can have new vars.
+                 */
+                assert(&other_formula == &(other_right_formulas[0]));
+                GlobalModelVarOcc occ(index+1,right_newvars++);
+                pos = var_occurence_map.insert({var,occ}).first;
+                other_formula.newvars_pos.push_back(i);
+            }
+            other_formula.var_occurences.push_back(pos->second);
+        }
+        model_extensions[index] = ModelExtensions(1, std::vector<bool>(right_newvars));
+        global_model[index+1] = &model_extensions[index][0];
+    }
+}
+
+bool ExplicitUtil::is_model_contained(const std::vector<bool> &model,
+                                      std::vector<SetFormulaExplicit *> &same_varorder_left_formulas,
+                                      std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
+                                      std::vector<SetFormulaExplicit *> &same_varorder_right_formulas,
+                                      std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
+                                      GlobalModel &global_model, std::vector<ModelExtensions> &model_extensions
+                                      ) {
+    // For same varorder formulas no transformation is needed.
+    for (SetFormulaExplicit *formula : same_varorder_left_formulas) {
+        if (!formula->contains(model)) {
+            return true;
+        }
+    }
+    for (SetFormulaExplicit *formula : same_varorder_right_formulas) {
+        if(formula->contains(model)) {
+            return true;
+        }
+    }
+
+    /*
+     * other_formulas contain vars not occuring in reference. We need to get all
+     * models of the conjunction.
+     * For example:
+     *  - current model vars = {0,1,3}, current model = {t,f,f}
+     *  - other formula vars = {0,2,3,4}
+     * --> The conjunction contains current model combined with
+     *     *all* models of other formula which fit {t,*,f,*}
+     */
+    global_model[0] = &model;
+    std::vector<int> pos(other_left_formulas.size(), -1);
+    int f_index = 0;
+    bool done = false;
+
+    /*
+     * We expect f_index to index the next other_formula we need to check
+     * (and get model_extensions from).
+     * If f_index = other_formula.size(), we need to check the disjunctions.
+     * Furthermore, we expect all pos[i] with i < f_index to point to valid positions
+     * in addon, and global_model to point to those positions.
+     */
+    while(!done) {
+        // check if contained in right side
+        if (f_index == other_left_formulas.size()) {
+            std::vector<bool> &right_model = model_extensions[f_index][0];
+            // go over all assignments of vars only occuring right
+            for (int count = 0; count < (1 << right_model.size()); ++count) {
+                for (size_t i = 0; i < right_model.size(); ++i) {
+                    right_model[i] = ((count >> i) % 2 == 1);
+                }
+                bool contained = false;
+                for (SetFormulaExplicit::OtherFormula &f : other_right_formulas) {
+                    std::vector<bool> f_model = get_transformed_model(global_model, f.var_occurences);
+                    if (f.formula->contains(f_model)) {
+                        contained = true;
+                        break;
+                    }
+                }
+                if (!contained) {
+                    return false;
+                }
+            }
+            f_index--;
+        } else {
+            SetFormulaExplicit::OtherFormula &f = other_left_formulas[f_index];
+            std::vector<bool> f_model = get_transformed_model(global_model, f.var_occurences);
+            model_extensions[f_index] = f.formula->get_missing_var_values(
+                        f_model, f.newvars_pos);
+            pos[f_index] = -1;
+        }
+        while (f_index != -1 && pos[f_index] == model_extensions[f_index].size()-1) {
+            f_index--;
+        }
+        if (f_index == -1) {
+            done = true;
+        } else {
+            pos[f_index]++;
+            global_model[f_index+1] = &model_extensions[f_index][pos[f_index]];
+            f_index++;
+        }
+    }
+    return true;
+}
+
 std::unique_ptr<ExplicitUtil> SetFormulaExplicit::util;
 
 SetFormulaExplicit::SetFormulaExplicit() {
@@ -161,16 +341,6 @@ SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
     }
 }
 
-inline std::vector<bool> get_transformed_model(GlobalModel &global_model,
-                                               std::vector<GlobalModelVarOcc> var_occurences) {
-    std::vector<bool> f_model(var_occurences.size(), false);
-    for (size_t i = 0; i < var_occurences.size(); ++i) {
-        GlobalModelVarOcc &var_occ = var_occurences[i];
-        f_model[i] = global_model.at(var_occ.first)->at(var_occ.second);
-    }
-    return f_model;
-}
-
 bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
                                    std::vector<SetFormula *> &right) {
 
@@ -186,17 +356,10 @@ bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
                                      &(util->emptyformula)), right_explicit.end());
 
     // the union formulas must all talk about the same variables
-    if(!right_explicit.empty()) {
-        std::vector<int> &varorder = right_explicit[0]->vars;
-        for(size_t i = 1; i < right_explicit.size(); ++i) {
-            if(!std::is_permutation(varorder.begin(), varorder.end(),
-                                    right_explicit[i]->vars.begin())) {
-                std::cerr << "Union of explicit sets contains different variables." << std::endl;
-                return false;
-            }
-        }
+    if(!util->check_same_vars(right_explicit)) {
+        std::cerr << "Union of explicit sets contains different variables." << std::endl;
+        return false;
     }
-
 
     // left empty -> right side must be valid
     if(left_explicit.empty()) {
@@ -210,24 +373,13 @@ bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
     std::vector<SetFormulaExplicit *> same_varorder_right_formulas;
     std::vector<OtherFormula> other_right_formulas;
 
-    for (size_t i = 1; i < left_explicit.size(); ++i) {
-        if (left_explicit[i]->vars == left_explicit[0]->vars) {
-            same_varorder_left_formulas.push_back(left_explicit[i]);
-        } else {
-            other_left_formulas.push_back(OtherFormula(left_explicit[i]));
-        }
-    }
-    for (size_t i = 0; i < right_explicit.size(); ++i) {
-        if (right_explicit[i]->vars == left_explicit[0]->vars) {
-            same_varorder_right_formulas.push_back(right_explicit[i]);
-        } else {
-            other_right_formulas.push_back(OtherFormula(right_explicit[i]));
-        }
-    }
+    util->split_formulas(reference_formula, left_explicit,
+                         same_varorder_left_formulas, other_left_formulas);
+    util->split_formulas(reference_formula, right_explicit,
+                         same_varorder_right_formulas, other_right_formulas);
 
 
     // all formulas have same varorder -> no transformations needed
-    // (makes everything much simpler)
     if(other_left_formulas.empty() && other_right_formulas.empty()) {
         for (const std::vector<bool> &model : reference_formula->models) {
             bool contained = true;
@@ -256,151 +408,19 @@ bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
         return true;
     }
 
-    /*
-     * The global model is over the union of vars occuring in any formula.
-     * The first vector<bool> covers the vars of left[0], then each entry i until size-1
-     * covers the variables newly introduced in other_left_formulas[i+1]
-     * (if other_left_formulas[i] does not contain any new vars, the vector is empt<).
-     * The last entry covers the variables occuring on the right side.
-     * Note that all formulas on the right side must contain the same vars.
-     * Also note that the global_model might point to deleted vectors, but those should never be accessed.
-     */
-    GlobalModel global_model(other_left_formulas.size()+2, nullptr);
-    std::vector<ModelExtensions> model_extensions(other_left_formulas.size());
+    GlobalModel global_model;
+    std::vector<ModelExtensions> model_extensions;
 
-    // Stores for each variable where in the "global model" it occurs.
-    std::unordered_map <int,GlobalModelVarOcc> var_occurence_map;
-    for (size_t i = 0; i < reference_formula->vars.size(); ++i)  {
-        var_occurence_map.insert(std::make_pair(reference_formula->vars[i],
-                                                std::make_pair(0,i)));
-    }
-    // Find for each other_formula where the variables occur.
-    int index = 0;
-    for (OtherFormula &other_formula : other_left_formulas) {
-        int newvar_amount = 0;
-        for (size_t i = 0; i < other_formula.formula->vars.size(); ++i) {
-            int var = other_formula.formula->vars[i];
-            auto pos = var_occurence_map.find(var);
-            if (pos == var_occurence_map.end()) {
-                GlobalModelVarOcc occ(index+1,newvar_amount++);
-                pos = var_occurence_map.insert({var,occ}).first;
-                other_formula.newvars_pos.push_back(i);
-            }
-            other_formula.var_occurences.push_back(pos->second);
-        }
-        // fill model_extensions with dummy vector
-        model_extensions[index] = ModelExtensions(1,std::vector<bool>(other_formula.newvars_pos.size()));
-        global_model[index+1] = &model_extensions[index][0];
-        index++;
-    }
-    std::vector<bool> right_newvars;
-    global_model[index+1] = &right_newvars;
-    for (OtherFormula &other_formula : other_right_formulas) {
-        int newvar_amount = 0;
-        for (size_t i = 0; i < other_formula.formula->vars.size(); ++i) {
-            int var = other_formula.formula->vars[i];
-            auto pos = var_occurence_map.find(var);
-            if (pos == var_occurence_map.end()) {
-                /*
-                 * All formulas on the right must contain the same vars
-                 * --> only the first can have new vars.
-                 */
-                assert(&other_formula == &(other_right_formulas[0]));
-                GlobalModelVarOcc occ(index+1,newvar_amount++);
-                pos = var_occurence_map.insert({var,occ}).first;
-                other_formula.newvars_pos.push_back(i);
-                right_newvars.push_back(false);
-            }
-            other_formula.var_occurences.push_back(pos->second);
-        }
-    }
+    util->setup_other_formulas(reference_formula, other_left_formulas, other_right_formulas,
+                               model_extensions, global_model);
 
     // loop over each model of the reference formula
     for (const std::vector<bool> &model : reference_formula->models) {
-        bool contained = true;
-        // For same varorder formulas no transformation is needed.
-        for (SetFormulaExplicit *formula : same_varorder_left_formulas) {
-            if (!formula->contains(model)) {
-                contained = false;
-                break;
-            }
-        }
-        // model not contained in another formula on the left --> go to next model
-        if (!contained) {
-            continue;
-        }
-
-        contained = false;
-        for (SetFormulaExplicit *formula : same_varorder_right_formulas) {
-            if(formula->contains(model)) {
-                contained = true;
-                break;
-            }
-        }
-        // model contained in right side --> go to next model
-        if (contained) {
-            continue;
-        }
-
-        /*
-         * other_formulas contain vars not occuring in reference. We need to get all
-         * models of the conjunction.
-         * For example:
-         *  - current model vars = {0,1,3}, current model = {t,f,f}
-         *  - other formula vars = {0,2,3,4}
-         * --> The conjunction contains current model combined with
-         *     *all* models of other formula which fit {t,*,f,*}
-         */
-        global_model[0] = &model;
-        std::vector<int> pos(other_left_formulas.size(), -1);
-        int f_index = 0;
-        bool done = false;
-
-        /*
-         * We expect f_index to index the next other_formula we need to check
-         * (and get model_extensions from).
-         * If f_index = other_formula.size(), we need to check the disjunctions.
-         * Furthermore, we expect all pos[i] with i < f_index to point to valid positions
-         * in addon, and global_model to point to those positions.
-         */
-        while(!done) {
-            // check if contained in right side
-            if (f_index == other_left_formulas.size()) {
-                // go over all assignments of vars only occuring right
-                for (int count = 0; count < (1 << right_newvars.size()); ++count) {
-                    for (size_t i = 0; i < right_newvars.size(); ++i) {
-                        right_newvars[i] = ((count >> i) % 2 == 1);
-                    }
-                    bool contained = false;
-                    for (OtherFormula &f : other_right_formulas) {
-                        std::vector<bool> f_model = get_transformed_model(global_model, f.var_occurences);
-                        if (f.formula->contains(f_model)) {
-                            contained = true;
-                            break;
-                        }
-                    }
-                    if (!contained) {
-                        return false;
-                    }
-                }
-                f_index--;
-            } else {
-                OtherFormula &f = other_left_formulas[f_index];
-                std::vector<bool> f_model = get_transformed_model(global_model, f.var_occurences);
-                model_extensions[f_index] = f.formula->get_missing_var_values(
-                            f_model, f.newvars_pos);
-                pos[f_index] = -1;
-            }
-            while (f_index != -1 && pos[f_index] == model_extensions[f_index].size()-1) {
-                f_index--;
-            }
-            if (f_index == -1) {
-                done = true;
-            } else {
-                pos[f_index]++;
-                global_model[f_index+1] = &model_extensions[f_index][pos[f_index]];
-                f_index++;
-            }
+        if(!util->is_model_contained(model,
+                                     same_varorder_left_formulas, other_left_formulas,
+                                     same_varorder_right_formulas, other_right_formulas,
+                                     global_model, model_extensions)) {
+            return false;
         }
     }
     return true;
