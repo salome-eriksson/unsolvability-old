@@ -9,8 +9,9 @@
 #include <unordered_set>
 
 class ExplicitUtil;
-typedef std::vector<std::vector<bool>> ModelExtensions;
-typedef std::vector<const std::vector<bool> *>GlobalModel;
+typedef std::vector<bool> Model;
+typedef std::vector<Model> ModelExtensions;
+typedef std::vector<const Model *>GlobalModel;
 typedef std::pair<int,int> GlobalModelVarOcc;
 
 class SetFormulaExplicit : public SetFormulaBasic
@@ -19,22 +20,9 @@ class SetFormulaExplicit : public SetFormulaBasic
 private:
     static std::unique_ptr<ExplicitUtil> util;
     std::vector<int> vars;
-    std::unordered_set<std::vector<bool>> models;
-    SetFormulaExplicit(std::vector<int> &&vars, std::unordered_set<std::vector<bool>> &&models);
-    SetFormulaExplicit(std::vector<const SetFormulaExplicit &> &conjuncts);
-
-    struct OtherFormula {
-        SetFormulaExplicit *formula;
-        // tells for each var in formula->vars, where in the extended model this var is
-        std::vector<GlobalModelVarOcc> var_occurences;
-        // positions of vars that first occured in this formula
-        std::vector<int> newvars_pos;
-
-        OtherFormula(SetFormulaExplicit *f) {
-            formula = f;
-            var_occurences.reserve(formula->vars.size());
-        }
-    };
+    std::unordered_set<Model> models;
+    SetFormulaExplicit(std::vector<int> &&vars, std::unordered_set<Model> &&models);
+    SetFormulaExplicit(std::vector<SetFormulaExplicit *> &conjuncts);
 public:
     SetFormulaExplicit();
     SetFormulaExplicit(std::ifstream &input, Task *task);
@@ -57,15 +45,15 @@ public:
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
 
     // model is expected to have the same varorder (ie we need no transformation).
-    bool contains(const std::vector<bool> &model) const;
+    bool contains(const Model &model) const;
     /*
      * model is expected to have the same varorder (ie we need no transformation).
      * However, the values at position missing_vars can be discarded.
      * Instead we need to consider each combination of the missing vars.
      * Returns those combinations where the (filled out) model is contained.
      */
-    std::vector<std::vector<bool>> get_missing_var_values(
-            std::vector<bool> &model, const std::vector<int> &missing_vars_pos) const;
+    std::vector<Model> get_missing_var_values(
+            Model &model, const std::vector<int> &missing_vars_pos) const;
 };
 
 class ExplicitUtil {
@@ -81,26 +69,44 @@ private:
 
     ExplicitUtil(Task *task);
 
+    struct OtherVarorderFormula {
+        SetFormulaExplicit *formula;
+        // tells for each var in formula->vars, where in the extended model this var is
+        std::vector<GlobalModelVarOcc> var_occurences;
+        // positions of vars that first occured in this formula
+        std::vector<int> newvars_pos;
+
+        OtherVarorderFormula(SetFormulaExplicit *f) {
+            formula = f;
+            var_occurences.reserve(formula->vars.size());
+        }
+    };
+    /*
+     * The global model is over the union of vars occuring in any formula.
+     * The first vector<bool> covers the vars of left[0], then each entry i until size-1
+     * covers the variables newly introduced in other_left_formulas[i+1]
+     * (if other_left_formulas[i] does not contain any new vars, the vector is empt<).
+     * The last entry covers the variables occuring on the right side.
+     * Note that all formulas on the right side must contain the same vars.
+     * Also note that the global_model might point to deleted vectors, but those should never be accessed.
+     */
+    struct SubsetCheckHelper {
+        std::vector<int> varorder;
+        std::vector<SetFormulaExplicit *> same_varorder_left;
+        std::vector<SetFormulaExplicit *> same_varorder_right;
+        std::vector<OtherVarorderFormula> other_varorder_left;
+        std::vector<OtherVarorderFormula> other_varorder_right;
+        GlobalModel global_model;
+        std::vector<ModelExtensions> model_extensions;
+    };
+
     bool get_explicit_vector(std::vector<SetFormula *> &formulas,
                              std::vector<SetFormulaExplicit *> &explicit_formulas);
     bool check_same_vars(std::vector<SetFormulaExplicit *> &formulas);
-    bool is_model_contained(const std::vector<bool> &model,
-                            std::vector<SetFormulaExplicit *> &same_varorder_left_formulas,
-                            std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
-                            std::vector<SetFormulaExplicit *> &same_varorder_right_formulas,
-                            std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
-                            GlobalModel &global_model,
-                            std::vector<ModelExtensions> &model_extensions);
-    // splits the formulas in formulas according to whether they have the same varorder as reference
-    void split_formulas(SetFormulaExplicit *reference,
-                        std::vector<SetFormulaExplicit *> &formulas,
-                        std::vector<SetFormulaExplicit *> &same_varorder,
-                        std::vector<SetFormulaExplicit::OtherFormula> &other_varorder);
-    void setup_other_formulas(SetFormulaExplicit *reference_formula,
-                              std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
-                              std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
-                              std::vector<ModelExtensions> &model_extensions,
-                              GlobalModel &global_model);
+    SubsetCheckHelper get_subset_checker_helper(std::vector<int> &varorder,
+                                                std::vector<SetFormulaExplicit *> &left_formulas,
+                                                std::vector<SetFormulaExplicit *> &right_formulas);
+    bool is_model_contained(const Model &model, SubsetCheckHelper &helper);
 };
 
 #endif // SETFORMULAEXPLICIT_H

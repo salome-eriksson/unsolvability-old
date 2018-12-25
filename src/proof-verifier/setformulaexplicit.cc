@@ -110,104 +110,98 @@ inline std::vector<bool> get_transformed_model(GlobalModel &global_model,
     return f_model;
 }
 
-void ExplicitUtil::split_formulas(SetFormulaExplicit *reference,
-                                  std::vector<SetFormulaExplicit *> &formulas,
-                                  std::vector<SetFormulaExplicit *> &same_varorder,
-                                  std::vector<SetFormulaExplicit::OtherFormula> &other_varorder) {
-    for (SetFormulaExplicit *formula : formulas) {
-        if (formula->vars == reference->vars) {
-            same_varorder.push_back(formula);
+ExplicitUtil::SubsetCheckHelper ExplicitUtil::get_subset_checker_helper(
+        std::vector<int> &varorder,
+        std::vector<SetFormulaExplicit *> &left_formulas,
+        std::vector<SetFormulaExplicit *> &right_formulas) {
+
+    SubsetCheckHelper helper;
+    helper.varorder = varorder;
+
+    for (SetFormulaExplicit *formula : left_formulas) {
+        if (formula->vars == helper.varorder) {
+            helper.same_varorder_left.push_back(formula);
         } else {
-            other_varorder.push_back(SetFormulaExplicit::OtherFormula(formula));
+            helper.other_varorder_left.push_back(OtherVarorderFormula(formula));
         }
     }
-}
+    for (SetFormulaExplicit *formula : right_formulas) {
+        if (formula->vars == helper.varorder) {
+            helper.same_varorder_right.push_back(formula);
+        } else {
+            helper.other_varorder_right.push_back(OtherVarorderFormula(formula));
+        }
+    }
 
-/*
- * The global model is over the union of vars occuring in any formula.
- * The first vector<bool> covers the vars of left[0], then each entry i until size-1
- * covers the variables newly introduced in other_left_formulas[i+1]
- * (if other_left_formulas[i] does not contain any new vars, the vector is empt<).
- * The last entry covers the variables occuring on the right side.
- * Note that all formulas on the right side must contain the same vars.
- * Also note that the global_model might point to deleted vectors, but those should never be accessed.
- */
-void ExplicitUtil::setup_other_formulas(SetFormulaExplicit *reference_formula,
-                                        std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
-                                        std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
-                                        std::vector<ModelExtensions> &model_extensions,
-                                        GlobalModel &global_model) {
-    global_model.resize(other_left_formulas.size()+2, nullptr);
-    model_extensions.resize(other_left_formulas.size()+1);
+    helper.global_model.resize(helper.other_varorder_left.size()+2, nullptr);
+    helper.model_extensions.resize(helper.other_varorder_left.size()+1);
 
     // Stores for each variable where in the "global model" it occurs.
     std::unordered_map <int,GlobalModelVarOcc> var_occurence_map;
-    for (size_t i = 0; i < reference_formula->vars.size(); ++i)  {
-        var_occurence_map.insert(std::make_pair(reference_formula->vars[i],
+    for (size_t i = 0; i < helper.varorder.size(); ++i)  {
+        var_occurence_map.insert(std::make_pair(helper.varorder[i],
                                                 std::make_pair(0,i)));
     }
+
     // Find for each other_formula where the variables occur.
     int index = 0;
-    for (SetFormulaExplicit::OtherFormula &other_formula : other_left_formulas) {
+    for (OtherVarorderFormula &of : helper.other_varorder_left) {
         int newvar_amount = 0;
-        for (size_t i = 0; i < other_formula.formula->vars.size(); ++i) {
-            int var = other_formula.formula->vars[i];
+        for (size_t i = 0; i < of.formula->vars.size(); ++i) {
+            int var = of.formula->vars[i];
             auto pos = var_occurence_map.find(var);
             if (pos == var_occurence_map.end()) {
                 GlobalModelVarOcc occ(index+1,newvar_amount++);
                 pos = var_occurence_map.insert({var,occ}).first;
-                other_formula.newvars_pos.push_back(i);
+                of.newvars_pos.push_back(i);
             }
-            other_formula.var_occurences.push_back(pos->second);
+            of.var_occurences.push_back(pos->second);
         }
         // fill model_extensions with dummy vector
-        model_extensions[index] = ModelExtensions(1,std::vector<bool>(other_formula.newvars_pos.size()));
-        global_model[index+1] = &model_extensions[index][0];
+        helper.model_extensions[index] = ModelExtensions(1,std::vector<bool>(of.newvars_pos.size()));
+        helper.global_model[index+1] = &(helper.model_extensions[index][0]);
         index++;
     }
     int right_newvars = 0;
-    for (SetFormulaExplicit::OtherFormula &other_formula : other_right_formulas) {
-        for (size_t i = 0; i < other_formula.formula->vars.size(); ++i) {
-            int var = other_formula.formula->vars[i];
+    for (OtherVarorderFormula &of : helper.other_varorder_right) {
+        for (size_t i = 0; i < of.formula->vars.size(); ++i) {
+            int var = of.formula->vars[i];
             auto pos = var_occurence_map.find(var);
             if (pos == var_occurence_map.end()) {
                 /*
                  * All formulas on the right must contain the same vars
                  * --> only the first can have new vars.
                  */
-                assert(&other_formula == &(other_right_formulas[0]));
+                assert(&of == &(helper.other_varorder_right[0]));
                 GlobalModelVarOcc occ(index+1,right_newvars++);
                 pos = var_occurence_map.insert({var,occ}).first;
-                other_formula.newvars_pos.push_back(i);
+                of.newvars_pos.push_back(i);
             }
-            other_formula.var_occurences.push_back(pos->second);
+            of.var_occurences.push_back(pos->second);
         }
-        model_extensions[index] = ModelExtensions(1, std::vector<bool>(right_newvars));
-        global_model[index+1] = &model_extensions[index][0];
     }
+    helper.model_extensions[index] = ModelExtensions(1, std::vector<bool>(right_newvars));
+    helper.global_model[index+1] = &(helper.model_extensions[index][0]);
+
+    return helper;
 }
 
-bool ExplicitUtil::is_model_contained(const std::vector<bool> &model,
-                                      std::vector<SetFormulaExplicit *> &same_varorder_left_formulas,
-                                      std::vector<SetFormulaExplicit::OtherFormula> &other_left_formulas,
-                                      std::vector<SetFormulaExplicit *> &same_varorder_right_formulas,
-                                      std::vector<SetFormulaExplicit::OtherFormula> &other_right_formulas,
-                                      GlobalModel &global_model, std::vector<ModelExtensions> &model_extensions
-                                      ) {
+bool ExplicitUtil::is_model_contained(const Model &model,
+                                      SubsetCheckHelper &helper) {
     // For same varorder formulas no transformation is needed.
-    for (SetFormulaExplicit *formula : same_varorder_left_formulas) {
+    for (SetFormulaExplicit *formula : helper.same_varorder_left) {
         if (!formula->contains(model)) {
             return true;
         }
     }
-    for (SetFormulaExplicit *formula : same_varorder_right_formulas) {
+    for (SetFormulaExplicit *formula : helper.same_varorder_right) {
         if(formula->contains(model)) {
             return true;
         }
     }
 
     /*
-     * other_formulas contain vars not occuring in reference. We need to get all
+     * other_formulas contain vars not occuring in varorder. We need to get all
      * models of the conjunction.
      * For example:
      *  - current model vars = {0,1,3}, current model = {t,f,f}
@@ -215,8 +209,8 @@ bool ExplicitUtil::is_model_contained(const std::vector<bool> &model,
      * --> The conjunction contains current model combined with
      *     *all* models of other formula which fit {t,*,f,*}
      */
-    global_model[0] = &model;
-    std::vector<int> pos(other_left_formulas.size(), -1);
+    helper.global_model[0] = &model;
+    std::vector<int> pos(helper.other_varorder_left.size(), -1);
     int f_index = 0;
     bool done = false;
 
@@ -229,16 +223,16 @@ bool ExplicitUtil::is_model_contained(const std::vector<bool> &model,
      */
     while(!done) {
         // check if contained in right side
-        if (f_index == other_left_formulas.size()) {
-            std::vector<bool> &right_model = model_extensions[f_index][0];
+        if (f_index == helper.other_varorder_left.size()) {
+            Model &right_model = helper.model_extensions[f_index][0];
             // go over all assignments of vars only occuring right
             for (int count = 0; count < (1 << right_model.size()); ++count) {
                 for (size_t i = 0; i < right_model.size(); ++i) {
                     right_model[i] = ((count >> i) % 2 == 1);
                 }
                 bool contained = false;
-                for (SetFormulaExplicit::OtherFormula &f : other_right_formulas) {
-                    std::vector<bool> f_model = get_transformed_model(global_model, f.var_occurences);
+                for (OtherVarorderFormula &f : helper.other_varorder_right) {
+                    Model f_model = get_transformed_model(helper.global_model, f.var_occurences);
                     if (f.formula->contains(f_model)) {
                         contained = true;
                         break;
@@ -250,20 +244,20 @@ bool ExplicitUtil::is_model_contained(const std::vector<bool> &model,
             }
             f_index--;
         } else {
-            SetFormulaExplicit::OtherFormula &f = other_left_formulas[f_index];
-            std::vector<bool> f_model = get_transformed_model(global_model, f.var_occurences);
-            model_extensions[f_index] = f.formula->get_missing_var_values(
+            OtherVarorderFormula &f = helper.other_varorder_left[f_index];
+            Model f_model = get_transformed_model(helper.global_model, f.var_occurences);
+            helper.model_extensions[f_index] = f.formula->get_missing_var_values(
                         f_model, f.newvars_pos);
             pos[f_index] = -1;
         }
-        while (f_index != -1 && pos[f_index] == model_extensions[f_index].size()-1) {
+        while (f_index != -1 && pos[f_index] == helper.model_extensions[f_index].size()-1) {
             f_index--;
         }
         if (f_index == -1) {
             done = true;
         } else {
             pos[f_index]++;
-            global_model[f_index+1] = &model_extensions[f_index][pos[f_index]];
+            helper.global_model[f_index+1] = &(helper.model_extensions[f_index][pos[f_index]]);
             f_index++;
         }
     }
@@ -285,8 +279,9 @@ SetFormulaExplicit::SetFormulaExplicit(std::vector<int> &&vars,
 
 }
 
-SetFormulaExplicit::SetFormulaExplicit(std::vector<const SetFormulaExplicit &> &conjuncts) {
-
+SetFormulaExplicit::SetFormulaExplicit(std::vector<SetFormulaExplicit *> &) {
+    std::cerr << "TODO: not implemented yet" << std::endl;
+    exit_with(ExitCode::CRITICAL_ERROR);
 }
 
 SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
@@ -366,79 +361,267 @@ bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
         left_explicit.push_back(&(util->trueformula));
     }
 
+    // use first formula on left as reference
+    SetFormulaExplicit *reference = left_explicit.front();
+    left_explicit.erase(left_explicit.begin());
 
-    SetFormulaExplicit *reference_formula = left_explicit[0];
-    std::vector<SetFormulaExplicit *> same_varorder_left_formulas;
-    std::vector<OtherFormula> other_left_formulas;
-    std::vector<SetFormulaExplicit *> same_varorder_right_formulas;
-    std::vector<OtherFormula> other_right_formulas;
-
-    util->split_formulas(reference_formula, left_explicit,
-                         same_varorder_left_formulas, other_left_formulas);
-    util->split_formulas(reference_formula, right_explicit,
-                         same_varorder_right_formulas, other_right_formulas);
-
-
-    // all formulas have same varorder -> no transformations needed
-    if(other_left_formulas.empty() && other_right_formulas.empty()) {
-        for (const std::vector<bool> &model : reference_formula->models) {
-            bool contained = true;
-            for ( SetFormulaExplicit *formula : same_varorder_left_formulas) {
-                if(!formula->contains(model)) {
-                    contained = false;
-                    break;
-                }
-            }
-            if (!contained) {
-                continue;
-            }
-            // model contained in all left formulas -> must be in at least one right
-            contained = false;
-            for ( SetFormulaExplicit *formula : same_varorder_right_formulas) {
-                if(formula->contains(model)) {
-                    contained = true;
-                    break;
-                }
-            }
-            // model contained in all left but no right --> not subset
-            if (!contained) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    GlobalModel global_model;
-    std::vector<ModelExtensions> model_extensions;
-
-    util->setup_other_formulas(reference_formula, other_left_formulas, other_right_formulas,
-                               model_extensions, global_model);
+    ExplicitUtil::SubsetCheckHelper helper =
+            util->get_subset_checker_helper(reference->vars, left_explicit, right_explicit);
 
     // loop over each model of the reference formula
-    for (const std::vector<bool> &model : reference_formula->models) {
-        if(!util->is_model_contained(model,
-                                     same_varorder_left_formulas, other_left_formulas,
-                                     same_varorder_right_formulas, other_right_formulas,
-                                     global_model, model_extensions)) {
+    for (const std::vector<bool> &model : reference->models) {
+        if(!util->is_model_contained(model,helper)) {
             return false;
         }
     }
     return true;
 }
 
-bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &/*left*/,
-                                                    std::vector<SetFormula *> &/*right*/,
-                                                    std::vector<SetFormula *> &/*prog*/,
-                                                    std::unordered_set<int> &/*actions*/) {
-    // TODO:implement
+bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &left,
+                                                    std::vector<SetFormula *> &right,
+                                                    std::vector<SetFormula *> &prog,
+                                                    std::unordered_set<int> &actions) {
+    assert(!prog.empty());
+    std::vector<SetFormulaExplicit *> left_explicit;
+    std::vector<SetFormulaExplicit *> right_explicit;
+    std::vector<SetFormulaExplicit *> prog_explicit;
+    bool valid_formulas = util->get_explicit_vector(left, left_explicit)
+            && util->get_explicit_vector(right, right_explicit)
+            && util->get_explicit_vector(prog, prog_explicit);
+    if(!valid_formulas) {
+        return false;
+    }
+
+    right_explicit.erase(std::remove(right_explicit.begin(), right_explicit.end(),
+                                     &(util->emptyformula)), right_explicit.end());
+
+    // the union formulas must all talk about the same variables
+    if(!util->check_same_vars(right_explicit)) {
+        std::cerr << "Union of explicit sets contains different variables." << std::endl;
+        return false;
+    }
+
+    SetFormulaExplicit *prog_singular = prog_explicit[0];
+    SetFormulaExplicit dummy;
+    if(prog_explicit.size() > 1) {
+        dummy = SetFormulaExplicit(prog_explicit);
+        prog_singular = &dummy;
+    }
+    std::vector<int> varorder;
+    ExplicitUtil::SubsetCheckHelper helper;
+    for (int action_index : actions) {
+
+        // check if varorder stays the same; if not get a new helper
+        std::vector<int> new_varorder(prog_singular->vars);
+        const Action &action = util->task->get_action(action_index);
+        std::vector<int> add_pos;
+        std::vector<int> del_pos;
+        std::vector<int> pre_to_check;
+        std::vector<int> pre_to_add;
+
+        for (size_t var = 0; var < action.change.size(); ++var) {
+            if (action.change[var] != 0) {
+                auto var_pos = std::find(new_varorder.begin(), new_varorder.end(), var);
+                if (var_pos == new_varorder.end()) {
+                    if (action.change[var] == 1) {
+                        add_pos.push_back(new_varorder.size());
+                    } else {
+                        del_pos.push_back(new_varorder.size());
+                    }
+                    new_varorder.push_back(var);
+                } else {
+                    if (action.change[var] == 1) {
+                        add_pos.push_back(std::distance(new_varorder.begin(), var_pos));
+                    } else {
+                        del_pos.push_back(std::distance(new_varorder.begin(), var_pos));
+                    }
+                }
+
+            }
+        }
+        // do this after add/del since vars that are not in prog but both pre and add/del
+        // only get set by add/del
+        for (int var : action.pre) {
+            auto var_pos = std::find(new_varorder.begin(), new_varorder.end(), var);
+            if (var_pos == new_varorder.end()) {
+                pre_to_add.push_back(new_varorder.size());
+                new_varorder.push_back(var);
+            } else {
+                int var_pos_int = std::distance(new_varorder.begin(), var_pos);
+                if(var_pos_int < prog_singular->vars.size()) {
+                    pre_to_check.push_back(var_pos_int);
+                }
+            }
+        }
+
+        if (new_varorder != varorder) {
+            std::swap(varorder,new_varorder);
+            helper = util->get_subset_checker_helper(varorder,left_explicit, right_explicit);
+        }
+
+        Model model;
+        model.reserve(varorder.size());
+
+        for (Model prog_model : prog_singular->models) {
+            // check preconditions
+            bool preconditions_met = true;
+            for (int pos : pre_to_check) {
+                if (prog_model[pos] == false) {
+                    preconditions_met = false;
+                    break;
+                }
+            }
+            // preconditions not true -> action not applicable
+            if (!preconditions_met) {
+                continue;
+            }
+
+            model.clear();
+            model.insert(std::end(model), std::begin(prog_model), std::end(prog_model));
+            model.resize(varorder.size());
+
+            // apply changes from action and check if the model is contained
+            for (int pos : pre_to_add) {
+                model[pos] = true;
+            }
+            for (int pos : add_pos) {
+                model[pos] = true;
+            }
+            for (int pos : del_pos) {
+                model[pos] = false;
+            }
+
+            if(!util->is_model_contained(model,helper)) {
+                return false;
+            }
+
+        } // end loop over models
+    } // end loop over actions
     return true;
 }
 
-bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &/*left*/,
-                                                   std::vector<SetFormula *> &/*right*/,
-                                                   std::vector<SetFormula *> &/*reg*/,
-                                                   std::unordered_set<int> &/*actions*/) {
-    // TODO:implement
+bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &left,
+                                                   std::vector<SetFormula *> &right,
+                                                   std::vector<SetFormula *> &reg,
+                                                   std::unordered_set<int> &actions) {
+    assert(!reg.empty());
+    std::vector<SetFormulaExplicit *> left_explicit;
+    std::vector<SetFormulaExplicit *> right_explicit;
+    std::vector<SetFormulaExplicit *> reg_explicit;
+    bool valid_formulas = util->get_explicit_vector(left, left_explicit)
+            && util->get_explicit_vector(right, right_explicit)
+            && util->get_explicit_vector(reg, reg_explicit);
+    if(!valid_formulas) {
+        return false;
+    }
+
+    right_explicit.erase(std::remove(right_explicit.begin(), right_explicit.end(),
+                                     &(util->emptyformula)), right_explicit.end());
+
+    // the union formulas must all talk about the same variables
+    if(!util->check_same_vars(right_explicit)) {
+        std::cerr << "Union of explicit sets contains different variables." << std::endl;
+        return false;
+    }
+
+    SetFormulaExplicit *reg_singular = reg_explicit[0];
+    SetFormulaExplicit dummy;
+    if(reg_explicit.size() > 1) {
+        dummy = SetFormulaExplicit(reg_explicit);
+        reg_singular = &dummy;
+    }
+    std::vector<int> varorder;
+    ExplicitUtil::SubsetCheckHelper helper;
+    for (int action_index : actions) {
+
+        // check if varorder stays the same; if not get a new helper
+        std::vector<int> new_varorder(reg_singular->vars);
+        const Action &action = util->task->get_action(action_index);
+
+        std::vector<int> add_pos;
+        std::vector<int> del_pos;
+        std::vector<int> pre_pos;
+        std::vector<int> eff_not_pre;
+
+        for (int var : action.pre) {
+            auto var_pos = std::find(new_varorder.begin(), new_varorder.end(), var);
+            if (var_pos == new_varorder.end()) {
+                pre_pos.push_back(new_varorder.size());
+                new_varorder.push_back(var);
+            } else {
+                pre_pos.push_back(std::distance(new_varorder.begin(), var_pos));
+            }
+        }
+        for (size_t var = 0; var < action.change.size(); ++var) {
+            if (action.change[var] != 0) {
+                int var_pos_int= std::distance(new_varorder.begin(), std::find(new_varorder.begin(), new_varorder.end(), var));
+                // we can ignore add/delete effects of vars not occuring in the model
+                if (var_pos_int < reg_singular->vars.size()) {
+                    if (action.change[var] == 1) {
+                        add_pos.push_back(var_pos_int);
+                    } else {
+                        del_pos.push_back(var_pos_int);
+                    }
+                    if (std::find(action.pre.begin(), action.pre.end(), var) == action.pre.end()) {
+                        eff_not_pre.push_back(var);
+                    }
+                }
+            }
+        }
+
+        if (new_varorder != varorder) {
+            std::swap(varorder,new_varorder);
+            helper = util->get_subset_checker_helper(varorder,left_explicit, right_explicit);
+        }
+
+        Model model;
+        model.reserve(varorder.size());
+
+        for (Model reg_model : reg_singular->models) {
+            // check add/del
+            bool add_del_met = true;
+            for (int pos : add_pos) {
+                if (reg_model[pos] == false) {
+                    add_del_met = false;
+                    break;
+                }
+            }
+            for (int pos : del_pos) {
+                if (reg_model[pos] == true) {
+                    add_del_met = false;
+                    break;
+                }
+            }
+            // add/del not correct -> action not backwards applicable
+            if (!add_del_met) {
+                continue;
+            }
+
+            model.clear();
+            model.insert(std::end(model), std::begin(reg_model), std::end(reg_model));
+            model.resize(varorder.size());
+
+            // apply changes from action and check if the model is contained
+            for (int pos : pre_pos) {
+                model[pos] = true;
+            }
+
+            // check all combinations for eff_not_pre
+            for (int count = 0; count < (1 << eff_not_pre.size()); ++count) {
+                for (size_t i = 0; i < eff_not_pre.size(); ++i) {
+                    model[eff_not_pre[i]] = ((count >> i) % 2 == 1);
+                }
+                if(!util->is_model_contained(model,helper)) {
+                    for (bool val : model) {
+                        std::cout << val << " ";
+                    } std::cout << std::endl;
+                    return false;
+                }
+            }
+
+
+        } // end loop over models
+    } // end loop over actions
     return true;
 }
 
@@ -474,8 +657,7 @@ bool SetFormulaExplicit::contains(const std::vector<bool> &model) const {
     return (models.find(model) != models.end());
 }
 
-std::vector<std::vector<bool>> SetFormulaExplicit::get_missing_var_values(
-        std::vector<bool> &model, const std::vector<int> &missing_vars_pos) const {
+std::vector<Model> SetFormulaExplicit::get_missing_var_values(Model &model, const std::vector<int> &missing_vars_pos) const {
     std::vector<std::vector<bool>> ret;
     for (int count = 0; count < (1 << missing_vars_pos.size()); ++count) {
         std::vector<bool> entry(missing_vars_pos.size());
