@@ -54,6 +54,10 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
         varorder.push_back(n);
     }
     assert(varorder.size() == task->get_number_of_facts());
+    other_varorder.resize(varorder.size(),-1);
+    for (size_t i = 0; i < varorder.size(); ++i) {
+        other_varorder[varorder[i]] = i;
+    }
 
     DdNode **tmp_array;
     /* read in the BDDs into an array of DdNodes. The parameters are as follows:
@@ -432,7 +436,7 @@ SetFormulaBasic *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formu
 }
 
 const std::vector<int> &SetFormulaBDD::get_varorder() {
-    return util->varorder;
+    return util->other_varorder;
 }
 
 bool SetFormulaBDD::contains(const Cube &statecube) const {
@@ -441,15 +445,16 @@ bool SetFormulaBDD::contains(const Cube &statecube) const {
 
 bool SetFormulaBDD::is_contained(const std::vector<bool> &model) const {
     assert(model.size() == util->varorder.size());
-    Cube statecube(util->varorder.size());
+    Cube cube(util->varorder.size()*2);
     for (size_t i = 0; i < model.size(); ++i) {
         if(model[i]) {
-            statecube[i] = 1;
+            cube[2*i] = 1;
         } else {
-            statecube[i] = 0;
+            cube[2*i] = 0;
         }
     }
-    return util->build_bdd_from_cube(statecube).Leq(bdd);
+    BDD model_bdd(manager, Cudd_CubeArrayToBdd(manager.getManager(), &cube[0]));
+    return model_bdd.Leq(bdd);
 
 }
 
