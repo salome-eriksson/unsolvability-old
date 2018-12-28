@@ -605,6 +605,11 @@ void EagerSearch::write_unsolvability_proof() {
     CuddBDD expanded = CuddBDD(&manager, false);
     CuddBDD dead = CuddBDD(&manager, false);
 
+    int fact_amount = 0;
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        fact_amount += task_proxy.get_variables()[varorder[i]].get_domain_size();
+    }
+
     for(const StateID id : state_registry) {
         const GlobalState &state = state_registry.lookup_state(id);
         CuddBDD statebdd = CuddBDD(&manager, state);
@@ -622,11 +627,16 @@ void EagerSearch::write_unsolvability_proof() {
             // prove that an explicit set only containing dead end is dead
             int expl_state_setid = unsolvmgr.get_new_setid();
             certstream << "e " << expl_state_setid << " e ";
+            certstream << fact_amount << " ";
+            for (int i = 0; i < fact_amount; ++i) {
+                certstream << i << " ";
+            }
+            certstream << ": ";
             unsolvmgr.dump_state(state);
             certstream << " ;\n";
             int k_expl_state_subset = unsolvmgr.get_new_knowledgeid();
             certstream << "k " << k_expl_state_subset << " s " << expl_state_setid << " "
-                       << dead_superset.first << " b1\n";
+                       << dead_superset.first << " b4\n";
             int k_expl_state_dead = unsolvmgr.get_new_knowledgeid();
             certstream << "k " << k_expl_state_dead << " d " << expl_state_setid
                        << " d3 " << k_expl_state_subset << " " << dead_superset.second << "\n";
@@ -652,7 +662,7 @@ void EagerSearch::write_unsolvability_proof() {
 
 
                 // build new explicit union and show that it is dead
-                int union_setid = unsolvmgr.get_new_setid();
+                /*int union_setid = unsolvmgr.get_new_setid();
                 certstream << "e " << union_setid << " e ";
                 for(int i = mte_left.de_pos_begin;
                     i < mte_left.de_pos_begin + 2*(1 << mte_left.depth); ++i) {
@@ -662,15 +672,15 @@ void EagerSearch::write_unsolvability_proof() {
                 certstream << ";\n";
                 int k_union_subset = unsolvmgr.get_new_knowledgeid();
                 certstream << "k " << k_union_subset << " s "
-                           << union_setid << " " << impl_union << " b2\n";
+                           << union_setid << " " << impl_union << " b1\n";
                 int k_union_dead = unsolvmgr.get_new_knowledgeid();
                 certstream << "k " << k_union_dead << " d " << union_setid << " d3 "
-                           << k_union_subset << " " << k_impl_union_dead << "\n";
+                           << k_union_subset << " " << k_impl_union_dead << "\n";*/
 
                 // the left entry represents the merged entry while the right entry will be considered deleted
                 mte_left.depth++;
-                mte_left.setid = union_setid;
-                mte_left.k_set_dead = k_union_dead;
+                mte_left.setid = impl_union;
+                mte_left.k_set_dead = k_impl_union_dead;
                 mt_pos--;
             }
 
@@ -703,7 +713,7 @@ void EagerSearch::write_unsolvability_proof() {
                        << " d2 " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
 
             // build new explicit union and show that it is dead
-            int union_setid = unsolvmgr.get_new_setid();
+            /*int union_setid = unsolvmgr.get_new_setid();
             certstream << "e " << union_setid << " e ";
             for(size_t i = mte_left.de_pos_begin; i < dead_ends.size(); ++i) {
                 unsolvmgr.dump_state(state_registry.lookup_state(dead_ends[i]));
@@ -712,17 +722,43 @@ void EagerSearch::write_unsolvability_proof() {
             certstream << ";\n";
             int k_union_subset = unsolvmgr.get_new_knowledgeid();
             certstream << "k " << k_union_subset << " s "
-                       << union_setid << " " << impl_union << " b2\n";
+                       << union_setid << " " << impl_union << " b1\n";
             int k_union_dead = unsolvmgr.get_new_knowledgeid();
             certstream << "k " << k_union_dead << " d " << union_setid << " d3 "
-                       << k_union_subset << " " << k_impl_union_dead << "\n";
+                       << k_union_subset << " " << k_impl_union_dead << "\n";*/
 
             mt_pos--;
             merge_tree[mt_pos-1].depth++;
-            merge_tree[mt_pos-1].setid = union_setid;
-            merge_tree[mt_pos-1].k_set_dead = k_union_dead;
+            merge_tree[mt_pos-1].setid = impl_union;
+            merge_tree[mt_pos-1].k_set_dead = k_impl_union_dead;
         }
         bdds.push_back(dead);
+
+        // build an explicit set containing all dead ends
+        int all_de_explicit = unsolvmgr.get_new_setid();
+        certstream << "e " << all_de_explicit << " e ";
+        certstream << fact_amount << " ";
+        for (int i = 0; i < fact_amount; ++i) {
+            certstream << i << " ";
+        }
+        certstream << ": ";
+        for(const StateID id : state_registry) {
+            const GlobalState &state = state_registry.lookup_state(id);
+            CuddBDD statebdd = CuddBDD(&manager, state);
+            if (search_space.get_node(state).is_dead_end()) {
+                unsolvmgr.dump_state(state);
+                certstream << " ";
+            }
+        }
+        certstream << ";\n";
+
+        // show that all_de_explicit is a subset to the union of all dead ends and thus dead
+        int k_all_de_explicit_subset = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_all_de_explicit_subset << " s "
+                   << all_de_explicit << " " << merge_tree[0].setid << " b1\n";
+        int k_all_de_explicit_dead = unsolvmgr.get_new_knowledgeid();
+        certstream << "k " << k_all_de_explicit_dead << " d " << all_de_explicit
+                   << " d3 " << k_all_de_explicit_subset << " " << merge_tree[0].k_set_dead << "\n";
 
         // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
         int bdd_dead_setid = unsolvmgr.get_new_setid();
@@ -731,10 +767,10 @@ void EagerSearch::write_unsolvability_proof() {
 
         int k_bdd_subset_expl = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << k_bdd_subset_expl << " s "
-                   << bdd_dead_setid << " " << merge_tree[0].setid << " b1\n";
+                   << bdd_dead_setid << " " << all_de_explicit << " b4\n";
         int k_bdd_dead = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << k_bdd_dead << " d " << bdd_dead_setid
-                   << " d3 " << k_bdd_subset_expl << " " << merge_tree[0].k_set_dead << "\n";
+                   << " d3 " << k_bdd_subset_expl << " " << k_all_de_explicit_dead << "\n";
 
         de_setid = bdd_dead_setid;
         k_de_dead = k_bdd_dead;
@@ -747,21 +783,21 @@ void EagerSearch::write_unsolvability_proof() {
     certstream << "e " << expanded_setid << " b " << filename_search_bdds << " "
                << bdds.size()-1 << " ;\n";
     int expanded_progression_setid = unsolvmgr.get_new_setid();
-    certstream << "e " << expanded_progression_setid << " p " << expanded_setid << "\n";
+    certstream << "e " << expanded_progression_setid << " p " << expanded_setid << " 0\n";
     int union_expanded_dead = unsolvmgr.get_new_setid();
     certstream << "e " << union_expanded_dead << " u "
                << expanded_setid << " " << de_setid << "\n";
 
     int k_progression = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_progression << " s "
-               << expanded_progression_setid << " " << union_expanded_dead << " b4\n";
+               << expanded_progression_setid << " " << union_expanded_dead << " b2\n";
 
     int intersection_expanded_goal = unsolvmgr.get_new_setid();
     certstream << "e " << intersection_expanded_goal << " i "
                << expanded_setid << " " << unsolvmgr.get_goalsetid() << "\n";
     int k_exp_goal_empty = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_exp_goal_empty << " s "
-               << intersection_expanded_goal << " " << unsolvmgr.get_emptysetid() << " b3\n";
+               << intersection_expanded_goal << " " << unsolvmgr.get_emptysetid() << " b1\n";
     int k_exp_goal_dead = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_exp_goal_dead << " d " << intersection_expanded_goal
                << " d3 " << k_exp_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";

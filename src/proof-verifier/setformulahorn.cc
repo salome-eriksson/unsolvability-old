@@ -136,8 +136,6 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
     std::deque<std::pair<int,bool>> unit_clauses;
     // local means they are not primeshifted
     std::vector<int> leftcount, rightvars_local;
-    leftcount.reserve(amount_implications);
-    rightvars_local.reserve(amount_implications);
 
     for(size_t var = 0; var < partial_assignment.size(); ++var) {
         if (partial_assignment[var] == 0) {
@@ -190,76 +188,85 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                 if (var-primeshift[i] == -1 || is_in_conflict(var, true, partial_assignment)) {
                     return false;
                 }
-                conjunct.removed_implications.push_back(impl);
                 if (is_already_queued(var, true, partial_assignment)) {
+                    conjunct.removed_implications.push_back(impl);
                     continue;
                 }
                 unit_clauses.push_back(std::make_pair(var,true));
                 partial_assignment[var] = 1;
+                conjunct.removed_implications.push_back(impl);
             } else if (conjunct.formula->get_left(impl) == 1 && conjunct.formula->get_right(impl) == -1) {
                 int var = conjunct.formula->get_left_vars(impl)[0] + primeshift[i];
                 if (is_in_conflict(var, false, partial_assignment)) {
                     return false;
                 }
-                conjunct.removed_implications.push_back(impl);
                 if (is_already_queued(var, false, partial_assignment)) {
+                    conjunct.removed_implications.push_back(impl);
                     continue;
                 }
                 unit_clauses.push_back(std::make_pair(var,false));
                 partial_assignment[var] = 0;
+                conjunct.removed_implications.push_back(impl);
             }
         }
     }
 
+    std::vector<bool> already_seen(total_varamount,false);
     // unit propagation
     while(!unit_clauses.empty()) {
         std::pair<int,bool> unit_clause = unit_clauses.front();
         unit_clauses.pop_front();
 
         int var = unit_clause.first;
-        if ((partial_assignment[var] == 0 && !unit_clause.second) || (partial_assignment[var] == 1 && unit_clause.second)) {
+        if (already_seen[var]) {
             continue;
         } else {
-            partial_assignment[var] == unit_clause.second ? 1 : 0;
+            already_seen[var] = true;
         }
 
         // positive literal
         if(unit_clause.second) {
             for (size_t i = 0; i < conjuncts.size(); ++i) {
                 HornConjunctionElement &conjunct = conjuncts[i];
+                if(var-primeshift[i] < 0 || var-primeshift[i] >= conjunct.formula->get_varamount()) {
+                    continue;
+                }
                 auto left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
                 auto right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
                     leftcount[implstart[i]+left_occ]--;
-                    // deleted last negative literal - can only occur if there is a positive literal
+                    // deleted last negative literal --> must have positive literal
                     if (leftcount[implstart[i]+left_occ] == 0) {
                         int newvar = rightvars_local[implstart[i]+left_occ]+primeshift[i];
                         assert(newvar != -1+primeshift[i]);
                         if (is_in_conflict(newvar, true, partial_assignment)) {
                             return false;
-                        }  else if (is_already_queued(newvar, true, partial_assignment)) {
-                            continue;
+                        }  else {
+                            conjunct.removed_implications.push_back(left_occ);
+                            if (!is_already_queued(newvar, true, partial_assignment)) {
+                                unit_clauses.push_back(std::make_pair(newvar, true));
+                                partial_assignment[newvar] = 1;
+                            }
                         }
-                        unit_clauses.push_back(std::make_pair(newvar, true));
-                        partial_assignment[newvar] = 1;
                     // deleted second last negative literal and no positive literal
                     } else if (leftcount[implstart[i]+left_occ] == 1 && rightvars_local[implstart[i]+left_occ] == -1) {
-                        // find corresponding variable in left (the only one not set by Cube)
+                        // find corresponding variable in left
                         int newvar = -1;
                         for (int local_leftvar : conjunct.formula->get_left_vars(left_occ)) {
-                            if (partial_assignment[local_leftvar+primeshift[i]] == 2) {
+                            if (partial_assignment[local_leftvar+primeshift[i]] != 1) {
                                 newvar = local_leftvar+primeshift[i];
                                 break;
                             }
                         }
-                        assert(newvar != -1);
-                        if (is_in_conflict(newvar, false, partial_assignment)) {
+                        if (newvar == -1) {
                             return false;
-                        }  else if (is_already_queued(newvar, false, partial_assignment)) {
-                            continue;
+                        }  else {
+                            conjunct.removed_implications.push_back(left_occ);
+                            if (!is_already_queued(newvar, false, partial_assignment)) {
+                                unit_clauses.push_back(std::make_pair(newvar, false));
+                                partial_assignment[newvar] = 0;
+                            }
                         }
-                        unit_clauses.push_back(std::make_pair(newvar, false));
-                        partial_assignment[newvar] = 0;
                     }
                 }
                 for(int right_occ: right_occurences) {
@@ -270,29 +277,34 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
         } else {
             for (size_t i = 0; i < conjuncts.size(); ++i) {
                 HornConjunctionElement &conjunct = conjuncts[i];
+                if(var-primeshift[i] < 0 || var-primeshift[i] >= conjunct.formula->get_varamount()) {
+                    continue;
+                }
                 auto left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
                 auto right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
                     conjunct.removed_implications.push_back(left_occ);
                 }
                 for(int right_occ: right_occurences) {
+                    rightvars_local[implstart[i]+right_occ] = -1;
                     if(leftcount[implstart[i]+right_occ] == 1) {
-                        // find corresponding variable in left (the only one not set by Cube)
+                        // find corresponding variable in left
                         int newvar = -1;
                         for (int local_leftvar : conjunct.formula->get_left_vars(right_occ)) {
-                            if (partial_assignment[local_leftvar+primeshift[i]] == 2) {
+                            if (partial_assignment[local_leftvar+primeshift[i]] != 1) {
                                 newvar = local_leftvar+primeshift[i];
                                 break;
                             }
                         }
-                        assert(newvar != -1);
-                        if (is_in_conflict(newvar, false, partial_assignment)) {
+                        if (newvar == -1) {
                             return false;
-                        }  else if (is_already_queued(newvar, false, partial_assignment)) {
-                            continue;
+                        }  else {
+                            conjunct.removed_implications.push_back(right_occ);
+                            if (!is_already_queued(newvar, false, partial_assignment)) {
+                                unit_clauses.push_back(std::make_pair(newvar, false));
+                                partial_assignment[newvar] = 0;
+                            }
                         }
-                        unit_clauses.push_back(std::make_pair(newvar, false));
-                        partial_assignment[newvar] = 0;
                     }
                 }
             } // end iterate over formulas
@@ -365,7 +377,7 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
             const SetFormulaHorn *formula = disjuncts[i].formula;
             int clausenum = current_clauses[i];
             if (clausenum < formula->get_forced_true().size()) {
-                int forced_true = formula->get_forced_true()[i];
+                int forced_true = formula->get_forced_true().at(clausenum);
                 if (partial_assignment[forced_true+primeshift[i]] == 1) {
                     unsatisfiable = true;
                     break;
@@ -375,7 +387,7 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
 
             clausenum -= formula->get_forced_true().size();
             if (clausenum >= 0 && clausenum < formula->get_forced_false().size()) {
-                int forced_false = formula->get_forced_false()[i];
+                int forced_false = formula->get_forced_false().at(clausenum);
                 if (partial_assignment[forced_false+primeshift[i]] == 0) {
                     unsatisfiable = true;
                     break;
@@ -411,10 +423,6 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
             continue;
         }
         if (is_restricted_satisfiable(&conjunction_formula, partial_assignment)) {
-            conjunction_formula.dump();
-            for (size_t i = 0; i < current_clauses.size(); ++i) {
-                disjuncts[i].formula->dump();
-            }
             return false;
         }
     } while (update_current_clauses(current_clauses, clause_amounts));
@@ -452,7 +460,6 @@ SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int
 }
 
 SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
-
     Cube partial_assignments;
     bool satisfiable = util->simplify_conjunction(elements, partial_assignments);
     varamount = partial_assignments.size();
@@ -461,6 +468,7 @@ SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
     if (!satisfiable) {
         left_vars.push_back(std::vector<int>());
         right_side.push_back(-1);
+        varamount = 0;
     } else {
         // set forced true/false
         for (size_t i = 0; i < partial_assignments.size(); ++i) {
@@ -473,8 +481,10 @@ SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
         // gather total implication count and sort removed implication indices
         int implication_amount = 0;
         for (HornConjunctionElement elem : elements) {
-            implication_amount += elem.formula->get_size()-elem.removed_implications.size();
             std::sort(elem.removed_implications.begin(), elem.removed_implications.end());
+            elem.removed_implications.erase(unique(elem.removed_implications.begin(), elem.removed_implications.end()),
+                                            elem.removed_implications.end());
+            implication_amount += elem.formula->get_size()-elem.removed_implications.size();
         }
         left_sizes.reserve(implication_amount);
         left_vars.reserve(implication_amount);
@@ -574,7 +584,9 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
     if (util == nullptr) {
         util = new HornUtil(task);
     }
+
     simplify();
+
     varorder.reserve(varamount);
     for (size_t var = 0; var < varamount; ++var) {
         varorder.push_back(var);
@@ -605,16 +617,13 @@ void SetFormulaHorn::simplify() {
             if (assignments[var] == 2) {
                 continue;
             }
-            // assigned - remove from implications and erase variable occurences entry
+            // assigned - remove from implications
             for(int impl : variable_occurences[var].first) {
                 left_sizes[impl]--;
-                left_vars[impl].erase(std::remove(left_vars[impl].begin(), left_vars[impl].end(), var), left_vars[impl].end());
             }
             for(int impl : variable_occurences[var].second) {
                 right_side[impl] = -1;
             }
-            variable_occurences[var].first.clear();
-            variable_occurences[var].second.clear();
             if (assignments[var] == 0) {
                 forced_false.push_back(var);
             } else if (assignments[var] == 1) {
@@ -625,6 +634,8 @@ void SetFormulaHorn::simplify() {
         // remove unneeded implications
         std::vector<int> &implications_to_remove = tmpvec[0].removed_implications;
         std::sort(implications_to_remove.begin(), implications_to_remove.end());
+        implications_to_remove.erase(unique(implications_to_remove.begin(), implications_to_remove.end()),
+                                        implications_to_remove.end());
         int old_location = right_side.size()-1;
         int biggest_to_move_index = implications_to_remove.size()-1;
         for(size_t i = 0; i < implications_to_remove.size(); ++i) {
@@ -646,16 +657,6 @@ void SetFormulaHorn::simplify() {
             // (since the implication at new_location is empty, we don't need to swap this part)
             right_side[new_location] = right_side[old_location];
             left_vars[new_location] = std::move(left_vars[old_location]);
-
-            // update variable_occurences
-            for(size_t j = 0; j < variable_occurences.size(); ++j) {
-                if(variable_occurences[j].first.erase(old_location) > 0) {
-                    variable_occurences[j].first.insert(new_location);
-                }
-                if(variable_occurences[j].second.erase(old_location) > 0) {
-                    variable_occurences[j].second.insert(new_location);
-                }
-            }
             old_location--;
         }
 
@@ -664,6 +665,17 @@ void SetFormulaHorn::simplify() {
         right_side.resize(newsize);
         left_vars.resize(newsize);
 
+    }
+    variable_occurences.clear();
+    variable_occurences.resize(varamount);
+    for (size_t i = 0; i < left_vars.size(); ++i) {
+        for (int var : left_vars[i]) {
+            variable_occurences[var].first.insert(i);
+        }
+        int var = right_side[i];
+        if (var != -1) {
+            variable_occurences[var].second.insert(i);
+        }
     }
 }
 
@@ -729,14 +741,19 @@ void SetFormulaHorn::dump() const{
         std::cout << "," << right_side[i] << "|";
     }
     std::cout << std::endl;
-    std::cout << "right occurences: ";
+    std::cout << "occurences: ";
     for(int i = 0; i < variable_occurences.size(); ++i) {
         std::cout << "[" << i << ":";
+        for(auto elem : variable_occurences[i].first) {
+            std::cout << elem << " ";
+        }
+        std::cout << "|";
         for(auto elem : variable_occurences[i].second) {
             std::cout << elem << " ";
         }
         std::cout << "] ";
     }
+    std::cout << "left occurences: ";
     std::cout << std::endl;
 }
 
