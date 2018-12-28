@@ -21,6 +21,7 @@ private:
     static std::unique_ptr<ExplicitUtil> util;
     std::vector<int> vars;
     std::unordered_set<Model> models;
+    std::unordered_set<Model>::iterator model_it;
     SetFormulaExplicit(std::vector<int> &&vars, std::unordered_set<Model> &&models);
     SetFormulaExplicit(std::vector<SetFormulaExplicit *> &conjuncts);
 public:
@@ -43,9 +44,22 @@ public:
 
     virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
+    virtual const std::vector<int> &get_varorder();
 
-    // model is expected to have the same varorder (ie we need no transformation).
-    bool contains(const Model &model) const;
+    virtual bool supports_implicant_check() { return true; }
+    virtual bool supports_clausal_entailment_check() { return true; }
+    virtual bool supports_dnf_enumeration() { return true; }
+    virtual bool supports_cnf_enumeration() { return false; }
+    virtual bool supports_model_enumeration() { return true; }
+    virtual bool supports_model_counting() { return true; }
+
+    // expects the model in the varorder of the formula;
+    virtual bool is_contained(const std::vector<bool> &model) const ;
+    virtual bool is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant);
+    virtual bool get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
+    virtual bool get_next_model(int i, std::vector<bool> &model);
+    virtual void setup_model_enumeration();
+
     /*
      * model is expected to have the same varorder (ie we need no transformation).
      * However, the values at position missing_vars can be discarded.

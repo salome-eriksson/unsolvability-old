@@ -41,9 +41,24 @@ public:
 
     virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
+    virtual const std::vector<int> &get_varorder();
 
     // used for checking statement B1 when the left side is an explicit SetFormula
     bool contains(const Cube &statecube) const;
+
+    virtual bool supports_implicant_check() { return true; }
+    virtual bool supports_clausal_entailment_check() { return true; }
+    virtual bool supports_dnf_enumeration() { return false; }
+    virtual bool supports_cnf_enumeration() { return false; }
+    virtual bool supports_model_enumeration() { return true; }
+    virtual bool supports_model_counting() { return true; }
+
+    // expects the model in the varorder of the formula;
+    virtual bool is_contained(const std::vector<bool> &model) const ;
+    virtual bool is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant);
+    virtual bool get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
+    virtual bool get_next_model(int i, std::vector<bool> &model);
+    virtual void setup_model_enumeration();
 };
 
 /*
@@ -60,6 +75,8 @@ class BDDUtil {
     friend class SetFormulaBDD;
 private:
     Task *task;
+    // global variable i is at position varorder[i](*2)
+    // TODO: fix varorder meaning across the code!
     std::vector<int> varorder;
     // constant formulas
     SetFormulaBDD emptyformula;

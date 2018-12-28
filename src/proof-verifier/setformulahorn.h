@@ -13,8 +13,9 @@ struct HornConjunctionElement {
     const bool primed;
     std::vector<int> removed_implications;
 
-    HornConjunctionElement (SetFormulaHorn *formula, bool primed)
+    HornConjunctionElement (const SetFormulaHorn *formula, bool primed)
         : formula(formula), primed(primed) {
+        removed_implications.resize(0);
     }
 };
 
@@ -22,7 +23,7 @@ struct HornDisjunctionElement {
     const SetFormulaHorn *formula;
     const bool primed;
 
-    HornDisjunctionElement (SetFormulaHorn *formula, bool primed)
+    HornDisjunctionElement (const SetFormulaHorn *formula, bool primed)
         : formula(formula), primed(primed) {
     }
 };
@@ -50,7 +51,7 @@ private:
      * are forced true/false by the conjunction.
      */
     bool simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment);
-    bool is_restricted_satisfiable(SetFormulaHorn *formula, Cube &restriction);
+    bool is_restricted_satisfiable(const SetFormulaHorn *formula, Cube &restriction);
 
     bool conjunction_implies_disjunction(std::vector<HornConjunctionElement> &conjuncts,
                                          std::vector<HornDisjunctionElement> &disjuncts);
@@ -81,6 +82,7 @@ private:
     std::vector<int> forced_true;
     std::vector<int> forced_false;
     int varamount;
+    std::vector<int> varorder;
 
     static HornUtil *util;
 
@@ -128,6 +130,21 @@ public:
 
     virtual SetFormulaType get_formula_type();
     virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
+    virtual const std::vector<int> &get_varorder();
+
+    virtual bool supports_implicant_check() { return true; }
+    virtual bool supports_clausal_entailment_check() { return true; }
+    virtual bool supports_dnf_enumeration() { return false; }
+    virtual bool supports_cnf_enumeration() { return true; }
+    virtual bool supports_model_enumeration() { return true; }
+    virtual bool supports_model_counting() { return true; }
+
+    // expects the model in the varorder of the formula;
+    virtual bool is_contained(const std::vector<bool> &model) const ;
+    virtual bool is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant);
+    virtual bool get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
+    virtual bool get_next_model(int i, std::vector<bool> &model);
+    virtual void setup_model_enumeration();
 };
 
 #endif // SETFORMULAHORN_H
