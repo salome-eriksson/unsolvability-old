@@ -1,5 +1,6 @@
 #include "setformulabdd.h"
 
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -315,9 +316,98 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
 }
 
 
-bool SetFormulaBDD::is_subset_of(SetFormula */*superset*/, bool /*left_positive*/, bool /*right_positive*/) {
-    // TODO:implement
-    return true;
+bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
+    if (!left_positive || !right_positive) {
+        std::cerr << "TODO: not implemented yet!" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+    if (bdd.IsZero()) {
+        return true;
+    }
+
+    // check if each clause in cnf implied by bdd
+    if (superset->supports_cnf_enumeration()) {
+        int count = 0;
+        std::vector<int> varorder;
+        std::vector<bool> clause;
+        while (superset->get_next_clause(count, varorder, clause)) {
+            BDD clause_bdd = manager.bddZero();
+            for (size_t i = 0; i < clause.size(); ++i) {
+                if (varorder[i] > util->varorder.size()) {
+                    continue;
+                }
+                int bdd_var = 2*util->varorder[varorder[i]];
+                if (clause[i]) {
+                    clause_bdd += manager.bddVar(bdd_var);
+                } else {
+                    clause_bdd += !(manager.bddVar(bdd_var));
+                }
+            }
+            if(!bdd.Leq(clause_bdd)) {
+                return false;
+            }
+            count++;
+        }
+        return true;
+
+    // enumerate models (only works with Explicit if Explicit has all vars this has)
+    } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT){
+        const std::vector<int> sup_varorder = superset->get_varorder();
+        std::vector<bool> model(sup_varorder.size());
+        std::vector<int> var_transform;
+        std::vector<int> vars_to_fill_base;
+        for (size_t i = 0; i < util->varorder.size(); ++i) {
+            auto pos_it = std::find(sup_varorder.begin(), sup_varorder.end(), util->varorder[i]);
+            if (pos_it == sup_varorder.end()) {
+                std::cerr << "mixed representation subset check not possible" << std::endl;
+                return false;
+            }
+            var_transform[i] = std::distance(sup_varorder.begin(), pos_it);
+        }
+        for (size_t i = 0; i < sup_varorder.size(); ++i) {
+            if (std::find(util->varorder.begin(), util->varorder.end(), sup_varorder[i]) == util->varorder.end()) {
+                vars_to_fill_base.push_back(i);
+            }
+        }
+
+        //loop over all models of the BDD
+        int* bdd_model;
+        // TODO: find a better way to find out how many variables we have
+        Cube cube(util->varorder.size(),-1);
+        CUDD_VALUE_TYPE value_type;
+        DdGen *cubegen = Cudd_FirstCube(manager.getManager(),bdd.getNode(),&bdd_model, &value_type);
+        // TODO: can the models contain don't cares?
+        // Since we checked for ZeroBDD above we will always have at least 1 cube.
+        do{
+            std::vector<int> vars_to_fill(vars_to_fill_base);
+            for (size_t i = 0; i < cube.size(); ++i) {
+                // TODO: implicit transformation with primed
+                int cube_val = bdd_model[2*util->varorder[i]];
+                if (cube_val == 1) {
+                    model[var_transform[i]] = true;
+                } else  if (cube_val == 0) {
+                    model[var_transform[i]] = false;
+                } else {
+                    vars_to_fill.push_back(i);
+                }
+            }
+
+            for (int count = 0; count < (1 << vars_to_fill.size()); ++count) {
+                for (size_t i = 0; i < vars_to_fill.size(); ++i) {
+                    model[vars_to_fill[i]] = ((count >> i) % 2 == 1);
+                }
+                if (!superset->is_contained(model)) {
+                    return false;
+                }
+            }
+        } while(Cudd_NextCube(cubegen,&bdd_model,&value_type) != 0);
+        Cudd_GenFree(cubegen);
+        return true;
+    } else {
+        std::cerr << "mixed representation subset check not possible" << std::endl;
+        return false;
+    }
+    return false;
 }
 
 
@@ -343,6 +433,57 @@ SetFormulaBasic *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formu
     }
 }
 
+const std::vector<int> &SetFormulaBDD::get_varorder() {
+    return util->varorder;
+}
+
 bool SetFormulaBDD::contains(const Cube &statecube) const {
     return util->build_bdd_from_cube(statecube).Leq(bdd);
+}
+
+bool SetFormulaBDD::is_contained(const std::vector<bool> &model) const {
+    assert(model.size() == util->varorder.size());
+    Cube statecube(util->varorder.size());
+    for (size_t i = 0; i < model.size(); ++i) {
+        if(model[i]) {
+            statecube[i] = 1;
+        } else {
+            statecube[i] = 0;
+        }
+    }
+    return util->build_bdd_from_cube(statecube).Leq(bdd);
+
+}
+
+bool SetFormulaBDD::is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant) {
+    assert(vars.size() == implicant.size());
+    Cube cube(util->varorder.size(), 2);
+    for (size_t i = 0; i < vars.size(); ++i) {
+        int var = vars[i];
+        auto pos_it = std::find(util->varorder.begin(), util->varorder.end(), var);
+        if(pos_it != util->varorder.end()) {
+            int var_pos = std::distance(util->varorder.begin(), pos_it);
+            if (implicant[i]) {
+                cube[var_pos] = 1;
+            } else {
+                cube[var_pos] = 0;
+            }
+        }
+    }
+    return util->build_bdd_from_cube(cube).Leq(bdd);
+}
+
+bool SetFormulaBDD::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+    return false;
+}
+
+bool SetFormulaBDD::get_next_model(int i, std::vector<bool> &model) {
+    std::cerr << "not implemented";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
+
+void SetFormulaBDD::setup_model_enumeration() {
+    std::cerr << "not implemented";
+    exit_with(ExitCode::CRITICAL_ERROR);
+
 }

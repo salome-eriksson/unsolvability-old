@@ -81,3 +81,33 @@ SetFormulaType SetFormulaConstant::get_formula_type() {
 ConstantType SetFormulaConstant::get_constant_type() {
     return constanttype;
 }
+
+const std::vector<int> &SetFormulaConstant::get_varorder() {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
+
+bool SetFormulaConstant::is_contained(const std::vector<bool> &model) const {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
+
+bool SetFormulaConstant::is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
+
+bool SetFormulaConstant::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
+
+bool SetFormulaConstant::get_next_model(int i, std::vector<bool> &model) {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
+
+void SetFormulaConstant::setup_model_enumeration() {
+    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    exit_with(ExitCode::CRITICAL_ERROR);
+}
