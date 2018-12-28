@@ -318,20 +318,20 @@ std::pair<int,int> HMHeuristic::prove_superset_dead(
     certstream << mutexes << tuples.str() << ";\n";
 
     int progid = unsolvmanager.get_new_setid();
-    certstream << "e " << progid << " p " << setid << "\n";
+    certstream << "e " << progid << " p " << setid << " 0" << "\n";
     int union_set_empty = unsolvmanager.get_new_setid();;
     certstream << "e " << union_set_empty << " u "
                << setid << " " << unsolvmanager.get_emptysetid() << "\n";
 
     int k_prog = unsolvmanager.get_new_knowledgeid();
-    certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b4\n";
+    certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b2\n";
 
     int set_and_goal = unsolvmanager.get_new_setid();
     certstream << "e " << set_and_goal << " i "
                << setid << " " << unsolvmanager.get_goalsetid() << "\n";
     int k_set_and_goal_empty = unsolvmanager.get_new_knowledgeid();
     certstream << "k " << k_set_and_goal_empty << " s "
-               << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b3\n";
+               << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b1\n";
     int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
     certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
                << " d3 " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";

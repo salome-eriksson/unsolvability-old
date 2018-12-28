@@ -354,10 +354,10 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
     } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT){
         const std::vector<int> sup_varorder = superset->get_varorder();
         std::vector<bool> model(sup_varorder.size());
-        std::vector<int> var_transform;
+        std::vector<int> var_transform(util->varorder.size(), -1);
         std::vector<int> vars_to_fill_base;
         for (size_t i = 0; i < util->varorder.size(); ++i) {
-            auto pos_it = std::find(sup_varorder.begin(), sup_varorder.end(), util->varorder[i]);
+            auto pos_it = std::find(sup_varorder.begin(), sup_varorder.end(), i);
             if (pos_it == sup_varorder.end()) {
                 std::cerr << "mixed representation subset check not possible" << std::endl;
                 return false;
@@ -365,22 +365,20 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
             var_transform[i] = std::distance(sup_varorder.begin(), pos_it);
         }
         for (size_t i = 0; i < sup_varorder.size(); ++i) {
-            if (std::find(util->varorder.begin(), util->varorder.end(), sup_varorder[i]) == util->varorder.end()) {
+            if(sup_varorder[i] >= util->varorder.size()) {
                 vars_to_fill_base.push_back(i);
             }
         }
 
         //loop over all models of the BDD
         int* bdd_model;
-        // TODO: find a better way to find out how many variables we have
-        Cube cube(util->varorder.size(),-1);
         CUDD_VALUE_TYPE value_type;
         DdGen *cubegen = Cudd_FirstCube(manager.getManager(),bdd.getNode(),&bdd_model, &value_type);
         // TODO: can the models contain don't cares?
         // Since we checked for ZeroBDD above we will always have at least 1 cube.
         do{
             std::vector<int> vars_to_fill(vars_to_fill_base);
-            for (size_t i = 0; i < cube.size(); ++i) {
+            for (size_t i = 0; i < util->varorder.size(); ++i) {
                 // TODO: implicit transformation with primed
                 int cube_val = bdd_model[2*util->varorder[i]];
                 if (cube_val == 1) {

@@ -323,13 +323,15 @@ SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
                 entry[pos++] = vec->at(i);
             }
         }
-        if (s.at(varamount/4) < 'a') {
-            vec = &(util->hex.at(s.at(varamount/4)-'0'));
-        } else {
-            vec = &(util->hex.at(s.at(varamount/4)-'a'+10));
-        }
-        for (int i = 0; i < (varamount%4); ++i) {
-            entry[pos++] = vec->at(i);
+        if(varamount%4 != 0) {
+            if (s.at(varamount/4) < 'a') {
+                vec = &(util->hex.at(s.at(varamount/4)-'0'));
+            } else {
+                vec = &(util->hex.at(s.at(varamount/4)-'a'+10));
+            }
+            for (int i = 0; i < (varamount%4); ++i) {
+                entry[pos++] = vec->at(i);
+            }
         }
         models.insert(std::move(entry));
         input >> s;
