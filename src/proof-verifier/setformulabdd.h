@@ -75,9 +75,11 @@ class BDDUtil {
     friend class SetFormulaBDD;
 private:
     Task *task;
-    // global variable i is at position varorder[i](*2)
     // TODO: fix varorder meaning across the code!
+    // global variable i is at position varorder[i](*2)
     std::vector<int> varorder;
+    // bdd variable i is global variable other_varorder[i]
+    std::vector<int> other_varorder;
     // constant formulas
     SetFormulaBDD emptyformula;
     SetFormulaBDD initformula;
