@@ -24,6 +24,8 @@ private:
     std::unordered_set<Model>::iterator model_it;
     SetFormulaExplicit(std::vector<int> &&vars, std::unordered_set<Model> &&models);
     SetFormulaExplicit(std::vector<SetFormulaExplicit *> &conjuncts);
+    // all formulas need to have same varorder
+    SetFormulaExplicit(std::vector<int> &varorder, std::vector<SetFormulaExplicit *>&disjuncts);
 public:
     SetFormulaExplicit();
     SetFormulaExplicit(std::ifstream &input, Task *task);

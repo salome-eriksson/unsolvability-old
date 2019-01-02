@@ -284,6 +284,19 @@ SetFormulaExplicit::SetFormulaExplicit(std::vector<SetFormulaExplicit *> &) {
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
+SetFormulaExplicit::SetFormulaExplicit(std::vector<int> &varorder, std::vector<SetFormulaExplicit *> &disjuncts)
+    : vars(varorder) {
+    for (SetFormulaExplicit *formula : disjuncts) {
+        if(formula->vars != vars) {
+            std::cerr << "Tried to build Explicit union with different varorder." << std::endl;
+            return;
+        }
+        for (Model model : formula->models) {
+            models.insert(model);
+        }
+    }
+}
+
 SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
     if(!util) {
         util = std::unique_ptr<ExplicitUtil>(new ExplicitUtil(task));
@@ -352,10 +365,19 @@ bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
     right_explicit.erase(std::remove(right_explicit.begin(), right_explicit.end(),
                                      &(util->emptyformula)), right_explicit.end());
 
-    // the union formulas must all talk about the same variables
-    if(!util->check_same_vars(right_explicit)) {
-        std::cerr << "Union of explicit sets contains different variables." << std::endl;
-        return false;
+    SetFormulaExplicit right_union;
+    // build 1 formula for the disjunction
+    if(right_explicit.size() > 1) {
+        for (SetFormulaExplicit *formula: right_explicit) {
+            if (formula->vars != right_explicit[0]->vars) {
+                // TODO: in theory, we could allow different varorder as long as the same vars are used
+                std::cerr << "Union of explicit sets with different varorder not allowed." << std::endl;
+                return false;
+            }
+        }
+        right_union = SetFormulaExplicit(right_explicit[0]->vars, right_explicit);
+        right_explicit.clear();
+        right_explicit.push_back(&right_union);
     }
 
     // left empty -> right side must be valid
