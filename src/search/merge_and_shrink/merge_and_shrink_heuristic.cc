@@ -25,7 +25,7 @@ using utils::ExitCode;
 
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const options::Options &opts)
-    : Heuristic(opts), unsolvability_setup(false) {
+    : Heuristic(opts), unsolvability_setup(false), bdd(nullptr) {
     Verbosity verbosity = static_cast<Verbosity>(opts.get_enum("verbosity"));
 
     cout << "Initializing merge-and-shrink heuristic..." << endl;
@@ -109,6 +109,7 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
 
 
 void MergeAndShrinkHeuristic::setup_unsolvability_proof() {
+    std::cout << "setting up unsolvability proof" << std::endl;
     std::unordered_map<int, CuddBDD> bdd_map;
     bdd_map.insert({0, CuddBDD(cudd_manager, false)});
     bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
