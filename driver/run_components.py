@@ -203,5 +203,12 @@ def run_verify(args):
             returncodes.exit_with_driver_input_error("Error: {} not found. Is it on the PATH?".format(VALIDATE))
         else:
             returncodes.exit_with_driver_critical_error(err)
+    
+    except subprocess.CalledProcessError as err:
+       #accept known exitcodes such as timeout, no task file etc
+       if 3 <=  err.returncode < 8:
+            return (err.returncode, False)
+       else:
+            returncodes.exit_with_driver_critical_error(err)
     else:
         return (0, True)
