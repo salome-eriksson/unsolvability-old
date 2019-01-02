@@ -11,12 +11,9 @@ class SetFormulaHorn;
 struct HornConjunctionElement {
     const SetFormulaHorn *formula;
     const bool primed;
-    std::vector<int> removed_implications;
+    std::vector<bool> removed_implications;
 
-    HornConjunctionElement (const SetFormulaHorn *formula, bool primed)
-        : formula(formula), primed(primed) {
-        removed_implications.resize(0);
-    }
+    HornConjunctionElement(const SetFormulaHorn *formula, bool primed);
 };
 
 struct HornDisjunctionElement {
