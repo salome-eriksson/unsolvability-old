@@ -8,6 +8,10 @@
 
 #include "global_funcs.h"
 
+HornConjunctionElement::HornConjunctionElement (const SetFormulaHorn *formula, bool primed)
+    : formula(formula), primed(primed), removed_implications(formula->get_size(), false) {
+}
+
 HornUtil::HornUtil(Task *task)
     : task(task) {
     int varamount = task->get_number_of_facts();
@@ -189,24 +193,24 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                     return false;
                 }
                 if (is_already_queued(var, true, partial_assignment)) {
-                    conjunct.removed_implications.push_back(impl);
+                    conjunct.removed_implications[impl] = true;
                     continue;
                 }
                 unit_clauses.push_back(std::make_pair(var,true));
                 partial_assignment[var] = 1;
-                conjunct.removed_implications.push_back(impl);
+                conjunct.removed_implications[impl] = true;
             } else if (conjunct.formula->get_left(impl) == 1 && conjunct.formula->get_right(impl) == -1) {
                 int var = conjunct.formula->get_left_vars(impl)[0] + primeshift[i];
                 if (is_in_conflict(var, false, partial_assignment)) {
                     return false;
                 }
                 if (is_already_queued(var, false, partial_assignment)) {
-                    conjunct.removed_implications.push_back(impl);
+                    conjunct.removed_implications[impl] = true;
                     continue;
                 }
                 unit_clauses.push_back(std::make_pair(var,false));
                 partial_assignment[var] = 0;
-                conjunct.removed_implications.push_back(impl);
+                conjunct.removed_implications[impl] = true;
             }
         }
     }
@@ -242,7 +246,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                         if (is_in_conflict(newvar, true, partial_assignment)) {
                             return false;
                         }  else {
-                            conjunct.removed_implications.push_back(left_occ);
+                            conjunct.removed_implications[left_occ] = true;
                             if (!is_already_queued(newvar, true, partial_assignment)) {
                                 unit_clauses.push_back(std::make_pair(newvar, true));
                                 partial_assignment[newvar] = 1;
@@ -261,7 +265,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                         if (newvar == -1) {
                             return false;
                         }  else {
-                            conjunct.removed_implications.push_back(left_occ);
+                            conjunct.removed_implications[left_occ] = true;
                             if (!is_already_queued(newvar, false, partial_assignment)) {
                                 unit_clauses.push_back(std::make_pair(newvar, false));
                                 partial_assignment[newvar] = 0;
@@ -270,7 +274,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                     }
                 }
                 for(int right_occ: right_occurences) {
-                    conjunct.removed_implications.push_back(right_occ);
+                    conjunct.removed_implications[right_occ] = true;
                 }
             } // end iterate over formulas
         // negative literal
@@ -283,7 +287,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                 auto left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
                 auto right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
-                    conjunct.removed_implications.push_back(left_occ);
+                    conjunct.removed_implications[left_occ] = true;
                 }
                 for(int right_occ: right_occurences) {
                     rightvars_local[implstart[i]+right_occ] = -1;
@@ -299,7 +303,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                         if (newvar == -1) {
                             return false;
                         }  else {
-                            conjunct.removed_implications.push_back(right_occ);
+                            conjunct.removed_implications[right_occ] = true;
                             if (!is_already_queued(newvar, false, partial_assignment)) {
                                 unit_clauses.push_back(std::make_pair(newvar, false));
                                 partial_assignment[newvar] = 0;
@@ -478,13 +482,13 @@ SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
                 forced_true.push_back(i);
             }
         }
-        // gather total implication count and sort removed implication indices
         int implication_amount = 0;
         for (HornConjunctionElement elem : elements) {
-            std::sort(elem.removed_implications.begin(), elem.removed_implications.end());
-            elem.removed_implications.erase(unique(elem.removed_implications.begin(), elem.removed_implications.end()),
-                                            elem.removed_implications.end());
-            implication_amount += elem.formula->get_size()-elem.removed_implications.size();
+            for (bool val : elem.removed_implications) {
+                if (!val) {
+                    implication_amount++;
+                }
+            }
         }
         left_sizes.reserve(implication_amount);
         left_vars.reserve(implication_amount);
@@ -492,16 +496,12 @@ SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
 
         // iterate over all formulas and insert each simplified clause one by one
         for (HornConjunctionElement elem : elements) {
-            int ri_index = 0;
             // iterate over all implications of the current formula
             for (int i = 0; i < elem.formula->get_size(); ++i) {
                 // implication is removed - jump over it
-                if (ri_index < elem.removed_implications.size()
-                        && i == elem.removed_implications[ri_index]) {
-                    ri_index++;
+                if (elem.removed_implications[i] ) {
                     continue;
                 }
-
                 std::vector<int> left;
                 for (int var : elem.formula->get_left_vars(i)) {
                     // var is assigned - jump over it
@@ -632,36 +632,33 @@ void SetFormulaHorn::simplify() {
         }
 
         // remove unneeded implications
-        std::vector<int> &implications_to_remove = tmpvec[0].removed_implications;
-        std::sort(implications_to_remove.begin(), implications_to_remove.end());
-        implications_to_remove.erase(unique(implications_to_remove.begin(), implications_to_remove.end()),
-                                        implications_to_remove.end());
-        int old_location = right_side.size()-1;
-        int biggest_to_move_index = implications_to_remove.size()-1;
-        for(size_t i = 0; i < implications_to_remove.size(); ++i) {
-            int new_location = implications_to_remove[i];
-            //find the implication with the highest index number that is not going to be deleted
-            while(implications_to_remove[biggest_to_move_index] == old_location) {
-                old_location--;
-                biggest_to_move_index--;
-            }
+        std::vector<bool> &implications_to_remove = tmpvec[0].removed_implications;
+        int front = 0;
+        int back = implications_to_remove.size()-1;
 
-            // every implication with index higher than new_location is already 0
-            // --> we can break out the loop since removed_impl is sorted, i.e. all
-            // removed_impl[j] with j > i will also have higher index than old_location
-            if(old_location <= new_location) {
+        while (front < back) {
+            // back points to the last implication that should not be removed
+            while (front < back && implications_to_remove[back]) {
+                back--;
+            }
+            // front points to the next implication to remove
+            while (front < back &&!implications_to_remove[front]) {
+                front++;
+            }
+            if (front < back) {
                 break;
             }
-
-            // swap the implication from old_location to new_location
-            // (since the implication at new_location is empty, we don't need to swap this part)
-            right_side[new_location] = right_side[old_location];
-            left_vars[new_location] = std::move(left_vars[old_location]);
-            old_location--;
+            // move the implication at back to front
+            right_side[front] = right_side[back];
+            left_vars[front] = std::move(left_vars[back]);
         }
 
-        int newsize = right_side.size() - implications_to_remove.size();
-        // remove empty implications
+        int newsize = 0;
+        for (bool val : implications_to_remove) {
+            if (!val) {
+                newsize++;
+            }
+        }
         right_side.resize(newsize);
         left_vars.resize(newsize);
 
