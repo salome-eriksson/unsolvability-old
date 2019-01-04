@@ -1,6 +1,7 @@
 #ifndef SETFORMULAHORN_H
 #define SETFORMULAHORN_H
 
+#include <forward_list>
 #include <unordered_set>
 
 #include "setformulabasic.h"
@@ -26,7 +27,7 @@ struct HornDisjunctionElement {
 };
 
 typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
-typedef std::vector<std::pair<std::unordered_set<int>,std::unordered_set<int>>> VariableOccurences;
+typedef std::vector<std::pair<std::forward_list<int>,std::forward_list<int>>> VariableOccurences;
 
 class HornUtil {
     friend class SetFormulaHorn;
@@ -107,8 +108,8 @@ public:
     const std::vector<int> &get_left_vars(int index) const;
     int get_right(int index) const;
     const std::vector<int> &get_right_sides() const;
-    const std::unordered_set<int> &get_variable_occurence_left(int var) const;
-    const std::unordered_set<int> &get_variable_occurence_right(int var) const;
+    const std::forward_list<int> &get_variable_occurence_left(int var) const;
+    const std::forward_list<int> &get_variable_occurence_right(int var) const;
     const std::vector<int> & get_forced_true() const;
     const std::vector<int> & get_forced_false() const;
     const bool is_satisfiable() const;
