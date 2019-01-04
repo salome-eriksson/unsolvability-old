@@ -141,12 +141,14 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
     // local means they are not primeshifted
     std::vector<int> leftcount, rightvars_local;
 
-    for(size_t var = 0; var < partial_assignment.size(); ++var) {
-        if (partial_assignment[var] == 0) {
+    int var = 0;
+    for(int assignment : partial_assignment) {
+        if (assignment == 0) {
             unit_clauses.push_back(std::make_pair(var,false));
-        } else if (partial_assignment[var] == 1) {
+        } else if (assignment == 1) {
             unit_clauses.push_back(std::make_pair(var,true));
         }
+        var++;
     }
 
     for(size_t i = 0; i < conjuncts.size(); ++i) {
@@ -159,6 +161,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
         total_varamount = std::max(total_varamount, local_varamount);
         implstart[i] = amount_implications;
         amount_implications += conjunct.formula->get_size();
+        partial_assignment.resize(total_varamount,2);
 
         leftcount.insert(leftcount.end(), conjunct.formula->get_left_sizes().begin(),
                          conjunct.formula->get_left_sizes().end());
@@ -167,30 +170,44 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
 
         for(int var : conjunct.formula->get_forced_false()) {
             var += primeshift[i];
+            if (partial_assignment[var] == 1) {
+                return false;
+            }
             unit_clauses.push_back(std::make_pair(var, false));
+            partial_assignment[var] = 0;
         }
         for(int var : conjunct.formula->get_forced_true()) {
             var += primeshift[i];
+            if (partial_assignment[var] == 0) {
+                return false;
+            }
             unit_clauses.push_back(std::make_pair(var, true));
+            partial_assignment[var] = 1;
         }
+        const std::vector<int> &left_sizes = conjunct.formula->get_left_sizes();
         for (size_t impl = 0; impl < conjunct.formula->get_size(); ++impl) {
-            if (conjunct.formula->get_left(impl) == 0) {
+            if (left_sizes[impl] == 0) {
                 int var = conjunct.formula->get_right(impl) + primeshift[i];
-                if (var-primeshift[i] == -1) {
+                if (var-primeshift[i] == -1 ||
+                        partial_assignment[var] == 0) {
                     return false;
                 }
                 unit_clauses.push_back(std::make_pair(var,true));
+                partial_assignment[var] = 1;
                 conjunct.removed_implications[impl] = true;
-            } else if (conjunct.formula->get_left(impl) == 1 && conjunct.formula->get_right(impl) == -1) {
+            } else if (left_sizes[impl] == 1 && conjunct.formula->get_right(impl) == -1) {
                 int var = conjunct.formula->get_left_vars(impl)[0] + primeshift[i];
+                if (partial_assignment[var] == 1) {
+                    return false;
+                }
                 unit_clauses.push_back(std::make_pair(var,false));
+                partial_assignment[var] = 0;
                 conjunct.removed_implications[impl] = true;
             }
         }
     }
 
-    partial_assignment.clear();
-    partial_assignment.resize(total_varamount,2);
+    std::vector<bool> already_seen(total_varamount, false);
 
     // unit propagation
     while(!unit_clauses.empty()) {
@@ -198,34 +215,34 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
         unit_clauses.pop_front();
 
         int var = unit_clause.first;
-        int val = unit_clause.second;
-        if (partial_assignment[var] != 2) {
-            if (is_in_conflict(var,val,partial_assignment)) {
-                return false;
-            } else {
-                continue;
-            }
+        if (already_seen[var]) {
+            continue;
         }
-        partial_assignment[var] = val ? 1 : 0;
+        int positive = unit_clause.second;
+        already_seen[var] = true;
 
         // positive literal
-        if(unit_clause.second) {
+        if(positive) {
             for (size_t i = 0; i < conjuncts.size(); ++i) {
                 HornConjunctionElement &conjunct = conjuncts[i];
                 if(var-primeshift[i] < 0 || var-primeshift[i] >= conjunct.formula->get_varamount()) {
                     continue;
                 }
-                auto left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
-                auto right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
+                const std::unordered_set<int> &left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
+                const std::unordered_set<int> &right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
                     int global_impl = implstart[i]+left_occ;
                     leftcount[global_impl]--;
                     // deleted last negative literal --> must have positive literal
                     if (leftcount[global_impl] == 0) {
                         int newvar = conjunct.formula->get_right(left_occ)+primeshift[i];
-                        assert(partial_assignment[rightvars_local[global_impl]] != 0);
-                        conjunct.removed_implications[left_occ] = true;
+                        if (newvar = -1+primeshift[i]
+                                || is_in_conflict(newvar, true, partial_assignment)) {
+                            return false;
+                        }
                         unit_clauses.push_back(std::make_pair(newvar, true));
+                        partial_assignment[newvar] = 1;
+                        conjunct.removed_implications[left_occ] = true;
                     // deleted second last negative literal and no positive literal
                     } else if (leftcount[global_impl] == 1
                                && rightvars_local[global_impl] == -1) {
@@ -237,9 +254,12 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                                 break;
                             }
                         }
-                        assert(newvar != -1);
-                        conjunct.removed_implications[left_occ] = true;
+                        if (newvar == -1) {
+                            return false;
+                        }
                         unit_clauses.push_back(std::make_pair(newvar, false));
+                        partial_assignment[newvar] = 0;
+                        conjunct.removed_implications[left_occ] = true;
                     }
                 }
                 for(int right_occ: right_occurences) {
@@ -253,8 +273,8 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                 if(var-primeshift[i] < 0 || var-primeshift[i] >= conjunct.formula->get_varamount()) {
                     continue;
                 }
-                auto left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
-                auto right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
+                const std::unordered_set<int> &left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
+                const std::unordered_set<int> &right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
                     conjunct.removed_implications[left_occ] = true;
                 }
@@ -269,9 +289,12 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                                 break;
                             }
                         }
-                        assert(newvar != -1);
-                        conjunct.removed_implications[right_occ] = true;
+                        if (newvar == -1) {
+                            return false;
+                        }
                         unit_clauses.push_back(std::make_pair(newvar, false));
+                        partial_assignment[newvar] = 0;
+                        conjunct.removed_implications[right_occ] = true;
                     }
                 }
             } // end iterate over formulas
@@ -334,7 +357,12 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
         disj_varamount = std::max(disj_varamount, local_varamount);
     }
 
-    SetFormulaHorn conjunction_formula(conjuncts);
+    SetFormulaHorn conjunction_dummy(task);
+    const SetFormulaHorn *conjunction = conjuncts[0].formula;
+    if(conjuncts.size() > 1) {
+        conjunction_dummy = SetFormulaHorn(conjuncts);
+        conjunction = &conjunction_dummy;
+    }
 
     // try for each clause combination if its negation together with conjuncts is unsat
     do {
@@ -389,7 +417,7 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<HornConjunctionElemen
         if (unsatisfiable) {
             continue;
         }
-        if (is_restricted_satisfiable(&conjunction_formula, partial_assignment)) {
+        if (is_restricted_satisfiable(conjunction, partial_assignment)) {
             return false;
         }
     } while (update_current_clauses(current_clauses, clause_amounts));
@@ -675,7 +703,7 @@ int SetFormulaHorn::get_varamount() const {
 }
 
 int SetFormulaHorn::get_left(int index) const{
-    return left_vars[index].size();
+    return left_sizes[index];
 }
 
 const std::vector<int> &SetFormulaHorn::get_left_sizes() const {
@@ -790,7 +818,13 @@ bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
         conjunction.push_back(HornConjunctionElement(formula,true));
     }
 
-    SetFormulaHorn left_singular(conjunction);
+    SetFormulaHorn left_dummy(util->task);
+    if (conjunction.size() > 1) {
+        left_dummy = SetFormulaHorn(conjunction);
+        conjunction.clear();
+        conjunction.push_back(HornConjunctionElement(&left_dummy,false));
+    }
+    // conjunction now only contains 1 element
     conjunction.reserve(2);
 
     if(util->actionformulas.size() == 0) {
@@ -798,8 +832,8 @@ bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
     }
 
     for (int action : actions) {
-        conjunction.clear();
-        conjunction.push_back(HornConjunctionElement(&left_singular, false));
+        conjunction[0].removed_implications.clear();
+        conjunction[0].removed_implications.resize(conjunction[0].formula->get_size(), false);
         conjunction.push_back(HornConjunctionElement(util->actionformulas[action], false));
         if (!util->conjunction_implies_disjunction(conjunction, disjunction)) {
             return false;
