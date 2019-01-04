@@ -206,8 +206,8 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                 if(var-primeshift[i] < 0 || var-primeshift[i] >= conjunct.formula->get_varamount()) {
                     continue;
                 }
-                const std::unordered_set<int> &left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
-                const std::unordered_set<int> &right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
+                const std::forward_list<int> &left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
+                const std::forward_list<int> &right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
                     int global_impl = implstart[i]+left_occ;
                     leftcount[global_impl]--;
@@ -251,8 +251,8 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
                 if(var-primeshift[i] < 0 || var-primeshift[i] >= conjunct.formula->get_varamount()) {
                     continue;
                 }
-                const std::unordered_set<int> &left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
-                const std::unordered_set<int> &right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
+                const std::forward_list<int> &left_occurences = conjunct.formula->get_variable_occurence_left(var-primeshift[i]);
+                const std::forward_list<int> &right_occurences = conjunct.formula->get_variable_occurence_right(var-primeshift[i]);
                 for (int left_occ : left_occurences) {
                     conjunct.removed_implications[left_occ] = true;
                 }
@@ -447,10 +447,10 @@ SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int
         left_vars.push_back(clause.first);
         right_side.push_back(clause.second);
         for(int var : clause.first) {
-            variable_occurences[var].first.insert(left_vars.size()-1);
+            variable_occurences[var].first.push_front(left_vars.size()-1);
         }
         if(clause.second != -1) {
-            variable_occurences[clause.second].second.insert(left_vars.size()-1);
+            variable_occurences[clause.second].second.push_front(left_vars.size()-1);
         }
         left_sizes.push_back(clause.first.size());
     }
@@ -513,7 +513,7 @@ SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
                         continue;
                     }
                     left.push_back(var);
-                    variable_occurences[var].first.insert(left_vars.size());
+                    variable_occurences[var].first.push_front(left_vars.size());
                 }
                 left_sizes.push_back(left.size());
                 left_vars.push_back(std::move(left));
@@ -531,7 +531,7 @@ SetFormulaHorn::SetFormulaHorn(std::vector<HornConjunctionElement> &elements) {
                 if(partial_assignments[right_var] != 2) {
                     right_side.push_back(-1);
                 } else {
-                    variable_occurences[right_var].second.insert(right_side.size());
+                    variable_occurences[right_var].second.push_front(right_side.size());
                     right_side.push_back(right_var);
                 }
             } // end iterate over implications of the current formula
@@ -589,10 +589,10 @@ SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
             forced_false.push_back(left[0]);
         } else {
             for (int var : left) {
-                variable_occurences[var].first.insert(count);
+                variable_occurences[var].first.push_front(count);
             }
             if (right != -1) {
-                variable_occurences[var].second.insert(count);
+                variable_occurences[var].second.push_front(count);
             }
             left_sizes.push_back(left.size());
             left_vars.push_back(std::move(left));
@@ -702,21 +702,21 @@ void SetFormulaHorn::simplify() {
     variable_occurences.resize(varamount);
     for (size_t i = 0; i < left_vars.size(); ++i) {
         for (int var : left_vars[i]) {
-            variable_occurences[var].first.insert(i);
+            variable_occurences[var].first.push_front(i);
         }
         int var = right_side[i];
         if (var != -1) {
-            variable_occurences[var].second.insert(i);
+            variable_occurences[var].second.push_front(i);
         }
     }
 }
 
 
-const std::unordered_set<int> &SetFormulaHorn::get_variable_occurence_left(int var) const {
+const std::forward_list<int> &SetFormulaHorn::get_variable_occurence_left(int var) const {
     return variable_occurences[var].first;
 }
 
-const std::unordered_set<int> &SetFormulaHorn::get_variable_occurence_right(int var) const {
+const std::forward_list<int> &SetFormulaHorn::get_variable_occurence_right(int var) const {
     return variable_occurences[var].second;
 }
 
@@ -785,7 +785,6 @@ void SetFormulaHorn::dump() const{
         }
         std::cout << "] ";
     }
-    std::cout << "left occurences: ";
     std::cout << std::endl;
 }
 
