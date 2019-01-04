@@ -10,7 +10,7 @@ class SetFormulaHorn;
 
 struct HornConjunctionElement {
     const SetFormulaHorn *formula;
-    const bool primed;
+    bool primed;
     std::vector<bool> removed_implications;
 
     HornConjunctionElement(const SetFormulaHorn *formula, bool primed);
@@ -18,7 +18,7 @@ struct HornConjunctionElement {
 
 struct HornDisjunctionElement {
     const SetFormulaHorn *formula;
-    const bool primed;
+    bool primed;
 
     HornDisjunctionElement (const SetFormulaHorn *formula, bool primed)
         : formula(formula), primed(primed) {
@@ -62,6 +62,7 @@ private:
  *  - All nonunit clauses are represented by left_vars and right_side:
  *    - left_vars[i] is the negative literals of clause [i]
  *    - right_side is the positive literal (or -1 if none exists) of clause [i]
+ * IMPORTANT: the clauses in left_vars/right_side are expected to contain at least 2 literals!
  *
  * left_sizes and variable_occurences are helper infos for checking satisfiability
  *   - left_sizes stores for each clause how many negative literals it contains
@@ -110,6 +111,7 @@ public:
     const std::unordered_set<int> &get_variable_occurence_right(int var) const;
     const std::vector<int> & get_forced_true() const;
     const std::vector<int> & get_forced_false() const;
+    const bool is_satisfiable() const;
     void dump() const;
 
     virtual bool is_subset(std::vector<SetFormula *> &left,
