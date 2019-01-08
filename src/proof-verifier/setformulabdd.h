@@ -10,12 +10,16 @@
 
 class BDDUtil;
 
+struct BDDAction {
+    BDD pre;
+    BDD eff;
+};
+
 class SetFormulaBDD : public SetFormulaBasic
 {
     friend class BDDUtil;
 private:
     static std::unordered_map<std::string, BDDUtil> utils;
-    // TODO: move prime permutation to where the manager is
     static std::vector<int> prime_permutation;
     // TODO: can we change this to a reference?
     BDDUtil *util;
@@ -84,7 +88,7 @@ private:
     SetFormulaBDD emptyformula;
     SetFormulaBDD initformula;
     SetFormulaBDD goalformula;
-    std::vector<BDD> actionformulas;
+    std::vector<BDDAction> actionformulas;
     /*
      * This array stores that actual DdNodes for the BDD file pased by this util.
      * As soon as a SetFormulaBDD claims ownership of an element, the reference count
@@ -94,7 +98,7 @@ private:
     std::vector<DdNode *>dd_nodes;
 
     BDD build_bdd_from_cube(const Cube &cube);
-    BDD build_bdd_for_action(const Action &a);
+    //BDD build_bdd_for_action(const Action &a);
     void build_actionformulas();
 
     /*

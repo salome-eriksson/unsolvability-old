@@ -11,23 +11,24 @@ class SetFormulaHorn;
 
 struct HornConjunctionElement {
     const SetFormulaHorn *formula;
-    bool primed;
     std::vector<bool> removed_implications;
 
-    HornConjunctionElement(const SetFormulaHorn *formula, bool primed);
-};
-
-struct HornDisjunctionElement {
-    const SetFormulaHorn *formula;
-    bool primed;
-
-    HornDisjunctionElement (const SetFormulaHorn *formula, bool primed)
-        : formula(formula), primed(primed) {
-    }
+    HornConjunctionElement(const SetFormulaHorn *formula);
 };
 
 typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
 typedef std::vector<std::pair<std::forward_list<int>,std::forward_list<int>>> VariableOccurences;
+
+struct HornAction {
+    SetFormulaHorn *pre;
+    SetFormulaHorn *eff;
+    std::vector<int> shift_vars;
+
+    HornAction (SetFormulaHorn *pre, SetFormulaHorn *eff, std::vector<int> &shift_vars)
+        :pre(pre), eff(eff), shift_vars(shift_vars) {
+
+    }
+};
 
 class HornUtil {
     friend class SetFormulaHorn;
@@ -37,7 +38,7 @@ private:
     SetFormulaHorn *initformula;
     SetFormulaHorn *goalformula;
     SetFormulaHorn *trueformula;
-    std::vector<SetFormulaHorn *> actionformulas;
+    std::vector<HornAction> hornactions;
     HornUtil(Task *task);
 
     void build_actionformulas();
@@ -51,8 +52,8 @@ private:
     bool simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment);
     bool is_restricted_satisfiable(const SetFormulaHorn *formula, Cube &restriction);
 
-    bool conjunction_implies_disjunction(std::vector<HornConjunctionElement> &conjuncts,
-                                         std::vector<HornDisjunctionElement> &disjuncts);
+    bool conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &conjuncts,
+                                         std::vector<SetFormulaHorn *> &disjuncts);
 };
 
 
@@ -93,13 +94,15 @@ private:
     // this constructor is used for setting up the formulas in util
     SetFormulaHorn(const std::vector<std::pair<std::vector<int>,int>> &clauses, int varamount);
     // used for getting a simplified conjunction of several (possibly primed) formulas
-    SetFormulaHorn(std::vector<HornConjunctionElement> &elements);
+    SetFormulaHorn(std::vector<SetFormulaHorn *> &formulas);
     void simplify();
 public:
     // TODO: this is currently only used for a dummy initialization
     SetFormulaHorn(Task *task);
     SetFormulaHorn(std::ifstream &input, Task *task);
     virtual ~SetFormulaHorn() {}
+
+    void shift(std::vector<int> &vars);
 
     int get_size() const;
     int get_varamount() const;

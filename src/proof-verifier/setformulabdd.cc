@@ -103,7 +103,7 @@ BDD BDDUtil::build_bdd_from_cube(const Cube &cube) {
     return BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), &local_cube[0]));
 }
 
-BDD BDDUtil::build_bdd_for_action(const Action &a) {
+/*BDD BDDUtil::build_bdd_for_action(const Action &a) {
     BDD ret = manager.bddOne();
     for(size_t i = 0; i < a.pre.size(); ++i) {
         ret = ret * manager.bddVar(varorder[a.pre[i]]*2);
@@ -126,12 +126,28 @@ BDD BDDUtil::build_bdd_for_action(const Action &a) {
         }
     }
     return ret;
-}
+}*/
 
 void BDDUtil::build_actionformulas() {
     actionformulas.reserve(task->get_number_of_actions());
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
-        actionformulas.push_back(build_bdd_for_action(task->get_action(i)));
+        BDDAction bddaction;
+        const Action &action = task->get_action(i);
+        bddaction.pre = manager.bddOne();
+        for (int var : action.pre) {
+            bddaction.pre *= manager.bddVar(varorder[var]*2);
+        }
+        bddaction.eff = manager.bddOne();
+        for (size_t var = 0; var < action.change.size(); ++var) {
+            if (action.change[var] == 0) {
+                continue;
+            } else if (action.change[var] == 1) {
+                bddaction.eff *= manager.bddVar(varorder[var]*2);
+            } else {
+                bddaction.eff *= !manager.bddVar(varorder[var]*2);
+            }
+        }
+        actionformulas.push_back(bddaction);
     }
 }
 
@@ -260,8 +276,7 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
         right_singular += right_bdds[i];
     }
 
-    // prog[A] \cap left' \subseteq right' iff prog[A] \subseteq !left \cup right'
-    BDD neg_left_or_right_primed = (!(left_singular) + right_singular).Permute(&prime_permutation[0]);
+    BDD neg_left_or_right = (!left_singular) + right_singular;
 
     BDD prog_singular = manager.bddOne();
     for (size_t i = 0; i < prog_bdds.size(); ++i) {
@@ -271,8 +286,20 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
         util->build_actionformulas();
     }
 
-    for (int action : actions) {
-        if (!( (prog_singular*util->actionformulas[action]).Leq(neg_left_or_right_primed) )) {
+    for (int a : actions) {
+        const Action &action = util->task->get_action(a);
+        BDD left_rn = left_singular * util->actionformulas[a].pre;
+        for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
+            if (action.change[var] != 2) {
+                prime_permutation[2*var] = 2*var+1;
+                prime_permutation[2*var+1] = 2*var;
+            } else {
+                prime_permutation[2*var] = 2*var;
+                prime_permutation[2*var+1] = 2*var+1;
+            }
+        }
+        left_rn.Permute(&prime_permutation[0]);
+        if (!( (left_rn*util->actionformulas[a].eff).Leq(neg_left_or_right) )) {
             return false;
         }
     }
@@ -302,17 +329,30 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
         right_singular += right_bdds[i];
     }
 
-    // [A]reg' \cap left \subseteq right iff [A]reg' \subseteq !left' \cup right'
-    BDD neg_left_or_right_ = !(left_singular) + right_singular;
+    BDD neg_left_or_right = (!left_singular) + right_singular;
 
     BDD reg_singular = manager.bddOne();
     for (size_t i = 0; i < reg_bdds.size(); ++i) {
         reg_singular *= reg_bdds[i];
     }
-    BDD reg_primed = reg_singular.Permute(&prime_permutation[0]);
+    if(util->actionformulas.size() == 0) {
+        util->build_actionformulas();
+    }
 
-    for (int action : actions) {
-        if (!(reg_primed*util->actionformulas[action]).Leq(neg_left_or_right_)) {
+    for (int a : actions) {
+        const Action &action = util->task->get_action(a);
+        BDD left_rn = left_singular * util->actionformulas[a].eff;
+        for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
+            if (action.change[var] != 2) {
+                prime_permutation[2*var] = 2*var+1;
+                prime_permutation[2*var+1] = 2*var;
+            } else {
+                prime_permutation[2*var] = 2*var;
+                prime_permutation[2*var+1] = 2*var+1;
+            }
+        }
+        left_rn.Permute(&prime_permutation[0]);
+        if (!( (left_rn*util->actionformulas[a].pre).Leq(neg_left_or_right) )) {
             return false;
         }
     }
