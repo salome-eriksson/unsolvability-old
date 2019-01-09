@@ -17,13 +17,13 @@ private:
    bool has_hints;
    std::vector<CertMap::iterator> lastits;
 
-   bool check_hints(std::vector<BDD> &action_bdds);
+   bool check_hints();
 
    void initialize_itvec(std::vector<CertMap::iterator>& itvec);
    bool next_permutation(std::vector<CertMap::iterator>& itvec, std::vector<CertMap::iterator>& lastits);
 
    // checks if any disjunction over r BDDs coveres the successor_bdd
-   bool is_covered_by_r(BDD &bdd_primed, BDD &actionbdd);
+   bool is_covered_by_r(BDD &bdd, int a);
 public:
   ConjunctiveCertificate(Task *task, std::ifstream &stream, int r);
   bool contains_state(const Cube &state);

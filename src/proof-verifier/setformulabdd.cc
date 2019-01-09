@@ -290,7 +290,7 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
         const Action &action = util->task->get_action(a);
         BDD left_rn = left_singular * util->actionformulas[a].pre;
         for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
-            if (action.change[var] != 2) {
+            if (action.change[var] != 0) {
                 prime_permutation[2*var] = 2*var+1;
                 prime_permutation[2*var+1] = 2*var;
             } else {
@@ -343,7 +343,7 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
         const Action &action = util->task->get_action(a);
         BDD left_rn = left_singular * util->actionformulas[a].eff;
         for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
-            if (action.change[var] != 2) {
+            if (action.change[var] != 0) {
                 prime_permutation[2*var] = 2*var+1;
                 prime_permutation[2*var+1] = 2*var;
             } else {

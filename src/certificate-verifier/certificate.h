@@ -17,6 +17,12 @@ struct CertEntry {
     CertEntry(BDD _bdd, bool _covered) : bdd(_bdd), covered(_covered) {}
 };
 
+struct BDDAction {
+    BDD pre;
+    BDD eff;
+    BDDAction(BDD pre, BDD eff) : pre(pre), eff(eff) {}
+};
+
 typedef std::unordered_map<int, CertEntry> CertMap;
 
 class Certificate {
@@ -27,7 +33,7 @@ protected:
   // array needed for permuting bdds to primed version
   std::vector<int> permutation;
   void parse_bdd_file(std::string bddfile);
-  BDD build_bdd_for_action(const Action &a);
+  std::vector<BDDAction> bdd_actions;
   BDD build_bdd_from_cube(const Cube &cube);
 public:
   Certificate(Task *task);
