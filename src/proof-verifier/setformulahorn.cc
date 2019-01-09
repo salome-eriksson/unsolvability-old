@@ -48,38 +48,6 @@ HornUtil::HornUtil(Task *task)
     initformula = new SetFormulaHorn(clauses, varamount);
 }
 
-void HornUtil::build_actionformulas() {
-    int varamount = task->get_number_of_facts();
-    std::vector<std::pair<std::vector<int>,int>> clauses;
-
-    hornactions.reserve(task->get_number_of_actions());
-    for(int a = 0; a < task->get_number_of_actions(); ++a) {
-        const Action & action = task->get_action(a);
-        clauses.clear();
-
-        for(int i = 0; i < action.pre.size(); ++i) {
-            clauses.push_back(std::make_pair(std::vector<int>(),action.pre[i]));
-        }
-        SetFormulaHorn *pre = new SetFormulaHorn(clauses, varamount);
-        clauses.clear();
-
-        std::vector<int> shift_vars;
-        for(int i = 0; i < varamount; ++i) {
-            // add effect
-            if(action.change[i] == 1) {
-                clauses.push_back(std::make_pair(std::vector<int>(),i+varamount));
-                shift_vars.push_back(i);
-            // delete effect
-            } else if(action.change[i] == -1) {
-                clauses.push_back(std::make_pair(std::vector<int>(1,i+varamount),-1));
-                shift_vars.push_back(i);
-            }
-        }
-        SetFormulaHorn *eff = new SetFormulaHorn(clauses, varamount);
-        hornactions.push_back(HornAction(pre,eff,shift_vars));
-    }
-}
-
 bool HornUtil::get_horn_vector(std::vector<SetFormula *> &formulas, std::vector<SetFormulaHorn *> &horn_formulas) {
     assert(horn_formulas.empty());
     horn_formulas.reserve(formulas.size());
@@ -115,29 +83,27 @@ bool HornUtil::get_horn_vector(std::vector<SetFormula *> &formulas, std::vector<
 }
 
 bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment) {
-    int total_varamount = 0;
+    int total_varamount = partial_assignment.size();
     int amount_implications = 0;
-    std::vector<int> implstart(conjuncts.size(),-1);
+    std::vector<int> implstart;
 
     std::deque<std::pair<int,bool>> unit_clauses;
     std::vector<int> leftcount;
     std::vector<int> rightvars;
 
-    int var = 0;
-    for(int assignment : partial_assignment) {
+    for(size_t var = 0; var < partial_assignment.size(); ++var) {
+        int assignment = partial_assignment[var];
         if (assignment == 0) {
             unit_clauses.push_back(std::make_pair(var,false));
         } else if (assignment == 1) {
             unit_clauses.push_back(std::make_pair(var,true));
         }
-        var++;
     }
 
-    for(size_t i = 0; i < conjuncts.size(); ++i) {
-        HornConjunctionElement &conjunct = conjuncts[i];
+    for(const HornConjunctionElement &conjunct : conjuncts) {
         int local_varamount = conjunct.formula->get_varamount();
         total_varamount = std::max(total_varamount, local_varamount);
-        implstart[i] = amount_implications;
+        implstart.push_back(amount_implications);
         amount_implications += conjunct.formula->get_size();
         partial_assignment.resize(total_varamount,2);
         leftcount.insert(leftcount.end(), conjunct.formula->get_left_sizes().begin(),
@@ -160,7 +126,6 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
             partial_assignment[var] = 1;
         }
     }
-
     std::vector<bool> already_seen(total_varamount, false);
 
     // unit propagation
@@ -277,7 +242,6 @@ inline bool update_current_clauses(std::vector<int> &current_clauses, std::vecto
 
 bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &conjuncts,
                                                std::vector<SetFormulaHorn *> &disjuncts) {
-
     if (conjuncts.size() == 0) {
         conjuncts.push_back(trueformula);
     }
@@ -391,12 +355,6 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &co
 
 HornUtil *SetFormulaHorn::util = nullptr;
 
-SetFormulaHorn::SetFormulaHorn(Task *task) {
-    if (util == nullptr) {
-        util = new HornUtil(task);
-    }
-}
-
 SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int> > &clauses, int varamount)
     : variable_occurences(varamount), varamount(varamount) {
 
@@ -506,6 +464,88 @@ SetFormulaHorn::SetFormulaHorn(std::vector<SetFormulaHorn *> &formulas) {
     }
 }
 
+SetFormulaHorn::SetFormulaHorn(const SetFormulaHorn &other, const Action &action, bool progression)
+    : left_vars(other.left_vars), left_sizes(other.left_sizes), right_side(other.right_side),
+      forced_true(other.forced_true), forced_false(other.forced_false), varamount(2*action.change.size()) {
+    variable_occurences.resize(action.change.size()*2);
+
+    if (progression) {
+        for (int var : action.pre) {
+            forced_true.push_back(var);
+        }
+    } else {
+        for (size_t var = 0; var < action.change.size(); ++var) {
+            if (action.change[var] == 1) {
+                forced_true.push_back(var);
+            } else if (action.change[var] == -1) {
+                forced_false.push_back(var);
+            }
+        }
+    }
+
+    //shift
+    for (size_t i = 0; i < forced_true.size(); ++i) {
+        if (action.change[forced_true[i]] != 0) {
+            forced_true[i] += action.change.size();
+        }
+    }
+    for (size_t i = 0; i < forced_false.size(); ++i) {
+        if (action.change[forced_false[i]] != 0) {
+            forced_false[i] += action.change.size();
+        }
+    }
+    for (size_t var = 0; var < other.variable_occurences.size(); ++var) {
+        if (action.change[var] == 0) {
+            variable_occurences[var].first = other.variable_occurences[var].first;
+            variable_occurences[var].second = other.variable_occurences[var].second;
+        } else {
+            //shift vars
+            variable_occurences[var + action.change.size()].first = other.variable_occurences[var].first;
+            variable_occurences[var + action.change.size()].second = other.variable_occurences[var].second;
+            for (int impl : other.variable_occurences[var].first) {
+                for (size_t i = 0; i < left_vars[impl].size(); ++i) {
+                    if (left_vars[impl][i] == var) {
+                        left_vars[impl][i] += action.change.size();
+                        break;
+                    }
+                }
+            }
+            for (int impl : other.variable_occurences[var].second) {
+                right_side[impl] += action.change.size();
+            }
+        }
+    }
+
+    // apply actions
+    if (progression) {
+        for (size_t var = 0; var < action.change.size(); ++var) {
+            if (action.change[var] == 1) {
+                forced_true.push_back(var);
+            } else if (action.change[var] == -1) {
+                forced_false.push_back(var);
+            }
+        }
+    } else {
+        for (int var : action.pre) {
+            forced_true.push_back(var);
+        }
+    }
+
+    simplify();
+    varorder.clear();
+    varorder.resize(varamount);
+    for (size_t var = 0; var < varamount; ++var) {
+        varorder[var] = var;
+    }
+}
+
+
+SetFormulaHorn::SetFormulaHorn(Task *task) {
+    if (util == nullptr) {
+        util = new HornUtil(task);
+    }
+}
+
 SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
     // parsing
     std::string word;
@@ -600,6 +640,7 @@ void SetFormulaHorn::simplify() {
         // set forced true/false and clear up variable occurences
         forced_true.clear();
         forced_false.clear();
+        assert (assignments.size() == varamount);
         for (size_t var = 0; var < assignments.size(); ++var) {
             // not assigned
             if (assignments[var] == 2) {
@@ -673,28 +714,6 @@ void SetFormulaHorn::simplify() {
         }
     }
 }
-
-void SetFormulaHorn::shift(std::vector<int> &vars) {
-    /*variable_occurences.resize(varamount*2);
-    for (int var : vars) {
-        for (int impl : variable_occurences[var].first) {
-            for (size_t i = 0; i < left_vars[impl].size(); ++i) {
-                if (left_vars[impl][i] == var) {
-                    left_vars[impl][i] += varamount;
-                    break;
-                }
-            }
-        }
-        for (int impl : variable_occurences[var].second) {
-            right_side[impl] += varamount;
-        }
-        variable_occurences[var+varamount] = std::move(variable_occurences[var]);
-        variable_occurences[var] =
-                std::make_pair(std::forward_list<int>(), std::forward_list<int>());
-    }
-    varamount *=2;*/
-}
-
 
 const std::forward_list<int> &SetFormulaHorn::get_variable_occurence_left(int var) const {
     return variable_occurences[var].first;
@@ -799,10 +818,6 @@ bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
         return false;
     }
 
-    if(util->hornactions.size() == 0) {
-        util->build_actionformulas();
-    }
-
     SetFormulaHorn *prog_singular;
     SetFormulaHorn prog_dummy(util->task);
     if (horn_formulas_prog.size() > 1) {
@@ -822,24 +837,17 @@ bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
         }
     }
 
-    std::vector<SetFormulaHorn *> vec1,vec2;
-    vec1.push_back(prog_singular);
+    std::vector<SetFormulaHorn *> vec;
     if (left_singular) {
-        vec2.push_back(left_singular);
+        vec.push_back(left_singular);
     }
     for (int a : actions) {
-        vec1.push_back(util->hornactions[a].pre);
-        SetFormulaHorn prog_pre(vec1);
-        prog_pre.shift(util->hornactions[a].shift_vars);
-        vec2.push_back(&prog_pre);
-        vec2.push_back(util->hornactions[a].eff);
-
-        if (!util->conjunction_implies_disjunction(vec2, horn_formulas_right)) {
+        SetFormulaHorn prog_applied(*prog_singular, util->task->get_action(a), true);
+        vec.push_back(&prog_applied);
+        if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
             return false;
         }
-        vec2.pop_back();
-        vec2.pop_back();
-        vec1.pop_back();
+        vec.pop_back();
     }
     return true;
 }
@@ -856,10 +864,6 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
             && util->get_horn_vector(reg, horn_formulas_reg);
     if (!valid_horn_formulas) {
         return false;
-    }
-
-    if(util->hornactions.size() == 0) {
-        util->build_actionformulas();
     }
 
     SetFormulaHorn *reg_singular;
@@ -881,24 +885,14 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
         }
     }
 
-    std::vector<SetFormulaHorn *> vec1,vec2;
-    vec1.push_back(reg_singular);
-    if (left_singular) {
-        vec2.push_back(left_singular);
-    }
+    std::vector<SetFormulaHorn *> vec;
     for (int a : actions) {
-        vec1.push_back(util->hornactions[a].eff);
-        SetFormulaHorn reg_eff(vec1);
-        reg_eff.shift(util->hornactions[a].shift_vars);
-        vec2.push_back(&reg_eff);
-        vec2.push_back(util->hornactions[a].pre);
-
-        if (!util->conjunction_implies_disjunction(vec2, horn_formulas_right)) {
+        SetFormulaHorn reg_applied(*reg_singular, util->task->get_action(a), false);
+        vec.push_back(&reg_applied);
+        if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
             return false;
         }
-        vec2.pop_back();
-        vec2.pop_back();
-        vec1.pop_back();
+        vec.pop_back();
     }
     return true;
 }
