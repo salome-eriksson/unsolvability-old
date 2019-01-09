@@ -16,11 +16,26 @@ Certificate::Certificate(Task *task)
     manager.setTimeoutHandler(exit_timeout);
 
     permutation.resize(task->get_number_of_facts()*2, -1);
-    for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
-      permutation[2*i] = (2*i)+1;
-      permutation[(2*i)+1] = 2*i;
-    }
     manager.InstallOutOfMemoryHandler(exit_oom);
+
+    for (size_t i = 0; i < task->get_number_of_actions(); ++i) {
+        const Action &action = task->get_action(i);
+        BDD pre = manager.bddOne();
+        for (int var : action.pre) {
+            pre *= manager.bddVar(var*2);
+        }
+        BDD eff = manager.bddOne();
+        for (size_t var = 0; var < action.change.size(); ++var) {
+            if (action.change[var] == 0) {
+                continue;
+            } else if (action.change[var] == 1) {
+                eff *= manager.bddVar(var*2);
+            } else {
+                eff *= !manager.bddVar(var*2);
+            }
+        }
+        bdd_actions.emplace_back(BDDAction(pre, eff));
+    }
 }
 
 Certificate::~Certificate() {
@@ -67,32 +82,6 @@ void Certificate::parse_bdd_file(std::string bddfile) {
     }
 
     print_info("finished reading in bdd file " + bddfile);
-}
-
-//TODO: maybe change to IndicesToCube? But how to deal with frame axioms?
-//TODO: move?
-BDD Certificate::build_bdd_for_action(const Action &a) {
-    BDD ret = manager.bddOne();
-    for(size_t i = 0; i < a.pre.size(); ++i) {
-        ret = ret * manager.bddVar(a.pre[i]*2);
-    }
-
-    //+1 represents primed variable
-    for(size_t i = 0; i < a.change.size(); ++i) {
-        //add effect
-        if(a.change[i] == 1) {
-            ret = ret * manager.bddVar(i*2+1);
-        //delete effect
-        } else if(a.change[i] == -1) {
-            ret = ret - manager.bddVar(i*2+1);
-        //no change -> frame axiom
-        } else {
-            assert(a.change[i] == 0);
-            ret = ret * (manager.bddVar(i*2) + !manager.bddVar(i*2+1));
-            ret = ret * (!manager.bddVar(i*2) + manager.bddVar(i*2+1));
-        }
-    }
-    return ret;
 }
 
 //TODO: move?

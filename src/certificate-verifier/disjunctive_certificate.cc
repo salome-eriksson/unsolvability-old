@@ -131,7 +131,7 @@ bool DisjunctiveCertificate::contains_goal() {
     return false;
 }
 
-bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
+bool DisjunctiveCertificate::check_hints() {
     // oftenly used variables
     std::string line;
     int hint_amount = -1;
@@ -158,19 +158,24 @@ bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
 
         // check inductivity for the bdd with given index
         BDD cert_i = certificate[index].bdd;
-        BDD cert_i_perm = cert_i.Permute(&permutation[0]);
         // loop over actions
-        for(size_t i = 0; i < action_bdds.size(); ++i) {
-            BDD succ = cert_i * action_bdds[i];
-            if(succ.IsZero()) {
-                continue;
+        for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
+            const Action &action = task->get_action(i);
+            BDD succ = cert_i * bdd_actions[i].pre;
+            for (int var = 0; var < task->get_number_of_facts(); ++var) {
+                if (action.change[var] != 0) {
+                    permutation[2*var] = 2*var+1;
+                    permutation[2*var+1] = 2*var;
+                } else {
+                    permutation[2*var] = 2*var;
+                    permutation[2*var+1] = 2*var+1;
+                }
             }
+            succ = succ.Permute(&permutation[0])*bdd_actions[i].eff;
             // if a hint is given, the sucessors must be included in the bdd with
             // index given by then hint
             if(hints[i] >= 0) {
-                BDD tmp = certificate[hints[i]].bdd;
-                tmp = tmp.Permute(&permutation[0]);
-                if(!succ.Leq(tmp)) {
+                if(!succ.Leq(certificate[hints[i]].bdd)) {
                     return false;
                 }
                 // reset hint vector
@@ -178,7 +183,7 @@ bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
             // if no hint is given, check if the bdd is self- or r-inductive
             // if not, the certificate is not valid
             // TODO: ask if it is guaranteed that the first part will get evaluated first!
-            } else if (!(succ.Leq(cert_i_perm)) && !(is_covered_by_r(succ))) {
+            } else if (!(succ.Leq(cert_i)) && !(is_covered_by_r(succ))) {
                 return false;
             }
         }
@@ -194,16 +199,10 @@ bool DisjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
 }
 
 bool DisjunctiveCertificate::is_inductive() {
-    // build action bdds
-    std::vector<BDD> action_bdds(task->get_number_of_actions(), BDD());
-    for(size_t i = 0; i < action_bdds.size(); ++i) {
-        action_bdds[i] = build_bdd_for_action(task->get_action(i));
-    }
-
     // read in hints and check if the corresponding bdds are inductive
     // if not, we can return false already, if they are we need to check the rest
     if(hint_stream.is_open()) {
-        if(!check_hints(action_bdds)) {
+        if(!check_hints()) {
             return false;
         }
     }
@@ -217,10 +216,20 @@ bool DisjunctiveCertificate::is_inductive() {
 
         // bdd is not covered -> loop over all actions and check if its self- or r-inductive
         BDD cert_i = it->second.bdd;
-        BDD cert_i_perm = cert_i.Permute(&permutation[0]);
-        for(size_t i = 0; i < action_bdds.size(); ++i) {
-            BDD succ = cert_i * action_bdds[i];
-            if(!(succ.Leq(cert_i_perm)) && !(is_covered_by_r(succ))) {
+        for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
+            const Action &action = task->get_action(i);
+            BDD succ = cert_i * bdd_actions[i].pre;
+            for (int var = 0; var < task->get_number_of_facts(); ++var) {
+                if (action.change[var] != 0) {
+                    permutation[2*var] = 2*var+1;
+                    permutation[2*var+1] = 2*var;
+                } else {
+                    permutation[2*var] = 2*var;
+                    permutation[2*var+1] = 2*var+1;
+                }
+            }
+            succ = succ.Permute(&permutation[0])*bdd_actions[i].eff;
+            if(!(succ.Leq(cert_i)) && !(is_covered_by_r(succ))) {
                 return false;
             }
         }

@@ -16,7 +16,7 @@ private:
    bool has_hints;
    std::vector<CertMap::iterator> lastits;
 
-   bool check_hints(std::vector<BDD> &action_bdds);
+   bool check_hints();
 
    void initialize_itvec(std::vector<CertMap::iterator>& itvec);
    bool next_permutation(std::vector<CertMap::iterator>& itvec, std::vector<CertMap::iterator>& lastits);

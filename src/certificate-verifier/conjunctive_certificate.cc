@@ -91,16 +91,27 @@ bool ConjunctiveCertificate::next_permutation(std::vector<CertMap::iterator>& it
     return true;
 }
 
-bool ConjunctiveCertificate::is_covered_by_r(BDD &bdd_primed, BDD &actionbdd) {
+bool ConjunctiveCertificate::is_covered_by_r(BDD &bdd, int a) {
     std::vector<CertMap::iterator> itvec;
     initialize_itvec(itvec);
+    const Action &action = task->get_action(a);
     do {
         BDD conjunction = manager.bddOne();
         for(int i = 0; i < itvec.size(); ++i) {
             conjunction = conjunction * itvec[i]->second.bdd;
         }
-        conjunction = conjunction * actionbdd;
-        if(conjunction.Leq(bdd_primed)) {
+        BDD succ = conjunction * bdd_actions[a].pre;
+        for (int var = 0; var < task->get_number_of_facts(); ++var) {
+            if (action.change[var] != 0) {
+                permutation[2*var] = 2*var+1;
+                permutation[2*var+1] = 2*var;
+            } else {
+                permutation[2*var] = 2*var;
+                permutation[2*var+1] = 2*var+1;
+            }
+        }
+        succ = succ.Permute(&permutation[0])*bdd_actions[a].eff;
+        if(succ.Leq(bdd)) {
             return true;
         }
     } while(next_permutation(itvec, lastits));
@@ -139,7 +150,7 @@ bool ConjunctiveCertificate::contains_goal() {
     return true;
 }
 
-bool ConjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
+bool ConjunctiveCertificate::check_hints() {
     // oftenly used variables
     std::string line;
     int hint_amount = -1;
@@ -165,20 +176,30 @@ bool ConjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
         hint_amount = -1;
 
         // check inductivity for the bdd with given index
-        BDD cert_i_perm = certificate[index].bdd.Permute(&permutation[0]);
-        for(size_t i = 0; i < action_bdds.size(); ++i) {
+        BDD cert_i = certificate[index].bdd;
+        for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
+            const Action &action = task->get_action(i);
             // if a hint is given, the sucessor of the hint must be included by bdd[index]
             if(hints[i] >= 0) {
-                BDD tmp = certificate[hints[i]].bdd;
-                tmp = tmp * action_bdds[i];
-                if(!tmp.Leq(cert_i_perm)) {
+                BDD succ = certificate[hints[i]].bdd * bdd_actions[i].pre;
+                for (int var = 0; var < task->get_number_of_facts(); ++var) {
+                    if (action.change[var] != 0) {
+                        permutation[2*var] = 2*var+1;
+                        permutation[2*var+1] = 2*var;
+                    } else {
+                        permutation[2*var] = 2*var;
+                        permutation[2*var+1] = 2*var+1;
+                    }
+                }
+                succ = succ.Permute(&permutation[0])*bdd_actions[i].eff;
+                if(!succ.Leq(cert_i)) {
                     return false;
                 }
                 // reset hint vector
                 hints[i] = -1;
             // if no hint is given, check if the bdd is r-inductive
             // if not, the certificate is not valid
-            } else if (!(is_covered_by_r(cert_i_perm, action_bdds[i]))) {
+            } else if (!(is_covered_by_r(cert_i, i))) {
                 return false;
             }
         }
@@ -194,16 +215,10 @@ bool ConjunctiveCertificate::check_hints(std::vector<BDD> &action_bdds) {
 }
 
 bool ConjunctiveCertificate::is_inductive() {
-    // build action bdds
-    std::vector<BDD> action_bdds(task->get_number_of_actions(), BDD());
-    for(size_t i = 0; i < action_bdds.size(); ++i) {
-        action_bdds[i] = build_bdd_for_action(task->get_action(i));
-    }
-
     // read in hints and check if the corresponding bdds are inductive
     // if not, we can return false already, if they are we need to check the rest
     if(hint_stream.is_open()) {
-        if(!check_hints(action_bdds)) {
+        if(!check_hints()) {
             return false;
         }
     }
@@ -216,9 +231,8 @@ bool ConjunctiveCertificate::is_inductive() {
         }
 
         // bdd is not covered -> loop over all actions and check if its r-inductive
-        BDD cert_i_perm = it->second.bdd.Permute(&permutation[0]);
-        for(size_t i = 0; i < action_bdds.size(); ++i) {
-            if(!(is_covered_by_r(cert_i_perm, action_bdds[i]))) {
+        for(size_t i = 0; i < task->get_number_of_actions(); ++i) {
+            if(!(is_covered_by_r(it->second.bdd, i))) {
                 return false;
             }
         }
