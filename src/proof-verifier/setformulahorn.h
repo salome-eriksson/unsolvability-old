@@ -19,17 +19,6 @@ struct HornConjunctionElement {
 typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
 typedef std::vector<std::pair<std::forward_list<int>,std::forward_list<int>>> VariableOccurences;
 
-struct HornAction {
-    SetFormulaHorn *pre;
-    SetFormulaHorn *eff;
-    std::vector<int> shift_vars;
-
-    HornAction (SetFormulaHorn *pre, SetFormulaHorn *eff, std::vector<int> &shift_vars)
-        :pre(pre), eff(eff), shift_vars(shift_vars) {
-
-    }
-};
-
 class HornUtil {
     friend class SetFormulaHorn;
 private:
@@ -38,7 +27,6 @@ private:
     SetFormulaHorn *initformula;
     SetFormulaHorn *goalformula;
     SetFormulaHorn *trueformula;
-    std::vector<HornAction> hornactions;
     HornUtil(Task *task);
 
     void build_actionformulas();
@@ -95,6 +83,7 @@ private:
     SetFormulaHorn(const std::vector<std::pair<std::vector<int>,int>> &clauses, int varamount);
     // used for getting a simplified conjunction of several (possibly primed) formulas
     SetFormulaHorn(std::vector<SetFormulaHorn *> &formulas);
+    SetFormulaHorn(const SetFormulaHorn &other, const Action &action, bool progression);
     void simplify();
 public:
     // TODO: this is currently only used for a dummy initialization
@@ -102,7 +91,7 @@ public:
     SetFormulaHorn(std::ifstream &input, Task *task);
     virtual ~SetFormulaHorn() {}
 
-    void shift(std::vector<int> &vars);
+    //void shift(std::vector<int> &vars);
 
     int get_size() const;
     int get_varamount() const;
