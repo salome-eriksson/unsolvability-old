@@ -103,31 +103,6 @@ BDD BDDUtil::build_bdd_from_cube(const Cube &cube) {
     return BDD(manager, Cudd_CubeArrayToBdd(manager.getManager(), &local_cube[0]));
 }
 
-/*BDD BDDUtil::build_bdd_for_action(const Action &a) {
-    BDD ret = manager.bddOne();
-    for(size_t i = 0; i < a.pre.size(); ++i) {
-        ret = ret * manager.bddVar(varorder[a.pre[i]]*2);
-    }
-
-    //+1 represents primed variable
-    for(size_t i = 0; i < a.change.size(); ++i) {
-        int permutated_i = varorder[i];
-        //add effect
-        if(a.change[i] == 1) {
-            ret = ret * manager.bddVar(permutated_i*2+1);
-        //delete effect
-        } else if(a.change[i] == -1) {
-            ret = ret - manager.bddVar(permutated_i*2+1);
-        //no change -> frame axiom
-        } else {
-            assert(a.change[i] == 0);
-            ret = ret * (manager.bddVar(permutated_i*2) + !manager.bddVar(permutated_i*2+1));
-            ret = ret * (!manager.bddVar(permutated_i*2) + manager.bddVar(permutated_i*2+1));
-        }
-    }
-    return ret;
-}*/
-
 void BDDUtil::build_actionformulas() {
     actionformulas.reserve(task->get_number_of_actions());
     for(int i = 0; i < task->get_number_of_actions(); ++i) {
@@ -288,18 +263,20 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
 
     for (int a : actions) {
         const Action &action = util->task->get_action(a);
-        BDD left_rn = left_singular * util->actionformulas[a].pre;
+        BDD prog_rn = prog_singular * util->actionformulas[a].pre;
+
         for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
+            int local_var = util->varorder[var];
             if (action.change[var] != 0) {
-                prime_permutation[2*var] = 2*var+1;
-                prime_permutation[2*var+1] = 2*var;
+                prime_permutation[2*local_var] = 2*local_var+1;
+                prime_permutation[2*local_var+1] = 2*local_var;
             } else {
-                prime_permutation[2*var] = 2*var;
-                prime_permutation[2*var+1] = 2*var+1;
+                prime_permutation[2*local_var] = 2*local_var;
+                prime_permutation[2*local_var+1] = 2*local_var+1;
             }
         }
-        left_rn.Permute(&prime_permutation[0]);
-        if (!( (left_rn*util->actionformulas[a].eff).Leq(neg_left_or_right) )) {
+        prog_rn = (prog_rn.Permute(&prime_permutation[0]));
+        if ( !((prog_rn* util->actionformulas[a].eff).Leq(neg_left_or_right)) ) {
             return false;
         }
     }
@@ -341,18 +318,19 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
 
     for (int a : actions) {
         const Action &action = util->task->get_action(a);
-        BDD left_rn = left_singular * util->actionformulas[a].eff;
+        BDD reg_rn = reg_singular * util->actionformulas[a].eff;
         for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
+            int local_var = util->varorder[var];
             if (action.change[var] != 0) {
-                prime_permutation[2*var] = 2*var+1;
-                prime_permutation[2*var+1] = 2*var;
+                prime_permutation[2*local_var] = 2*local_var+1;
+                prime_permutation[2*local_var+1] = 2*local_var;
             } else {
-                prime_permutation[2*var] = 2*var;
-                prime_permutation[2*var+1] = 2*var+1;
+                prime_permutation[2*local_var] = 2*local_var;
+                prime_permutation[2*local_var+1] = 2*local_var+1;
             }
         }
-        left_rn.Permute(&prime_permutation[0]);
-        if (!( (left_rn*util->actionformulas[a].pre).Leq(neg_left_or_right) )) {
+        reg_rn = reg_rn.Permute(&prime_permutation[0]);
+        if (!( (reg_rn*util->actionformulas[a].pre).Leq(neg_left_or_right) )) {
             return false;
         }
     }
