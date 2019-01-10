@@ -377,7 +377,7 @@ SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int
         }
         left_sizes.push_back(clause.first.size());
     }
-    //simplify();
+    simplify();
     varorder.reserve(varamount);
     for (size_t var = 0; var < varamount; ++var) {
         varorder.push_back(var);
@@ -868,7 +868,7 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
 
     SetFormulaHorn *reg_singular;
     SetFormulaHorn reg_dummy(util->task);
-    if (horn_formulas_reg.size() > 0) {
+    if (horn_formulas_reg.size() > 1) {
         reg_dummy = SetFormulaHorn(horn_formulas_reg);
         reg_singular = &reg_dummy;
     } else {
@@ -886,6 +886,9 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
     }
 
     std::vector<SetFormulaHorn *> vec;
+    if (left_singular) {
+        vec.push_back(left_singular);
+    }
     for (int a : actions) {
         SetFormulaHorn reg_applied(*reg_singular, util->task->get_action(a), false);
         vec.push_back(&reg_applied);
