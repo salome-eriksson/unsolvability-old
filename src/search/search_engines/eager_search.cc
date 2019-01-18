@@ -122,7 +122,8 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
-        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
             open_list->create_subcertificate(eval_context);
         }
         cout << "Initial state is a dead end." << endl;
@@ -140,7 +141,8 @@ void EagerSearch::initialize() {
 
     pruning_method->initialize(task);
 
-    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+            unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
         unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
     }
 }
@@ -160,7 +162,8 @@ void EagerSearch::print_statistics() const {
 SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
-        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
             write_unsolvability_certificate();
         }
         if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
@@ -192,14 +195,16 @@ SearchStatus EagerSearch::step() {
                                     preferred_operators);
     }
 
-    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+            unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
         unsolvability_certificate_hints << s.get_id().get_value() << " " << applicable_ops.size();
     }
 
     for (OperatorID op_id : applicable_ops) {
         OperatorProxy op = task_proxy.get_operators()[op_id];
         if ((node.get_real_g() + op.get_cost()) >= bound) {
-            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+                    unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
                 unsolvability_certificate_hints << " " <<  op.get_id() << " -1";
             }
             continue;
@@ -217,7 +222,8 @@ SearchStatus EagerSearch::step() {
 
         // Previously encountered dead end. Don't re-evaluate.
         if (succ_node.is_dead_end()) {
-            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+                    unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
                 EvaluationContext succ_eval_context(
                     succ_state, succ_node.get_g(), is_preferred, &statistics);
                 // TODO: need to call something in order for the state to actually be evaluated, but this might be inefficient
@@ -242,7 +248,8 @@ SearchStatus EagerSearch::step() {
             statistics.inc_evaluated_states();
 
             if (open_list->is_dead_end(succ_eval_context)) {
-                if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+                if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+                        unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
                     int hint = open_list->create_subcertificate(succ_eval_context);
                     unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
                 }
@@ -300,11 +307,13 @@ SearchStatus EagerSearch::step() {
                 succ_node.update_parent(node, op, get_adjusted_cost(op));
             }
         }
-        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
             unsolvability_certificate_hints << " " << op.get_id() << " " << succ_state.get_id().get_value();
         }
     }
-    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE) {
+    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
+            unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
         unsolvability_certificate_hints << "\n";
     }
 
@@ -510,14 +519,31 @@ void EagerSearch::write_unsolvability_certificate() {
     }
 
     std::string statebdd_file = unsolvability_directory + "states.bdd";
-    std::ofstream stream;
-    stream.open(statebdd_file);
-    for(const StateID id : state_registry) {
-        // dump bdds of closed states
-        const GlobalState &state = state_registry.lookup_state(id);
-        if(search_space.get_node(state).is_closed()) {
-            dump_statebdd(state, stream, varamount, fact_to_var);
+    if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
+        std::ofstream stream;
+        stream.open(statebdd_file);
+        for(const StateID id : state_registry) {
+            // dump bdds of closed states
+            const GlobalState &state = state_registry.lookup_state(id);
+            if(search_space.get_node(state).is_closed()) {
+                dump_statebdd(state, stream, varamount, fact_to_var);
+            }
         }
+    } else {
+        std::vector<CuddBDD> statebdds;
+        std::vector<int> stateids;
+        int expanded = statistics.get_expanded();
+        statebdds.reserve(expanded);
+        stateids.reserve(expanded);
+        CuddManager cudd_manager(task, varorder);
+        for (const StateID id : state_registry) {
+            const GlobalState &state = state_registry.lookup_state(id);
+            if(search_space.get_node(state).is_closed()) {
+                stateids.push_back(id.get_value());
+                statebdds.push_back(CuddBDD(&cudd_manager, state));
+            }
+        }
+        cudd_manager.dumpBDDs_certificate(statebdds, stateids, statebdd_file);
     }
 
     // there is currently no safeguard that these are the actual names used

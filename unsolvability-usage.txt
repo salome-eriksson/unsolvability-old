@@ -102,7 +102,7 @@ accessed and crossreferenced.
 The hint-file is intended for conjunctive/disjunctive certificates. It tells
 for a bdd and for an action which bdds are associated with it. It is not
 necessary but will make the verification process a lot faster. The file
-contains of lines with the following format:
+consists of lines with the following format:
 <bdd-index> <#hints> <actionindex> <bddindex>:---:<bddindex> ...
 It must end with the following line:
 end_hints
