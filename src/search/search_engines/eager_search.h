@@ -19,6 +19,7 @@ class Options;
 enum class UnsolvabilityVerificationType {
     NONE,
     CERTIFICATE,
+    CERTIFICATE_FASTDUMP,
     PROOF
 };
 
