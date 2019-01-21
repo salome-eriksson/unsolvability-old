@@ -56,6 +56,7 @@ protected:
     std::vector<std::vector<Proposition>> propositions;
     std::vector<Proposition *> goal_propositions;
 
+    bool unsolv_subsumption_check;
     CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
     std::vector<int> bdd_to_stateid;

@@ -15,8 +15,10 @@ using namespace std;
 
 namespace relaxation_heuristic {
 // construction and destruction
+// TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
 RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
-    : Heuristic(opts), unsolvability_setup(false) {
+    : Heuristic(opts), unsolv_subsumption_check(false),
+      unsolvability_setup(false) {
     // Build propositions.
     int prop_id = 0;
     VariablesProxy variables = task_proxy.get_variables();
@@ -184,9 +186,11 @@ void RelaxationHeuristic::simplify() {
 
 std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const GlobalState &state) {
     CuddBDD statebdd(cudd_manager, state);
-    for(size_t i = 0; i < bdds.size(); ++i) {
-        if(statebdd.isSubsetOf(bdds[i])) {
-            return std::make_pair(true,i);
+    if(unsolv_subsumption_check) {
+        for(size_t i = 0; i < bdds.size(); ++i) {
+            if(statebdd.isSubsetOf(bdds[i])) {
+                return std::make_pair(true,i);
+            }
         }
     }
 
@@ -213,9 +217,9 @@ int RelaxationHeuristic::create_subcertificate(EvaluationContext &eval_context) 
     }
     std::pair<bool,int> get_bdd = get_bdd_for_state(eval_context.get_state());
     bool bdd_already_seen = get_bdd.first;
-    int bddindex = get_bdd.second;
     // we have used this bdd for another dead end already, use this stateid
     if(bdd_already_seen) {
+        int bddindex = get_bdd.second;
         return bdd_to_stateid[bddindex];
     }
     int stateid = eval_context.get_state().get_id().get_value();
