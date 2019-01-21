@@ -533,17 +533,19 @@ void EagerSearch::write_unsolvability_certificate() {
         std::vector<CuddBDD> statebdds;
         std::vector<int> stateids;
         int expanded = statistics.get_expanded();
-        statebdds.reserve(expanded);
-        stateids.reserve(expanded);
-        CuddManager cudd_manager(task, varorder);
-        for (const StateID id : state_registry) {
-            const GlobalState &state = state_registry.lookup_state(id);
-            if(search_space.get_node(state).is_closed()) {
-                stateids.push_back(id.get_value());
-                statebdds.push_back(CuddBDD(&cudd_manager, state));
+        if (expanded > 0) {
+            statebdds.reserve(expanded);
+            stateids.reserve(expanded);
+            CuddManager cudd_manager(task, varorder);
+            for (const StateID id : state_registry) {
+                const GlobalState &state = state_registry.lookup_state(id);
+                if(search_space.get_node(state).is_closed()) {
+                    stateids.push_back(id.get_value());
+                    statebdds.push_back(CuddBDD(&cudd_manager, state));
+                }
             }
+            cudd_manager.dumpBDDs_certificate(statebdds, stateids, statebdd_file);
         }
-        cudd_manager.dumpBDDs_certificate(statebdds, stateids, statebdd_file);
     }
 
     // there is currently no safeguard that these are the actual names used
