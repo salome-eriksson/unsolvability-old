@@ -6,7 +6,7 @@ installed to)
 2. unpack the archive
 3. In folder cudd-3.0.0 call the following steps to get the 32-bit library
    with dddmp and c++-wrapper:
-  - ./configure --prefix=<path-to-cudd> --enable-shared --enable-dddmp --enable-obj --enable-static "CFLAGS=-m32" "CXXFLAGS=-m32" "LDFLAGS=-m32"
+  - ./configure --prefix=<path-to-cudd> --enable-shared --enable-dddmp --enable-obj --enable-static "CFLAGS=-m32 -D_FILE_OFFSET_BITS=64" "CXXFLAGS=-m32 -D_FILE_OFFSET_BITS=64" "LDFLAGS=-m32"
   - make
   - make install
 4. Move the following two header files to <path-to-cudd>/include:
