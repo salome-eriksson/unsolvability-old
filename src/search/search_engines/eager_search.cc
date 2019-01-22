@@ -529,14 +529,15 @@ void EagerSearch::write_unsolvability_certificate() {
                 dump_statebdd(state, stream, varamount, fact_to_var);
             }
         }
+        stream.close();
     } else {
-        std::vector<CuddBDD> statebdds;
-        std::vector<int> stateids;
+        std::vector<CuddBDD> statebdds(0);
+        std::vector<int> stateids(0);
         int expanded = statistics.get_expanded();
+        CuddManager cudd_manager(task, varorder);
         if (expanded > 0) {
             statebdds.reserve(expanded);
             stateids.reserve(expanded);
-            CuddManager cudd_manager(task, varorder);
             for (const StateID id : state_registry) {
                 const GlobalState &state = state_registry.lookup_state(id);
                 if(search_space.get_node(state).is_closed()) {
@@ -544,8 +545,8 @@ void EagerSearch::write_unsolvability_certificate() {
                     statebdds.push_back(CuddBDD(&cudd_manager, state));
                 }
             }
-            cudd_manager.dumpBDDs_certificate(statebdds, stateids, statebdd_file);
         }
+        cudd_manager.dumpBDDs_certificate(statebdds, stateids, statebdd_file);
     }
 
     // there is currently no safeguard that these are the actual names used
