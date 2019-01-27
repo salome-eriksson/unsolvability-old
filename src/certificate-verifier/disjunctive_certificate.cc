@@ -94,7 +94,9 @@ bool DisjunctiveCertificate::next_permutation(std::vector<CertMap::iterator>& it
 bool DisjunctiveCertificate::is_covered_by_r(BDD &successor_bdd) {
     std::vector<CertMap::iterator> itvec;
     initialize_itvec(itvec);
+    int count = 0;
     do {
+        count++;
         BDD disjunction = manager.bddZero();
         for(int i = 0; i < itvec.size(); ++i) {
             disjunction = disjunction + itvec[i]->second.bdd;

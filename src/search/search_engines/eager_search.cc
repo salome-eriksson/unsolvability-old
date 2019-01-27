@@ -123,7 +123,8 @@ void EagerSearch::initialize() {
 
     if (open_list->is_dead_end(eval_context)) {
         if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP ||
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
             open_list->create_subcertificate(eval_context);
         }
         cout << "Initial state is a dead end." << endl;
@@ -163,7 +164,8 @@ SearchStatus EagerSearch::step() {
     pair<SearchNode, bool> n = fetch_next_node();
     if (!n.second) {
         if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP ||
+                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
             write_unsolvability_certificate();
         }
         if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
@@ -252,6 +254,8 @@ SearchStatus EagerSearch::step() {
                         unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
                     int hint = open_list->create_subcertificate(succ_eval_context);
                     unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
+                } else if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
+                    open_list->create_subcertificate(succ_eval_context);
                 }
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
@@ -494,6 +498,9 @@ void dump_statebdd(const GlobalState &s, std::ofstream &statebdd_file,
 }
 
 void EagerSearch::write_unsolvability_certificate() {
+    if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
+        unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
+    }
     unsolvability_certificate_hints << "end hints";
     unsolvability_certificate_hints.close();
 
