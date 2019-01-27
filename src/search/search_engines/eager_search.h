@@ -20,6 +20,7 @@ enum class UnsolvabilityVerificationType {
     NONE,
     CERTIFICATE,
     CERTIFICATE_FASTDUMP,
+    CERTIFICATE_NOHINTS,
     PROOF
 };
 
