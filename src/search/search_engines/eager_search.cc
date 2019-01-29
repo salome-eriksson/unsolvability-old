@@ -126,6 +126,8 @@ void EagerSearch::initialize() {
                 unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP ||
                 unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
             open_list->create_subcertificate(eval_context);
+        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
+            open_list->store_deadend_info(eval_context);
         }
         cout << "Initial state is a dead end." << endl;
     } else {
@@ -256,6 +258,8 @@ SearchStatus EagerSearch::step() {
                     unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
                 } else if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
                     open_list->create_subcertificate(succ_eval_context);
+                } else if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
+                    open_list->store_deadend_info(succ_eval_context);
                 }
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
@@ -596,7 +600,7 @@ void EagerSearch::write_unsolvability_proof() {
                                        search_space.get_node(init_state).get_g(),
                                        false, &statistics);
         std::pair<int,int> dead_superset =
-                open_list->prove_superset_dead(eval_context, unsolvmgr);
+                open_list->get_set_and_deadknowledge_id(eval_context, unsolvmgr);
         int knowledge_init_subset = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << knowledge_init_subset << " s " <<  unsolvmgr.get_initsetid()
                    << " " << dead_superset.first << " b1\n";
@@ -658,7 +662,7 @@ void EagerSearch::write_unsolvability_proof() {
                                            search_space.get_node(state).get_g(),
                                            false, &statistics);
             std::pair<int,int> dead_superset =
-                    open_list->prove_superset_dead(eval_context, unsolvmgr);
+                    open_list->get_set_and_deadknowledge_id(eval_context, unsolvmgr);
 
             // prove that an explicit set only containing dead end is dead
             int expl_state_setid = unsolvmgr.get_new_setid();

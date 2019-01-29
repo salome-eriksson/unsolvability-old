@@ -86,7 +86,10 @@ public:
     virtual std::vector<int> get_varorder() {return std::vector<int>();}
 
     // functions related to unsolvability proof generation
-    virtual std::pair<int,int> prove_superset_dead(EvaluationContext &, UnsolvabilityManager &) {
+    // CARE: we assume this function is called right after heuristic computation
+    virtual void store_deadend_info(EvaluationContext &) {}
+
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(EvaluationContext &, UnsolvabilityManager &) {
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }

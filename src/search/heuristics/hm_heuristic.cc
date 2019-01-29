@@ -291,25 +291,31 @@ void HMHeuristic::setup_unsolvability_proof() {
     unsolvability_setup = true;
 }
 
-std::pair<int,int> HMHeuristic::prove_superset_dead(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
-    //we need to redo the computation to get the unreachable facts
-    compute_heuristic(eval_context.get_state());
-
+void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     if(!unsolvability_setup) {
         setup_unsolvability_proof();
     }
 
-    int clauseamount = mutexamount;
-    std::stringstream tuples;
+    std::forward_list<const Tuple *> tuples;
     for(auto &elem : hm_table) {
         if (elem.second == numeric_limits<int>::max()) {
-            for(size_t i = 0; i < elem.first.size(); ++i) {
-                tuples << "-" << fact_to_variable[elem.first[i].var][elem.first[i].value] << " ";
-            }
-            tuples << "0 ";
-            clauseamount++;
+            tuples.push_front(&(elem.first));
         }
+    }
+    unreachable_tuples.insert({eval_context.get_state().get_id().get_value(), std::move(tuples)});
+}
+
+std::pair<int,int> HMHeuristic::get_set_and_deadknowledge_id(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+
+    int clauseamount = mutexamount;
+    std::stringstream tuples;
+    for(const Tuple * tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
+        for(size_t i = 0; i < tuple->size(); ++i) {
+            tuples << "-" << fact_to_variable[tuple->at(i).var][tuple->at(i).value] << " ";
+        }
+        tuples << "0 ";
+        clauseamount++;
     }
 
     int setid = unsolvmanager.get_new_setid();

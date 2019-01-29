@@ -25,7 +25,8 @@ using utils::ExitCode;
 
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const options::Options &opts)
-    : Heuristic(opts), unsolvability_setup(false), bdd(nullptr) {
+    : Heuristic(opts), bdd(nullptr), bdd_to_stateid(-1),
+      setid(-1), k_set_dead(-1) {
     Verbosity verbosity = static_cast<Verbosity>(opts.get_enum("verbosity"));
 
     cout << "Initializing merge-and-shrink heuristic..." << endl;
@@ -108,25 +109,23 @@ int MergeAndShrinkHeuristic::compute_heuristic(const GlobalState &global_state) 
 }
 
 
-void MergeAndShrinkHeuristic::setup_unsolvability_proof() {
-    std::cout << "setting up unsolvability proof" << std::endl;
+void MergeAndShrinkHeuristic::get_bdd() {
     std::unordered_map<int, CuddBDD> bdd_map;
     bdd_map.insert({0, CuddBDD(cudd_manager, false)});
     bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
     bdd = mas_representation->get_deadend_bdd(cudd_manager, bdd_map, true);
-    unsolvability_setup = true;
 }
 
 int MergeAndShrinkHeuristic::create_subcertificate(EvaluationContext &eval_context) {
-    if(!unsolvability_setup) {
-        setup_unsolvability_proof();
+    if(bdd_to_stateid == -1) {
         bdd_to_stateid = eval_context.get_state().get_id().get_value();
     }
     return bdd_to_stateid;
 }
 
 void MergeAndShrinkHeuristic::write_subcertificates(const string &filename) {
-    if(bdd) {
+    if(bdd_to_stateid > -1) {
+        get_bdd();
         std::vector<CuddBDD> bddvec(1,*bdd);
         std::vector<int> stateidvec(1,bdd_to_stateid);
         cudd_manager->dumpBDDs_certificate(bddvec, stateidvec, filename);
@@ -141,10 +140,10 @@ std::vector<int> MergeAndShrinkHeuristic::get_varorder() {
     return variable_order;
 }
 
-std::pair<int,int> MergeAndShrinkHeuristic::prove_superset_dead(
+std::pair<int,int> MergeAndShrinkHeuristic::get_set_and_deadknowledge_id(
         EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
-    if(!unsolvability_setup) {
-        setup_unsolvability_proof();
+    if(setid == -1) {
+        get_bdd();
         std::vector<CuddBDD>bdds(1,*bdd);
         delete bdd;
 

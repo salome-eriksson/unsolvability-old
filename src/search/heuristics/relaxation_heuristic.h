@@ -60,6 +60,7 @@ protected:
     CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
     std::vector<int> bdd_to_stateid;
+    std::unordered_map<int,int> state_to_bddindex;
     /*
       the first int is a setid which corresponds to the BDD in the bdds vector
       the second int is a knowledgeid which corresponds to the knowledge that setid is dead
@@ -86,7 +87,8 @@ public:
     virtual void write_subcertificates(const std::string &filename) override;
 
     // functions related to unsolvability proof generation
-    virtual std::pair<int,int> prove_superset_dead(
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 };

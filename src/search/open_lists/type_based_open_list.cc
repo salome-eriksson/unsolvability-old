@@ -49,7 +49,8 @@ public:
     virtual void write_subcertificates(const std::string &filename) override;
     virtual std::vector<int> get_varorder() override;
 
-    virtual std::pair<int,int> prove_superset_dead(
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 };
@@ -168,11 +169,20 @@ std::vector<int> TypeBasedOpenList<Entry>::get_varorder() {
 }
 
 template<class Entry>
-std::pair<int,int> TypeBasedOpenList<Entry>::prove_superset_dead(
+void TypeBasedOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
+        if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+            evaluator->store_deadend_info(eval_context);
+        }
+    }
+}
+
+template<class Entry>
+std::pair<int,int> TypeBasedOpenList<Entry>::get_set_and_deadknowledge_id(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
         if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
-            return evaluator->prove_superset_dead(eval_context, unsolvmanager);
+            return evaluator->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;

@@ -5,9 +5,11 @@
 #include "../evaluation_context.h"
 
 #include <algorithm>
+#include <forward_list>
 #include <iostream>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace options {
@@ -36,6 +38,8 @@ class HMHeuristic : public Heuristic {
 
     bool unsolvability_setup;
     std::vector<std::vector<int>> fact_to_variable;
+
+    std::unordered_map<int,std::forward_list<const Tuple *>> unreachable_tuples;
     int strips_varamount;
     std::string mutexes;
     int mutexamount;
@@ -74,7 +78,8 @@ public:
 
     virtual bool dead_ends_are_reliable() const;
 
-    virtual std::pair<int,int> prove_superset_dead(
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }

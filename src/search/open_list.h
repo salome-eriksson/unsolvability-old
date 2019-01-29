@@ -134,7 +134,8 @@ public:
     virtual std::vector<int> get_varorder() = 0;
 
     // functions related to unsolvability proof generation
-    virtual std::pair<int,int> prove_superset_dead(
+    virtual void store_deadend_info(EvaluationContext &eval_context) = 0;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) = 0;
     virtual void finish_unsolvability_proof() = 0;
 };
