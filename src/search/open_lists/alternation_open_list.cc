@@ -44,7 +44,8 @@ public:
     virtual void write_subcertificates(const std::string &filename) override;
     virtual std::vector<int> get_varorder() override;
 
-    virtual std::pair<int,int> prove_superset_dead(
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 };
@@ -168,11 +169,20 @@ std::vector<int> AlternationOpenList<Entry>::get_varorder() {
 }
 
 template<class Entry>
-std::pair<int,int> AlternationOpenList<Entry>::prove_superset_dead(
+void AlternationOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    for (const auto &sublist : open_lists) {
+        if(sublist->is_dead_end(eval_context)) {
+            return sublist->store_deadend_info(eval_context);
+        }
+    }
+}
+
+template<class Entry>
+std::pair<int,int> AlternationOpenList<Entry>::get_set_and_deadknowledge_id(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const auto &sublist : open_lists) {
         if(sublist->is_dead_end(eval_context)) {
-            return sublist->prove_superset_dead(eval_context, unsolvmanager);
+            return sublist->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;

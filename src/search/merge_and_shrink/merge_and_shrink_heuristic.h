@@ -14,8 +14,6 @@ class MergeAndShrinkHeuristic : public Heuristic {
     // The final merge-and-shrink representation, storing goal distances.
     std::unique_ptr<MergeAndShrinkRepresentation> mas_representation;
 
-    // TODO: change vars as needed
-    bool unsolvability_setup;
     CuddManager* cudd_manager;
     std::vector<int> variable_order;
     CuddBDD *bdd;
@@ -30,13 +28,15 @@ class MergeAndShrinkHeuristic : public Heuristic {
     virtual void write_subcertificates(const std::string &filename) override;
     virtual std::vector<int> get_varorder() override;
 
-    void setup_unsolvability_proof();
+    void get_bdd();
 protected:
     virtual int compute_heuristic(const GlobalState &global_state) override;
 public:
     explicit MergeAndShrinkHeuristic(const options::Options &opts);
 
-    virtual std::pair<int,int> prove_superset_dead(
+    // currently not used
+    //virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }

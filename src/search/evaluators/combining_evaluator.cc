@@ -61,11 +61,20 @@ int CombiningEvaluator::create_subcertificate(EvaluationContext &eval_context) {
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
 
-std::pair<int,int> CombiningEvaluator::prove_superset_dead(
+void CombiningEvaluator::store_deadend_info(EvaluationContext &eval_context) {
+    for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
+        if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
+            subevaluator->store_deadend_info(eval_context);
+            break;
+        }
+    }
+}
+
+std::pair<int,int> CombiningEvaluator::get_set_and_deadknowledge_id(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
-            return subevaluator->prove_superset_dead(eval_context, unsolvmanager);
+            return subevaluator->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
