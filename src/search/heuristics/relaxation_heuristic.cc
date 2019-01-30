@@ -186,6 +186,10 @@ void RelaxationHeuristic::simplify() {
 
 // CARE: we assume the heuristic has just been calculated for this state
 std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const GlobalState &state) {
+    auto it = state_to_bddindex.find(state.get_id().get_value());
+    if (it != state_to_bddindex.end()) {
+        return std::make_pair(true, it->second);
+    }
     CuddBDD statebdd(cudd_manager, state);
     if(unsolv_subsumption_check) {
         for(size_t i = 0; i < bdds.size(); ++i) {
@@ -205,6 +209,7 @@ std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const GlobalState &st
         }
     }
     bdds.push_back(CuddBDD(cudd_manager, pos_vars,neg_vars));
+    state_to_bddindex[state.get_id().get_value()] = bdds.size()-1;
     return std::make_pair(false,bdds.size()-1);
 }
 
