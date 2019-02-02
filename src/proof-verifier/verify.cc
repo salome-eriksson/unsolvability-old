@@ -201,8 +201,8 @@ void read_and_check_knowledge(std::ifstream &in, ProofChecker &proofchecker) {
 }
 
 int main(int argc, char** argv) {
-    if(argc < 3 || argc > 4) {
-        std::cout << "Usage: verify <task-file> <certificate-file> [timeout]" << std::endl;
+    if(argc < 3 || argc > 5) {
+        std::cout << "Usage: verify <task-file> <certificate-file> [--timeout=x] [--discard_formulas]" << std::endl;
         std::cout << "timeout is an optional parameter in seconds" << std::endl;
         exit(0);
     }
@@ -248,17 +248,28 @@ int main(int argc, char** argv) {
     }
 
     int x = std::numeric_limits<int>::max();
-    if(argc == 4) {
-        std::istringstream ss(argv[3]);
-        if (!(ss >> x) || x < 0) {
-            std::cout << "Usage: verify <pddl-file> <certificate-file> [timeout]" << std::endl;
+    bool discard_formulas = false;
+    for(int i = 3; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.compare("--discard_formulas") == 0) {
+            discard_formulas = true;
+            std::cout << "discarding formulas when not needed anymore" << std::endl;
+        } else if (arg.substr(0,10).compare("--timeout=") == 0) {
+            std::istringstream ss(arg.substr(10));
+            if (!(ss >> x) || x < 0) {
+                std::cout << "Usage: verify <task-file> <certificate-file> [--timeout=x] [--discard_formulas]" << std::endl;
+                std::cout << "timeout is an optional parameter in seconds" << std::endl;
+                exit(0);
+            }
+            std::cout << "using timeout of " << x << " seconds" << std::endl;
+        } else {
+            std::cout << "Usage: verify <task-file> <certificate-file> [--timeout=x] [--discard_formulas]" << std::endl;
             std::cout << "timeout is an optional parameter in seconds" << std::endl;
             exit(0);
         }
-        std::cout << "using timeout of " << x << " seconds" << std::endl;
     }
     set_timeout(x);
-
+    set_discard_formulas(discard_formulas);
     Task* task = new Task(task_file);
 
     manager = Cudd(task->get_number_of_facts()*2);
@@ -268,7 +279,9 @@ int main(int argc, char** argv) {
     std::cout << "Amount of Actions: " << task->get_number_of_actions() << std::endl;
 
     ProofChecker proofchecker;
-    proofchecker.first_pass(certificate_file);
+    if (discard_formulas) {
+        proofchecker.first_pass(certificate_file);
+    }
 
     std::ifstream certstream;
     certstream.open(certificate_file);

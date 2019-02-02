@@ -6,6 +6,7 @@
 #include <math.h>
 #include <limits>
 
+#include "global_funcs.h"
 #include "setformulaconstant.h"
 #include "setformulacompound.h"
 
@@ -118,7 +119,10 @@ SetFormula *ProofChecker::update_reference_and_check_consistency(
 }
 
 void ProofChecker::add_formula(std::unique_ptr<SetFormula> formula, FormulaIndex index) {
-    // first_pass() will guarantee that the entry for this index exists already
+    // if g_discard_formulas, first_pass() will guarantee that the entry for this index exists already
+    if (!g_discard_formulas && index >= formulas.size()) {
+        formulas.resize(index+1);
+    }
     assert(!formulas[index].fpointer);
     formulas[index].fpointer = std::move(formula);
 }
@@ -141,16 +145,46 @@ void ProofChecker::add_actionset_union(ActionSetIndex left, ActionSetIndex right
                                                 actionsets[right].get())));
 }
 
-// TOOD: rework this
-/*
 void ProofChecker::remove_formulas_if_obsolete(std::vector<int> indices, int current_ki) {
     for(int index: indices) {
         if(formulas[index].last_occ == current_ki) {
-            formulas[index].fpointer.reset();
+            switch (formulas[index].fpointer.get()->get_formula_type()) {
+            case SetFormulaType::BDD:
+            case SetFormulaType::HORN:
+            case SetFormulaType::TWOCNF:
+            case SetFormulaType::EXPLICIT:
+                formulas[index].fpointer.reset();
+                break;
+            case SetFormulaType::NEGATION: {
+                SetFormulaNegation *f = dynamic_cast<SetFormulaNegation *>(formulas[index].fpointer.get());
+                remove_formulas_if_obsolete({f->get_subformula_index()}, current_ki);
+                break;
+            }
+            case SetFormulaType::PROGRESSION: {
+                SetFormulaProgression *f = dynamic_cast<SetFormulaProgression *>(formulas[index].fpointer.get());
+                remove_formulas_if_obsolete({f->get_subformula_index()}, current_ki);
+                break;
+            }
+            case SetFormulaType::REGRESSION: {
+                SetFormulaRegression *f = dynamic_cast<SetFormulaRegression *>(formulas[index].fpointer.get());
+                remove_formulas_if_obsolete({f->get_subformula_index()}, current_ki);
+                break;
+            }
+            case SetFormulaType::INTERSECTION: {
+                SetFormulaIntersection *f = dynamic_cast<SetFormulaIntersection *>(formulas[index].fpointer.get());
+                remove_formulas_if_obsolete({f->get_left_index(), f->get_right_index()}, current_ki);
+                break;
+            }
+            case SetFormulaType::UNION: {
+                SetFormulaUnion *f = dynamic_cast<SetFormulaUnion *>(formulas[index].fpointer.get());
+                remove_formulas_if_obsolete({f->get_left_index(), f->get_right_index()}, current_ki);
+                break;
+            }
+            }
+
         }
     }
 }
-*/
 
 /*
  * This method goes over the entire certificate file and collects information
@@ -819,10 +853,9 @@ bool ProofChecker::check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, Fo
     } catch(std::runtime_error e) {
         std::cerr << e.what() << std::endl;
     }
-    /*
-    remove_formulas_if_obsolete(left, newki);
-    remove_formulas_if_obsolete(right, newki);
-    */
+    if (g_discard_formulas) {
+        remove_formulas_if_obsolete({fi1,fi2}, newki);
+    }
     return ret;
 }
 
@@ -914,8 +947,9 @@ bool ProofChecker::check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, Fo
         std::cerr << e.what() << std::endl;
     }
 
-    //remove formulas if obsolete
-
+    if (g_discard_formulas) {
+        remove_formulas_if_obsolete({fi1,fi2}, newki);
+    }
     return ret;
 }
 
@@ -1007,8 +1041,9 @@ bool ProofChecker::check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, Fo
         std::cerr << e.what() << std::endl;
     }
 
-    //remove formulas if obsolete
-
+    if (g_discard_formulas) {
+        remove_formulas_if_obsolete({fi1,fi2}, newki);
+    }
     return ret;
 }
 
@@ -1069,9 +1104,10 @@ bool ProofChecker::check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, Fo
         std::cerr << e.what();
         ret = false;
     }
-    /*
-    remove_formulas_if_obsolete({left, right}, newki);
-    */
+
+    if (g_discard_formulas) {
+        remove_formulas_if_obsolete({fi1,fi2}, newki);
+    }
     return ret;
 }
 

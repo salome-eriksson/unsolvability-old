@@ -8,6 +8,7 @@
 
 extern Timer timer;
 extern int g_timeout;
+extern bool g_discard_formulas;
 extern Cudd manager;
 
 enum class ExitCode {
@@ -23,6 +24,7 @@ enum class ExitCode {
 
 void initialize_timer();
 void set_timeout(int x);
+void set_discard_formulas(bool b);
 int get_peak_memory_in_kb(bool use_buffered_input = true);
 void exit_with(ExitCode code);
 void exit_oom(size_t size);

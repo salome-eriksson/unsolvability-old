@@ -12,6 +12,7 @@
 
 Timer timer;
 int g_timeout;
+bool g_discard_formulas;
 Cudd manager;
 
 void initialize_timer() {
@@ -20,6 +21,10 @@ void initialize_timer() {
 
 void set_timeout(int x) {
     g_timeout = x;
+}
+
+void set_discard_formulas(bool b) {
+    g_discard_formulas = b;
 }
 
 int get_peak_memory_in_kb(bool use_buffered_input) {

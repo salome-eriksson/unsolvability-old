@@ -90,7 +90,7 @@ private:
     bool unsolvability_proven;
 
     void add_kbentry(std::unique_ptr<KBEntry> entry, KnowledgeIndex index);
-    //void remove_formulas_if_obsolete(std::vector<int> indices, int current_ki);
+    void remove_formulas_if_obsolete(std::vector<int> indices, int current_ki);
 
     /*
      * The return formula serves as a reference which basic formula type is involved.
