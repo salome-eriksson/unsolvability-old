@@ -182,11 +182,14 @@ def run_verify(args):
       REL_VERIFY_PATH = "verify-certificate"
     elif args.verify_type == 'proof':
       REL_VERIFY_PATH = "verify-proof"
+    elif args.verify_type == 'proof-discard':
+      REL_VERIFY_PATH = "verify-proof"
+      args.verify_options.append("--discard_formulas")
     else:
       returncodes.exit_with_driver_input_error("Error: no verify type specified")
     
     if args.verify_time_limit:
-       args.verify_options.append(str(args.verify_time_limit))
+      args.verify_options.append("--timeout={}".format(str(args.verify_time_limit)))
     
     
     verify = get_executable(args.build, REL_VERIFY_PATH)
