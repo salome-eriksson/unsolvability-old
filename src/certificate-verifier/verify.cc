@@ -52,7 +52,7 @@ Certificate* build_certificate(std::string certificate_file, Task* task) {
 
 int main(int argc, char** argv) {
     if(argc < 3 || argc > 4) {
-        std::cout << "Usage: verify <task-file> <certificate-file> [timeout]" << std::endl;
+        std::cout << "Usage: verify <task-file> <certificate-file> [--timeout=x]" << std::endl;
         std::cout << "timeout is an optional parameter in seconds" << std::endl;
         exit(0);
     }
@@ -99,13 +99,16 @@ int main(int argc, char** argv) {
 
     int x = 0;
     if(argc == 4) {
-        std::istringstream ss(argv[3]);
-        if (!(ss >> x) || x < 0) {
-            std::cout << "Usage: verify <pddl-file> <certificate-file> [timeout]" << std::endl;
-            std::cout << "timeout is an optional parameter in seconds" << std::endl;
-            exit(0);
+        std::string arg = argv[3];
+        if (arg.substr(0,10).compare("--timeout=") == 0) {
+            std::istringstream ss(arg.substr(10));
+                if (!(ss >> x) || x < 0) {
+                    std::cout << "Usage: verify <task-file> <certificate-file> [--timeout=x] [--discard_formulas]" << std::endl;
+                    std::cout << "timeout is an optional parameter in seconds" << std::endl;
+                    exit(0);
+                }
+            std::cout << "using timeout of " << x << " seconds" << std::endl;
         }
-        std::cout << "using timeout of " << x << " seconds" << std::endl;
     }
     set_timeout(x);
     print_info("Starting parsing");
