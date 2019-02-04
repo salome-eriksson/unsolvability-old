@@ -79,6 +79,7 @@ class CuddManager {
     friend class CuddBDD;
 private:
 #ifdef USE_CUDD
+    static bool compact_proof;
     DdManager* ddmgr;
     std::vector<int> var_order;
     std::vector<std::vector<int>> fact_to_var;
@@ -96,6 +97,7 @@ public:
     CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
     CUDD_METHOD(void dumpBDDs_certificate(std::vector<CuddBDD> &bdds, std::vector<int> &indices, const std::string &filename) const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD> &bdds, const std::string filename) const)
+    CUDD_METHOD(static void set_compact_proof(bool val))
 };
 
 #endif

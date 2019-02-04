@@ -10,35 +10,33 @@
 #include "setformulahorn.h"
 #include "setformulaexplicit.h"
 
+std::unordered_map<std::vector<int>, BDDUtil, VectorHasher> BDDFile::utils;
+std::vector<int> BDDFile::compose;
 
-/*
- * Reads in all BDDs from a given file and stores them
- * in a DdNode* array
- */
-BDDUtil::BDDUtil(Task *task, std::string filename)
-    : task(task) {
+BDDFile::BDDFile(Task *task, std::string filename) {
+    if (compose.empty()) {
+        /*
+         * The dumped BDDs only contain the original variables.
+         * Since we need also primed variables for checking
+         * statements B4 and B5 (pro/regression), we move the
+         * variables in such a way that a primed variable always
+         * occurs directly after its unprimed version
+         * (Example: BDD dump with vars "a b c": "a a' b b' c c'")
+         */
+        compose.resize(task->get_number_of_facts());
+        for(int i = 0; i < task->get_number_of_facts(); ++i) {
+            compose[i] = 2*i;
+        }
 
-    /*
-     * The dumped BDDs only contain the original variables.
-     * Since we need also primed variables for checking
-     * statements B4 and B5 (pro/regression), we move the
-     * variables in such a way that a primed variable always
-     * occurs directly after its unprimed version
-     * (Example: BDD dump with vars "a b c": "a a' b b' c c'")
-     */
-    int compose[task->get_number_of_facts()];
-    for(int i = 0; i < task->get_number_of_facts(); ++i) {
-        compose[i] = 2*i;
     }
-
     // we need to read in the file as FILE* since dddmp uses this
-    FILE *fp;
     fp = fopen(filename.c_str(), "r");
     if(!fp) {
         std::cerr << "could not open bdd file " << filename << std::endl;
     }
 
     // the first line contains the variable order, separated by space
+    std::vector<int> varorder;
     varorder.reserve(task->get_number_of_facts());
     // read in line char by char into a stringstream
     std::stringstream ss;
@@ -54,35 +52,87 @@ BDDUtil::BDDUtil(Task *task, std::string filename)
         varorder.push_back(n);
     }
     assert(varorder.size() == task->get_number_of_facts());
+    auto it = utils.find(varorder);
+    if (it == utils.end()) {
+        it = utils.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(varorder),
+                      std::forward_as_tuple(task,varorder)).first;
+    }
+    util = &(it->second);
+
+}
+
+DdNode *BDDFile::get_ddnode(int index) {
+    auto it = ddnodes.find(index);
+    if (it != ddnodes.end()) {
+
+    }
+
+    bool found = false;
+    if (it != ddnodes.end()) {
+        found = true;
+    }
+    while(!found) {
+        std::vector<int> indices;
+        // next line contains indices
+        std::stringstream ss;
+        char c;
+        while((c = fgetc (fp)) != '\n') {
+            ss << c;
+        }
+        // read out the same line from the string stream int by int
+        // TODO: what happens if it cannot interpret the next word as int?
+        // TODO: can we do this more directly? Ie. get the ints while reading the first line.
+        int n;
+        while (ss >> n){
+            indices.push_back(n);
+        }
+        DdNode **tmp_array;
+        /* read in the BDDs into an array of DdNodes. The parameters are as follows:
+         *  - manager
+         *  - how to match roots: we want them to be matched by id
+         *  - root names: only needed when you want to match roots by name
+         *  - how to match variables: since we want to permute the BDDs in order to
+         *    allow primed variables in between the original one, we take COMPOSEIDS
+         *  - varnames: needed if you want to match vars according to names
+         *  - varmatchauxids: needed if you want to match vars according to auxidc
+         *  - varcomposeids: the variable permutation if you want to permute the BDDs
+         *  - mode: if the file was dumped in text or in binary mode
+         *  - filename: needed if you don't directly pass the FILE *
+         *  - FILE*
+         *  - Pointer to array where the DdNodes should be saved to
+         */
+        int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
+            DDDMP_VAR_COMPOSEIDS,NULL,NULL,compose.data(),DDDMP_MODE_TEXT,NULL,fp,&tmp_array);
+
+        assert(indices.size() == nRoots);
+        for(int i = 0; i < nRoots; ++i) {
+            if (indices[i] == index) {
+                found = true;
+                it = ddnodes.insert(std::make_pair(indices[i],tmp_array[i])).first;
+            } else {
+                ddnodes.insert(std::make_pair(indices[i],tmp_array[i]));
+            }
+        }
+        // we do not need to free the memory for tmp_array, memcheck detected no leaks
+    }
+    DdNode *ret = it->second;
+    //ddnodes.erase(it);
+    return ret;
+}
+
+BDDUtil *BDDFile::get_util() {
+    return util;
+}
+
+BDDUtil::BDDUtil(Task *task, std::vector<int> &varorder)
+    : task(task), varorder(varorder) {
+
+    assert(varorder.size() == task->get_number_of_facts());
     other_varorder.resize(varorder.size(),-1);
     for (size_t i = 0; i < varorder.size(); ++i) {
         other_varorder[varorder[i]] = i;
     }
-
-    DdNode **tmp_array;
-    /* read in the BDDs into an array of DdNodes. The parameters are as follows:
-     *  - manager
-     *  - how to match roots: we want them to be matched by id
-     *  - root names: only needed when you want to match roots by name
-     *  - how to match variables: since we want to permute the BDDs in order to
-     *    allow primed variables in between the original one, we take COMPOSEIDS
-     *  - varnames: needed if you want to match vars according to names
-     *  - varmatchauxids: needed if you want to match vars according to auxidc
-     *  - varcomposeids: the variable permutation if you want to permute the BDDs
-     *  - mode: if the file was dumped in text or in binary mode
-     *  - filename: needed if you don't directly pass the FILE *
-     *  - FILE*
-     *  - Pointer to array where the DdNodes should be saved to
-     */
-    int nRoots = Dddmp_cuddBddArrayLoad(manager.getManager(),DDDMP_ROOT_MATCHLIST,NULL,
-        DDDMP_VAR_COMPOSEIDS,NULL,NULL,&compose[0],DDDMP_MODE_TEXT,NULL,fp,&tmp_array);
-
-    // we use a vector rather than c-style array for ease of reading
-    dd_nodes.reserve(nRoots);
-    for(int i = 0; i < nRoots; ++i) {
-        dd_nodes.push_back(tmp_array[i]);
-    }
-    // we do not need to free the memory for tmp_array, memcheck detected no leaks
 
     initformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_initial_state()) );
     goalformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_goal()) );
@@ -126,7 +176,7 @@ void BDDUtil::build_actionformulas() {
     }
 }
 
-bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD> &bdds) {
+bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD *> &bdds) {
     assert(bdds.empty());
     bdds.reserve(formulas.size());
     std::vector<int> *varorder = nullptr;
@@ -136,13 +186,13 @@ bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BD
             // see if we can use get_constant_formula
             switch (c_formula->get_constant_type()) {
             case ConstantType::EMPTY:
-                bdds.push_back(emptyformula.bdd);
+                bdds.push_back(&(emptyformula.bdd));
                 break;
             case ConstantType::GOAL:
-                bdds.push_back(goalformula.bdd);
+                bdds.push_back(&(goalformula.bdd));
                 break;
             case ConstantType::INIT:
-                bdds.push_back(initformula.bdd);
+                bdds.push_back(&(initformula.bdd));
                 break;
             default:
                 std::cerr << "Unknown constant type " << std::endl;
@@ -156,7 +206,7 @@ bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BD
                           << std::endl;
                 return false;
             }
-            bdds.push_back(b_formula->bdd);
+            bdds.push_back(&(b_formula->bdd));
         } else {
             std::cerr << "Error: SetFormula of type other than BDD not allowed here."
                       << std::endl;
@@ -166,7 +216,7 @@ bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BD
     return true;
 }
 
-std::unordered_map<std::string, BDDUtil> SetFormulaBDD::utils;
+std::unordered_map<std::string, BDDFile> SetFormulaBDD::bddfiles;
 std::vector<int> SetFormulaBDD::prime_permutation;
 
 SetFormulaBDD::SetFormulaBDD()
@@ -176,7 +226,6 @@ SetFormulaBDD::SetFormulaBDD()
 
 SetFormulaBDD::SetFormulaBDD(BDDUtil *util, BDD bdd)
     : util(util), bdd(bdd) {
-
 }
 
 SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
@@ -184,23 +233,25 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     int bdd_index;
     input >> filename;
     input >> bdd_index;
-    if(utils.find(filename) == utils.end()) {
-        if(utils.empty()) {
+    if(bddfiles.find(filename) == bddfiles.end()) {
+        if(bddfiles.empty()) {
             prime_permutation.resize(task->get_number_of_facts()*2, -1);
             for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
               prime_permutation[2*i] = (2*i)+1;
               prime_permutation[(2*i)+1] = 2*i;
             }
         }
-        // TODO: is emplace the best thing to do here?
-        utils.emplace(std::piecewise_construct, std::make_tuple(filename),
-                      std::make_tuple(task, filename));
+        bddfiles.emplace(std::piecewise_construct,
+                         std::forward_as_tuple(filename),
+                         std::forward_as_tuple(task, filename));
     }
-    util = &(utils[filename]);
+    BDDFile &bddfile = bddfiles[filename];
+    util = bddfile.get_util();
 
-    assert(bdd_index >= 0 && bdd_index < util->dd_nodes.size());
-    bdd = BDD(manager, util->dd_nodes[bdd_index]);
-    Cudd_RecursiveDeref(manager.getManager(), util->dd_nodes[bdd_index]);
+    assert(bdd_index >= 0);
+    bdd = BDD(manager, bddfile.get_ddnode(bdd_index));
+    Cudd_RecursiveDeref(manager.getManager(), bdd.getNode());
+
 
     std::string declaration_end;
     input >> declaration_end;
@@ -209,8 +260,8 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
 
 bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &left,
                               std::vector<SetFormula *> &right) {
-    std::vector<BDD> left_bdds;
-    std::vector<BDD> right_bdds;
+    std::vector<BDD *> left_bdds;
+    std::vector<BDD *> right_bdds;
     bool valid_bdds = util->get_bdd_vector(left, left_bdds)
             && util->get_bdd_vector(right, right_bdds);
     if(!valid_bdds) {
@@ -219,11 +270,11 @@ bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &left,
 
     BDD left_singular = manager.bddOne();
     for(size_t i = 0; i < left_bdds.size(); ++i) {
-        left_singular *= left_bdds[i];
+        left_singular *= *(left_bdds[i]);
     }
     BDD right_singular = manager.bddZero();
     for(size_t i = 0; i < right_bdds.size(); ++i) {
-        right_singular += right_bdds[i];
+        right_singular += *(right_bdds[i]);
     }
     return left_singular.Leq(right_singular);
 }
@@ -232,9 +283,10 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
                                                std::vector<SetFormula *> &right,
                                                std::vector<SetFormula *> &prog,
                                                std::unordered_set<int> &actions) {
-    std::vector<BDD> left_bdds;
-    std::vector<BDD> right_bdds;
-    std::vector<BDD> prog_bdds;
+
+    std::vector<BDD *> left_bdds;
+    std::vector<BDD *> right_bdds;
+    std::vector<BDD *> prog_bdds;
     bool valid_bdds = util->get_bdd_vector(left, left_bdds)
             && util->get_bdd_vector(right, right_bdds)
             && util->get_bdd_vector(prog, prog_bdds);
@@ -244,18 +296,18 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
 
     BDD left_singular = manager.bddOne();
     for (size_t i = 0; i < left_bdds.size(); ++i) {
-        left_singular *= left_bdds[i];
+        left_singular *= *(left_bdds[i]);
     }
     BDD right_singular = manager.bddZero();
     for (size_t i = 0; i < right_bdds.size(); ++i) {
-        right_singular += right_bdds[i];
+        right_singular += *(right_bdds[i]);
     }
 
     BDD neg_left_or_right = (!left_singular) + right_singular;
 
     BDD prog_singular = manager.bddOne();
     for (size_t i = 0; i < prog_bdds.size(); ++i) {
-        prog_singular *= prog_bdds[i];
+        prog_singular *= *(prog_bdds[i]);
     }
     if(util->actionformulas.size() == 0) {
         util->build_actionformulas();
@@ -287,9 +339,9 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
                                               std::vector<SetFormula *> &right,
                                               std::vector<SetFormula *> &reg,
                                               std::unordered_set<int> &actions) {
-    std::vector<BDD> left_bdds;
-    std::vector<BDD> right_bdds;
-    std::vector<BDD> reg_bdds;
+    std::vector<BDD *> left_bdds;
+    std::vector<BDD *> right_bdds;
+    std::vector<BDD *> reg_bdds;
     bool valid_bdds = util->get_bdd_vector(left, left_bdds)
             && util->get_bdd_vector(right, right_bdds)
             && util->get_bdd_vector(reg, reg_bdds);
@@ -299,18 +351,18 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
 
     BDD left_singular = manager.bddOne();
     for (size_t i = 0; i < left_bdds.size(); ++i) {
-        left_singular *= left_bdds[i];
+        left_singular *= *(left_bdds[i]);
     }
     BDD right_singular = manager.bddZero();
     for (size_t i = 0; i < right_bdds.size(); ++i) {
-        right_singular += right_bdds[i];
+        right_singular += *(right_bdds[i]);
     }
 
     BDD neg_left_or_right = (!left_singular) + right_singular;
 
     BDD reg_singular = manager.bddOne();
     for (size_t i = 0; i < reg_bdds.size(); ++i) {
-        reg_singular *= reg_bdds[i];
+        reg_singular *= *(reg_bdds[i]);
     }
     if(util->actionformulas.size() == 0) {
         util->build_actionformulas();
