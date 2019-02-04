@@ -80,7 +80,6 @@ private:
     SetFormulaExplicit trueformula;
     SetFormulaExplicit initformula;
     SetFormulaExplicit goalformula;
-    std::vector<BDD> actionformulas;
     std::vector<std::vector<bool>> hex;
 
     ExplicitUtil(Task *task);

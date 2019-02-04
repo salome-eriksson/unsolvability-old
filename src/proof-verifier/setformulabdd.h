@@ -6,9 +6,35 @@
 #include <unordered_map>
 #include <sstream>
 #include <memory>
+#include <stdio.h>
 #include "cuddObj.hh"
 
 class BDDUtil;
+
+struct VectorHasher {
+    int operator()(const std::vector<int> &V) const {
+        int hash=0;
+        for(int i=0;i<V.size();i++) {
+            hash+=V[i]; // Can be anything
+        }
+        return hash;
+    }
+};
+
+class BDDFile {
+private:
+    static std::unordered_map<std::vector<int>, BDDUtil, VectorHasher> utils;
+    static std::vector<int> compose;
+    BDDUtil *util;
+    FILE *fp;
+    std::unordered_map<int, DdNode *> ddnodes;
+public:
+    BDDFile() {}
+    BDDFile(Task *task, std::string filename);
+    // expects caller to take ownership and call deref!
+    DdNode *get_ddnode(int index);
+    BDDUtil *get_util();
+};
 
 struct BDDAction {
     BDD pre;
@@ -19,7 +45,7 @@ class SetFormulaBDD : public SetFormulaBasic
 {
     friend class BDDUtil;
 private:
-    static std::unordered_map<std::string, BDDUtil> utils;
+    static std::unordered_map<std::string, BDDFile> bddfiles;
     static std::vector<int> prime_permutation;
     // TODO: can we change this to a reference?
     BDDUtil *util;
@@ -89,13 +115,6 @@ private:
     SetFormulaBDD initformula;
     SetFormulaBDD goalformula;
     std::vector<BDDAction> actionformulas;
-    /*
-     * This array stores that actual DdNodes for the BDD file pased by this util.
-     * As soon as a SetFormulaBDD claims ownership of an element, the reference count
-     * to the DdNode is decreased. This means that when the SetFormulaBDD is destroyed,
-     * the DdNode reference count will be 0 and the DdNode will be deleted by Cudd.
-     */
-    std::vector<DdNode *>dd_nodes;
 
     BDD build_bdd_from_cube(const Cube &cube);
     //BDD build_bdd_for_action(const Action &a);
@@ -107,10 +126,10 @@ private:
      * All SetFormulaBDDs must share the same variable order.
      * If either of these requirements is not satisfied, the method aborts and returns false.
      */
-    bool get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD> &bdds);
+    bool get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD *> &bdds);
 public:
     BDDUtil();
-    BDDUtil(Task *task, std::string filename);
+    BDDUtil(Task *task, std::vector<int> &varorder);
 };
 
 

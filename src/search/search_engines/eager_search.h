@@ -21,7 +21,8 @@ enum class UnsolvabilityVerificationType {
     CERTIFICATE,
     CERTIFICATE_FASTDUMP,
     CERTIFICATE_NOHINTS,
-    PROOF
+    PROOF,
+    PROOF_DISCARD
 };
 
 namespace eager_search {

@@ -12,6 +12,8 @@ void exit_oom(size_t size) {
     utils::exit_with(ExitCode::SEARCH_OUT_OF_MEMORY);
 }
 
+bool CuddManager::compact_proof = true;
+
 CuddBDD::CuddBDD() : manager(NULL), bdd(NULL) {}
 
 CuddBDD::CuddBDD(CuddManager *manager, bool positive)
@@ -229,11 +231,6 @@ void CuddManager::dumpBDDs_certificate(std::vector<CuddBDD> &bdds, std::vector<i
 }
 
 void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, const std::string filename) const {
-    int size = bdds.size();
-    DdNode** bdd_arr = new DdNode*[size];
-    for(int i = 0; i < size; ++i) {
-        bdd_arr[i] = bdds[i].bdd;
-    }
     std::ofstream stream;
     stream.open(filename);
     for(size_t i = 0; i < fact_to_var.size(); ++i) {
@@ -243,10 +240,33 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, const std::string filenam
     }
     stream << "\n";
     stream.close();
+
     FILE *fp;
     fp = fopen(filename.c_str(), "a");
-    Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], NULL,
-                            NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
+
+    if (compact_proof) {
+        int size = bdds.size();
+        DdNode** bdd_arr = new DdNode*[size];
+        for(int i = 0; i < size; ++i) {
+            fprintf (fp, "%d ",i);
+            bdd_arr[i] = bdds[i].bdd;
+        }
+        fprintf (fp, "\n");
+        Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], NULL,
+                                    NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
+    } else {
+        DdNode** bdd_arr = new DdNode*[1];
+        for (size_t i = 0; i < bdds.size(); ++i) {
+            fprintf (fp, "%d\n",i);
+            bdd_arr[0] = bdds[i].bdd;
+            Dddmp_cuddBddArrayStore(ddmgr, NULL, 1, &bdd_arr[0], NULL,
+                                    NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
+        }
+    }
+}
+
+void CuddManager::set_compact_proof(bool val) {
+    compact_proof = val;
 }
 
 #endif

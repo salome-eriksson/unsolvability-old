@@ -68,6 +68,11 @@ EagerSearch::EagerSearch(const Options &opts)
         }
         std::cout << "Generating unsolvability verification in "
                   << unsolvability_directory << std::endl;
+        if (unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+            CuddManager::set_compact_proof(false);
+        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
+            CuddManager::set_compact_proof(true);
+        }
     }
 }
 
@@ -126,7 +131,8 @@ void EagerSearch::initialize() {
                 unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP ||
                 unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
             open_list->create_subcertificate(eval_context);
-        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
+        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                   unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             open_list->store_deadend_info(eval_context);
         }
         cout << "Initial state is a dead end." << endl;
@@ -170,7 +176,8 @@ SearchStatus EagerSearch::step() {
                 unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
             write_unsolvability_certificate();
         }
-        if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
+        if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             write_unsolvability_proof();
         }
         return FAILED;
@@ -258,7 +265,8 @@ SearchStatus EagerSearch::step() {
                     unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
                 } else if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
                     open_list->create_subcertificate(succ_eval_context);
-                } else if(unsolv_type == UnsolvabilityVerificationType::PROOF) {
+                } else if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                          unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
                     open_list->store_deadend_info(succ_eval_context);
                 }
                 succ_node.mark_as_dead_end();
@@ -784,7 +792,6 @@ void EagerSearch::write_unsolvability_proof() {
         certstream << ": ";
         for(const StateID id : state_registry) {
             const GlobalState &state = state_registry.lookup_state(id);
-            CuddBDD statebdd = CuddBDD(&manager, state);
             if (search_space.get_node(state).is_dead_end()) {
                 unsolvmgr.dump_state(state);
                 certstream << " ";

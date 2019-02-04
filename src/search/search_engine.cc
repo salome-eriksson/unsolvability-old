@@ -180,6 +180,7 @@ void SearchEngine::add_unsolvability_options(OptionParser &parser) {
     verification_types.push_back("CERTIFICATE_FASTDUMP");
     verification_types.push_back("CERTIFICATE_NOHINTS");
     verification_types.push_back("PROOF");
+    verification_types.push_back("PROOF_DISCARD");
     parser.add_enum_option(
         "unsolv_verification", verification_types, "type of unsolvability verification", "NONE");
     parser.add_option<std::string>(
