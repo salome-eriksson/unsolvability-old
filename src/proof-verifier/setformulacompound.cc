@@ -51,21 +51,20 @@ bool SetFormulaCompound::is_implicant(const std::vector<int> &vars, const std::v
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaCompound::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SetFormulaCompound::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
     std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaCompound::get_next_model(int i, std::vector<bool> &model) {
+bool SetFormulaCompound::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
     std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-void SetFormulaCompound::setup_model_enumeration() {
+int SetFormulaCompound::get_model_count() {
     std::cerr << "subset checks should not be forwarded to SetFormulaCompound";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
-
 
 SetFormulaNegation::SetFormulaNegation(FormulaIndex subformula_index)
     : subformula_index(subformula_index) {

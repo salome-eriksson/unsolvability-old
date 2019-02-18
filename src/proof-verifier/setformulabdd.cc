@@ -389,22 +389,36 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
     return true;
 }
 
-
 bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
-    if (!left_positive || !right_positive) {
-        std::cerr << "TODO: not implemented yet!" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
+
+    if (!left_positive && !right_positive) {
+        return superset->is_subset_of(this, true, true);
+    } else if (left_positive && !right_positive) {
+        if (superset->supports_dnf_enumeration() || superset->get_formula_type() == SetFormulaType::EXPLICIT) {
+            return superset->is_subset_of(this, true, false);
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
+        }
     }
-    if (bdd.IsZero()) {
+
+    // right positive
+
+    BDD pos_bdd = bdd;
+    if (!left_positive) {
+        pos_bdd = !bdd;
+    }
+
+    // left positive
+    if (pos_bdd.IsZero()) {
         return true;
     }
 
-    // check if each clause in cnf implied by bdd
     if (superset->supports_cnf_enumeration()) {
         int count = 0;
         std::vector<int> varorder;
         std::vector<bool> clause;
-        while (superset->get_next_clause(count, varorder, clause)) {
+        while (superset->get_clause(count, varorder, clause)) {
             BDD clause_bdd = manager.bddZero();
             for (size_t i = 0; i < clause.size(); ++i) {
                 if (varorder[i] > util->varorder.size()) {
@@ -417,7 +431,7 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
                     clause_bdd += !(manager.bddVar(bdd_var));
                 }
             }
-            if(!bdd.Leq(clause_bdd)) {
+            if(!pos_bdd.Leq(clause_bdd)) {
                 return false;
             }
             count++;
@@ -425,7 +439,7 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
         return true;
 
     // enumerate models (only works with Explicit if Explicit has all vars this has)
-    } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT){
+    } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT) {
         const std::vector<int> sup_varorder = superset->get_varorder();
         std::vector<bool> model(sup_varorder.size());
         std::vector<int> var_transform(util->varorder.size(), -1);
@@ -447,7 +461,7 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
         //loop over all models of the BDD
         int* bdd_model;
         CUDD_VALUE_TYPE value_type;
-        DdGen *cubegen = Cudd_FirstCube(manager.getManager(),bdd.getNode(),&bdd_model, &value_type);
+        DdGen *cubegen = Cudd_FirstCube(manager.getManager(),pos_bdd.getNode(),&bdd_model, &value_type);
         // TODO: can the models contain don't cares?
         // Since we checked for ZeroBDD above we will always have at least 1 cube.
         do{
@@ -479,7 +493,6 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
         std::cerr << "mixed representation subset check not possible" << std::endl;
         return false;
     }
-    return false;
 }
 
 
@@ -528,11 +541,11 @@ bool SetFormulaBDD::is_contained(const std::vector<bool> &model) const {
 
 }
 
-bool SetFormulaBDD::is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant) {
-    assert(vars.size() == implicant.size());
+bool SetFormulaBDD::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+    assert(varorder.size() == implicant.size());
     Cube cube(util->varorder.size(), 2);
-    for (size_t i = 0; i < vars.size(); ++i) {
-        int var = vars[i];
+    for (size_t i = 0; i < varorder.size(); ++i) {
+        int var = varorder[i];
         auto pos_it = std::find(util->varorder.begin(), util->varorder.end(), var);
         if(pos_it != util->varorder.end()) {
             int var_pos = std::distance(util->varorder.begin(), pos_it);
@@ -546,17 +559,28 @@ bool SetFormulaBDD::is_implicant(const std::vector<int> &vars, const std::vector
     return util->build_bdd_from_cube(cube).Leq(bdd);
 }
 
-bool SetFormulaBDD::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SetFormulaBDD::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+    assert(varorder.size() == clause.size());
+    BDD clause_bdd = manager.bddZero();
+    for (size_t i = 0; i < clause.size(); ++i) {
+        if (varorder[i] > util->varorder.size()) {
+            continue;
+        }
+        int bdd_var = 2*util->varorder[varorder[i]];
+        if (clause[i]) {
+            clause_bdd += manager.bddVar(bdd_var);
+        } else {
+            clause_bdd += !(manager.bddVar(bdd_var));
+        }
+    }
+    return bdd.Leq(clause_bdd);
+}
+
+bool SetFormulaBDD::get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) {
     return false;
 }
 
-bool SetFormulaBDD::get_next_model(int i, std::vector<bool> &model) {
-    std::cerr << "not implemented";
-    exit_with(ExitCode::CRITICAL_ERROR);
-}
-
-void SetFormulaBDD::setup_model_enumeration() {
-    std::cerr << "not implemented";
-    exit_with(ExitCode::CRITICAL_ERROR);
-
+int SetFormulaBDD::get_model_count() {
+    // TODO: not sure if this is correct
+    return bdd.CountMinterm(util->varorder.size());
 }

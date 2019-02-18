@@ -97,17 +97,19 @@ bool SetFormulaConstant::is_implicant(const std::vector<int> &vars, const std::v
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SetFormulaConstant::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::get_next_model(int i, std::vector<bool> &model) {
+bool SetFormulaConstant::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-void SetFormulaConstant::setup_model_enumeration() {
+int SetFormulaConstant::get_model_count() {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
+
+

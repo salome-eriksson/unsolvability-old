@@ -900,9 +900,141 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
     return true;
 }
 
-bool SetFormulaHorn::is_subset_of(SetFormula */*superset*/, bool /*left_positive*/, bool /*right_positive*/) {
-    // TODO:implement
-    return true;
+bool SetFormulaHorn::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
+    if (left_positive && right_positive) {
+        if (superset->supports_cnf_enumeration()) {
+            int count = 0;
+            std::vector<int> varorder;
+            std::vector<bool> clause;
+            while (superset->get_clause(count, varorder, clause)) {
+                if (!is_entailed(varorder, clause)) {
+                    return false;
+                }
+                count++;
+            }
+            return true;
+        } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT) {
+            const std::vector<int> sup_varorder = superset->get_varorder();
+            std::vector<bool> model(sup_varorder.size());
+            std::vector<int> var_transform(varorder.size(), -1);
+            std::vector<int> vars_to_fill;
+            for (size_t i = 0; i < varorder.size(); ++i) {
+                auto pos_it = std::find(sup_varorder.begin(), sup_varorder.end(), varorder[i]);
+                if (pos_it == sup_varorder.end()) {
+                    std::cerr << "mixed representation subset check not possible" << std::endl;
+                    return false;
+                }
+                var_transform[i] = std::distance(sup_varorder.begin(), pos_it);
+            }
+            for (size_t i = 0; i < sup_varorder.size(); ++i) {
+                if(sup_varorder[i] >= varorder.size()) {
+                    vars_to_fill.push_back(i);
+                }
+            }
+
+            std::vector<bool> mark(varorder.size(),false);
+            std::vector<int> old_solution(varorder.size(),2);
+
+            bool solution_found = util->is_restricted_satisfiable(this, old_solution);
+            while(solution_found) {
+                for(size_t i = 0; i < old_solution.size(); ++i) {
+                    if(old_solution[i] == 2) {
+                        old_solution[i] = 0;
+                    }
+                }
+
+                for (size_t i = 0; i < varorder.size(); ++i) {
+                    if (old_solution[i] == 1) {
+                        model[var_transform[i]] = true;
+                    } else {
+                        model[var_transform[i]] = false;
+                    }
+                }
+
+                for (int count = 0; count < (1 << vars_to_fill.size()); ++count) {
+                    for (size_t i = 0; i < vars_to_fill.size(); ++i) {
+                        model[vars_to_fill[i]] = ((count >> i) % 2 == 1);
+                    }
+                    if (!superset->is_contained(model)) {
+                        return false;
+                    }
+                }
+
+                // get next solution
+                solution_found = false;
+                for(size_t i = varorder.size()-1; i >= 0; --i) {
+                    if (!mark[i]) {
+                        old_solution[i] = 1 - old_solution[i];
+                        if (util->is_restricted_satisfiable(this, old_solution)) {
+                            solution_found = true;
+                            mark[i] = true;
+                            for (int j = i+1; j < mark.size(); ++j) {
+                                mark[j] = false;
+                            }
+                            break;
+                        }
+                    } else {
+                        old_solution[i] = 2;
+                    }
+                }
+            }
+            return true;
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
+        }
+    } else if (left_positive && !right_positive) {
+        if (superset->supports_dnf_enumeration()) {
+            return superset->is_subset_of(this, true, false);
+        } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT) {
+            return superset->is_subset_of(this, true, false);
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
+        }
+    } else if (!left_positive && right_positive) {
+        if (superset->supports_implicant_check()) {
+            std::vector<int> vars(1,-1);
+            std::vector<bool> implicant;
+            implicant.push_back(true);
+            for (int var : forced_false) {
+                vars[0] = var;
+                if (!superset->is_implicant(vars, implicant)) {
+                    return false;
+                }
+            }
+            implicant[0] = false;
+            for (int var : forced_true) {
+                vars[0] = var;
+                if (!superset->is_implicant(vars, implicant)) {
+                    return false;
+                }
+            }
+            for (size_t i = 0; i < left_vars.size(); ++i) {
+                vars.clear();
+                implicant.clear();
+                for (int var : left_vars[i]) {
+                    vars.push_back(var);
+                    implicant.push_back(true);
+                }
+                if (right_side[i] != -1) {
+                    vars.push_back(right_side[i]);
+                    implicant.push_back(false);
+                }
+                if (!superset->is_implicant(vars, implicant)) {
+                    return false;
+                }
+            }
+            return true;
+        } else if (superset->supports_cnf_enumeration()) {
+            return superset->is_subset_of(this, false, true);
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
+        }
+    } else { // both negative
+        return superset->is_subset_of(this, true, true);
+    }
 }
 
 
@@ -945,13 +1077,13 @@ bool SetFormulaHorn::is_contained(const std::vector<bool> &model) const {
     return util->is_restricted_satisfiable(this, cube);
 }
 
-bool SetFormulaHorn::is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant) {
-    std::vector<std::pair<std::vector<int>,int>> clauses(vars.size());
-    for (size_t i = 0; i < vars.size(); ++i) {
+bool SetFormulaHorn::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+    std::vector<std::pair<std::vector<int>,int>> clauses(varorder.size());
+    for (size_t i = 0; i < varorder.size(); ++i) {
         if(implicant[i]) {
-            clauses.push_back(std::make_pair(std::vector<int>(),vars[i]));
+            clauses.push_back(std::make_pair(std::vector<int>(),varorder[i]));
         } else {
-            clauses.push_back(std::make_pair(std::vector<int>(1,vars[i]),-1));
+            clauses.push_back(std::make_pair(std::vector<int>(1,varorder[i]),-1));
         }
     }
     SetFormulaHorn implicant_horn(clauses, util->task->get_number_of_facts());
@@ -961,7 +1093,19 @@ bool SetFormulaHorn::is_implicant(const std::vector<int> &vars, const std::vecto
     return util->conjunction_implies_disjunction(left, right);
 }
 
-bool SetFormulaHorn::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SetFormulaHorn::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+    Cube cube(varamount, 2);
+    for (size_t i = 0; i < clause.size(); ++i) {
+        if(clause[i]) {
+            cube[varorder[i]] = 0;
+        } else {
+            cube[varorder[i]] = 1;
+        }
+    }
+    return util->is_restricted_satisfiable(this, cube);
+}
+
+bool SetFormulaHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
     if(i < forced_true.size()) {
         vars.clear();
         clause.clear();
@@ -997,12 +1141,7 @@ bool SetFormulaHorn::get_next_clause(int i, std::vector<int> &vars, std::vector<
     return false;
 }
 
-bool SetFormulaHorn::get_next_model(int i, std::vector<bool> &model) {
-    std::cerr << "not implemented";
-    exit_with(ExitCode::CRITICAL_ERROR);
-}
-
-void SetFormulaHorn::setup_model_enumeration() {
-    std::cerr << "not implemented";
+int SetFormulaHorn::get_model_count() {
+    std::cerr << "Horn Formula does not support model count";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
