@@ -63,15 +63,15 @@ public:
     virtual bool supports_clausal_entailment_check() = 0;
     virtual bool supports_dnf_enumeration() = 0;
     virtual bool supports_cnf_enumeration() = 0;
-    virtual bool supports_model_enumeration() = 0;
     virtual bool supports_model_counting() = 0;
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const = 0;
     virtual bool is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) = 0;
-    virtual bool get_next_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) = 0;
-    virtual bool get_next_model(int i, std::vector<bool> &model) = 0;
-    virtual void setup_model_enumeration() = 0;
+    virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) = 0;
+    // returns false if no clause with index i exists
+    virtual bool get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) = 0;
+    virtual int get_model_count() = 0;
 };
 
 #endif // SETFORMULA_H

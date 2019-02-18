@@ -279,11 +279,6 @@ SetFormulaExplicit::SetFormulaExplicit(std::vector<int> &&vars,
 
 }
 
-SetFormulaExplicit::SetFormulaExplicit(std::vector<SetFormulaExplicit *> &) {
-    std::cerr << "TODO: not implemented yet" << std::endl;
-    exit_with(ExitCode::CRITICAL_ERROR);
-}
-
 SetFormulaExplicit::SetFormulaExplicit(std::vector<int> &varorder, std::vector<SetFormulaExplicit *> &disjuncts)
     : vars(varorder) {
     for (SetFormulaExplicit *formula : disjuncts) {
@@ -428,7 +423,7 @@ bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &l
     SetFormulaExplicit *prog_singular = prog_explicit[0];
     SetFormulaExplicit dummy;
     if(prog_explicit.size() > 1) {
-        dummy = SetFormulaExplicit(prog_explicit);
+        dummy = SetFormulaExplicit(prog_explicit[0]->vars, prog_explicit);
         prog_singular = &dummy;
     }
     std::vector<int> varorder;
@@ -551,7 +546,7 @@ bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &le
     SetFormulaExplicit *reg_singular = reg_explicit[0];
     SetFormulaExplicit dummy;
     if(reg_explicit.size() > 1) {
-        dummy = SetFormulaExplicit(reg_explicit);
+        dummy = SetFormulaExplicit(reg_explicit[0]->vars, reg_explicit);
         reg_singular = &dummy;
     }
     std::vector<int> varorder;
@@ -650,10 +645,6 @@ bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &le
 }
 
 bool SetFormulaExplicit::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
-    if (!left_positive || !right_positive) {
-        std::cerr << "TODO: not implemented yet!" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-    }
     const std::vector<int> &superset_varorder = superset->get_varorder();
     bool superset_varorder_is_subset = true;
     std::vector<int> var_pos;
@@ -667,60 +658,102 @@ bool SetFormulaExplicit::is_subset_of(SetFormula *superset, bool left_positive, 
         }
     }
 
-    // superset varorder does not contain new vars --> can do model check
-    if (superset_varorder_is_subset) {
-        std::vector<bool> transformed_model(var_pos.size());
-        for (Model model : models) {
-            for (size_t i = 0; i < transformed_model.size(); ++i) {
-                transformed_model[i] = model[var_pos[i]];
-            }
-            if (!superset->is_contained(transformed_model)) {
-                return false;
-            }
-        }
-        return true;
-    } else if (superset->supports_implicant_check()) {
-        for (Model model : models) {
-            if (!superset->is_implicant(vars, model)) {
-                return false;
-            }
-        }
-        return true;
-    } else if (superset->supports_cnf_enumeration()) {
-        int count = 0;
-        std::vector<int> varorder;
-        std::vector<bool> clause;
-        while(superset->get_next_clause(count, varorder, clause)) {
-            var_pos.clear();
-            for (int var : varorder) {
-                auto pos = std::find(vars.begin(), vars.end(), var);
-                if (pos == vars.end()) {
-                    var_pos.push_back(-1);
-                } else {
-                    var_pos.push_back(std::distance(vars.begin(), pos));
-                }
-            }
+    if (left_positive && right_positive) {
+        // superset varorder does not contain new vars --> can do model check
+        if (superset_varorder_is_subset) {
+            std::vector<bool> transformed_model(var_pos.size());
             for (Model model : models) {
-                bool contained = false;
-                for (int pos : var_pos) {
-                    if (pos != -1 && model[pos] == clause[pos]) {
-                        contained = true;
-                        break;
-                    }
+                for (size_t i = 0; i < transformed_model.size(); ++i) {
+                    transformed_model[i] = model[var_pos[i]];
                 }
-                if (!contained) {
+                if (!superset->is_contained(transformed_model)) {
                     return false;
                 }
             }
-            count++;
+            return true;
+        } else if (superset->supports_implicant_check()) {
+            for (Model model : models) {
+                if (!superset->is_implicant(vars, model)) {
+                    return false;
+                }
+            }
+            return true;
+        } else if (superset->supports_cnf_enumeration()) {
+            int count = 0;
+            std::vector<int> varorder;
+            std::vector<bool> clause;
+            while(superset->get_clause(count, varorder, clause)) {
+                if (!is_entailed(varorder, clause)) {
+                    return false;
+                }
+                count++;
+            }
+            return true;
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
         }
-        return true;
-    } else {
-        std::cerr << "mixed representation subset check not possible" << std::endl;
-        return false;
+
+
+    } else if (left_positive && !right_positive) {
+        // superset varorder does not contain new vars --> can do model check
+        if (superset_varorder_is_subset) {
+            std::vector<bool> transformed_model(var_pos.size());
+            for (Model model : models) {
+                for (size_t i = 0; i < transformed_model.size(); ++i) {
+                    transformed_model[i] = model[var_pos[i]];
+                }
+                if (!superset->is_contained(transformed_model)) {
+                    return false;
+                }
+            }
+            return true;
+        } else if (superset->supports_clausal_entailment_check()) {
+            for (Model model : models) {
+                std::vector<bool> clause(model.size());
+                for (size_t i = 0; i < model.size(); ++i) {
+                    clause[i] = !model[i];
+                }
+                if (!superset->is_entailed(vars, clause)) {
+                    return false;
+                }
+            }
+        } else if (superset->supports_dnf_enumeration()) {
+            return superset->is_subset_of(this, true, false);
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
+        }
+
+
+    } else if (!left_positive && right_positive) {
+        // superset varorder does not contain new vars --> can do model check
+        if (superset_varorder_is_subset && superset->supports_model_counting()) {
+            std::vector<bool> transformed_model(var_pos.size());
+            int count;
+            for (Model model : models) {
+                for (size_t i = 0; i < transformed_model.size(); ++i) {
+                    transformed_model[i] = model[var_pos[i]];
+                }
+                if (!superset->is_contained(transformed_model)) {
+                    count++;
+                }
+            }
+            int sup_nonmodels = pow(2.0,superset_varorder.size()) - superset->get_model_count();
+            if (count != sup_nonmodels*pow(2.0,vars.size())) {
+                return false;
+            }
+            return true;
+        } else if (superset->supports_cnf_enumeration()) {
+            return superset->is_subset_of(this, false, true);
+        } else {
+            std::cerr << "mixed representation subset check not possible" << std::endl;
+            return false;
+        }
+    } else { // both negative
+        return superset->is_subset_of(this, true, true);
     }
 }
-
 
 SetFormulaType SetFormulaExplicit::get_formula_type() {
     return SetFormulaType::EXPLICIT;
@@ -749,10 +782,6 @@ const std::vector<int> &SetFormulaExplicit::get_varorder() {
     return vars;
 }
 
-bool SetFormulaExplicit::is_contained(const std::vector<bool> &model) const {
-    return (models.find(model) != models.end());
-}
-
 std::vector<Model> SetFormulaExplicit::get_missing_var_values(Model &model, const std::vector<int> &missing_vars_pos) const {
     std::vector<std::vector<bool>> ret;
     for (int count = 0; count < (1 << missing_vars_pos.size()); ++count) {
@@ -766,6 +795,10 @@ std::vector<Model> SetFormulaExplicit::get_missing_var_values(Model &model, cons
         }
     }
     return ret;
+}
+
+bool SetFormulaExplicit::is_contained(const std::vector<bool> &model) const {
+    return (models.find(model) != models.end());
 }
 
 bool SetFormulaExplicit::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
@@ -791,19 +824,26 @@ bool SetFormulaExplicit::is_implicant(const std::vector<int> &varorder, const st
     return true;
 }
 
-bool SetFormulaExplicit::get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
-    return false;
-}
-
-bool SetFormulaExplicit::get_next_model(int, std::vector<bool> &model) {
-    if (model_it == models.end()) {
-        return false;
+bool SetFormulaExplicit::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+    for (Model model : models) {
+        bool found = false;
+        for (size_t i = 0; i < clause.size(); ++i) {
+            if (model[varorder[i]] == clause[i]) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
     }
-    model = *model_it;
-    model_it++;
     return true;
 }
 
-void SetFormulaExplicit::setup_model_enumeration() {
-    model_it = models.begin();
+bool SetFormulaExplicit::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+    return false;
+}
+
+int SetFormulaExplicit::get_model_count() {
+    return models.size();
 }

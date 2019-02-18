@@ -23,7 +23,6 @@ private:
     std::unordered_set<Model> models;
     std::unordered_set<Model>::iterator model_it;
     SetFormulaExplicit(std::vector<int> &&vars, std::unordered_set<Model> &&models);
-    SetFormulaExplicit(std::vector<SetFormulaExplicit *> &conjuncts);
     // all formulas need to have same varorder
     SetFormulaExplicit(std::vector<int> &varorder, std::vector<SetFormulaExplicit *>&disjuncts);
 public:
@@ -52,15 +51,14 @@ public:
     virtual bool supports_clausal_entailment_check() { return true; }
     virtual bool supports_dnf_enumeration() { return true; }
     virtual bool supports_cnf_enumeration() { return false; }
-    virtual bool supports_model_enumeration() { return true; }
     virtual bool supports_model_counting() { return true; }
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const ;
     virtual bool is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant);
-    virtual bool get_next_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
-    virtual bool get_next_model(int i, std::vector<bool> &model);
-    virtual void setup_model_enumeration();
+    virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause);
+    virtual bool get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
+    virtual int get_model_count();
 
     /*
      * model is expected to have the same varorder (ie we need no transformation).
