@@ -608,9 +608,9 @@ fast_downward_plugin(
         cegar/abstract_state
         cegar/additive_cartesian_heuristic
         cegar/cartesian_heuristic_function
+        cegar/cartesian_set
         cegar/cegar
         cegar/cost_saturation
-        cegar/domains
         cegar/refinement_hierarchy
         cegar/split_selector
         cegar/subtask_generators
@@ -722,6 +722,7 @@ fast_downward_plugin(
         pdbs/pdb_heuristic
         pdbs/plugin_group
         pdbs/types
+        pdbs/utils
         pdbs/validation
         pdbs/zero_one_pdbs
         pdbs/zero_one_pdbs_heuristic
