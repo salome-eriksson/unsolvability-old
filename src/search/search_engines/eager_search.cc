@@ -642,11 +642,13 @@ void EagerSearch::write_unsolvability_proof() {
 
     CuddManager manager(task);
     std::vector<StateID> dead_ends;
-    // 2*|DE|-1 for all dead ends, plus the expanded set
-    dead_ends.reserve(statistics.get_dead_ends());
+    int dead_end_amount = statistics.get_dead_ends();
+    dead_ends.reserve(dead_end_amount);
 
     std::vector<MergeTreeEntry> merge_tree;
-    merge_tree.resize(log2(statistics.get_dead_ends())+2);
+    if (dead_end_amount > 0) {
+        merge_tree.resize(ceil(log2(dead_end_amount+1)));
+    }
     // mt_pos is the index of the first unused entry of merge_tree
     int mt_pos = 0;
 
