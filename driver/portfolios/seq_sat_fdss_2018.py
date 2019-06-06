@@ -7,9 +7,6 @@ Jendrik Seipp and Gabriele Röger.
 Fast Downward Stone Soup 2018.
 In Ninth International Planning Competition (IPC 2018), Deterministic Part, pp. 80-82. 2018.
 https://ai.dmi.unibas.ch/papers/seipp-roeger-ipc2018.pdf
-
-Granularity: 30s
-Sum of time limits: 1583s
 """
 
 OPTIMAL = False
