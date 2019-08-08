@@ -108,10 +108,11 @@ endif()
 
 find_library(CPLEX_LIBRARY_RELEASE
     NAMES
-    cplex
-    cplex1262
-    cplex1271
+    cplex1290
     cplex1280
+    cplex1271
+    cplex1262
+    cplex
     HINTS
     ${CPLEX_HINT_PATHS_RELEASE}
     PATH_SUFFIXES
@@ -120,10 +121,11 @@ find_library(CPLEX_LIBRARY_RELEASE
 
 find_library(CPLEX_LIBRARY_DEBUG
     NAMES
-    cplex
-    cplex1262
-    cplex1271
+    cplex1290
     cplex1280
+    cplex1271
+    cplex1262
+    cplex
     HINTS
     ${CPLEX_HINT_PATHS_DEBUG}
     PATH_SUFFIXES
