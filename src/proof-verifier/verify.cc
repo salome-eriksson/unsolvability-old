@@ -14,6 +14,7 @@
 #include "setformula.h"
 #include "setformulacompound.h"
 #include "setformulahorn.h"
+#include "setformuladualhorn.h"
 #include "setformulabdd.h"
 #include "setformulaexplicit.h"
 
@@ -30,6 +31,8 @@ void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *tas
         expression = std::unique_ptr<SetFormula>(new SetFormulaBDD(in, task));
     } else if(type == "h") {
         expression = std::unique_ptr<SetFormula>(new SetFormulaHorn(in, task));
+    } else if(type == "d") {
+        expression = std::unique_ptr<SetFormula>(new SetFormulaDualHorn(in, task));
     } else if(type == "t") {
         std::cerr << "not implemented yet" << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);

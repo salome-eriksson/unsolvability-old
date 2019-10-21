@@ -20,6 +20,7 @@ HEADERS = \
 	  setformulacompound.h \
 	  setformulabasic.h \
 	  setformulahorn.h \
+          setformuladualhorn.h \
 	  setformulabdd.h \
 	  setformulaexplicit.h \
 	  proofchecker.h \

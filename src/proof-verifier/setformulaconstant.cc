@@ -38,6 +38,7 @@ SetFormulaBasic *SetFormulaConstant::get_concrete_formula_instance(SetFormula *f
     }
     case SetFormulaType::BDD:
     case SetFormulaType::HORN:
+    case SetFormulaType::DUALHORN:
     case SetFormulaType::TWOCNF:
     case SetFormulaType::EXPLICIT:
         return static_cast<SetFormulaBasic *>(fx)->get_constant_formula(this);
