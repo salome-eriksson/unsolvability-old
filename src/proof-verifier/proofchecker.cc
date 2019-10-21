@@ -37,6 +37,7 @@ SetFormula *ProofChecker::gather_sets_intersection(SetFormula *f,
     case SetFormulaType::CONSTANT:
     case SetFormulaType::BDD:
     case SetFormulaType::HORN:
+    case SetFormulaType::DUALHORN:
     case SetFormulaType::TWOCNF:
     case SetFormulaType::EXPLICIT:
         positive.push_back(f);
@@ -73,6 +74,7 @@ SetFormula *ProofChecker::gather_sets_union(SetFormula *f,
     case SetFormulaType::CONSTANT:
     case SetFormulaType::BDD:
     case SetFormulaType::HORN:
+    case SetFormulaType::DUALHORN:
     case SetFormulaType::TWOCNF:
     case SetFormulaType::EXPLICIT:
         positive.push_back(f);
@@ -151,6 +153,7 @@ void ProofChecker::remove_formulas_if_obsolete(std::vector<int> indices, int cur
             switch (formulas[index].fpointer.get()->get_formula_type()) {
             case SetFormulaType::BDD:
             case SetFormulaType::HORN:
+            case SetFormulaType::DUALHORN:
             case SetFormulaType::TWOCNF:
             case SetFormulaType::EXPLICIT:
                 formulas[index].fpointer.reset();
