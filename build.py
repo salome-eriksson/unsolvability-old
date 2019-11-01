@@ -51,7 +51,7 @@ def print_usage():
     generator_name = CMAKE_GENERATOR.lower()
     default_config_name = DEFAULT_CONFIG_NAME
     debug_config_name = DEBUG_CONFIG_NAME
-    print("""Usage: {script_name} [BUILD [BUILD ...]] [--all] [--debug] [MAKE_OPTIONS]
+    print("""Usage: {script_name} [BUILD [BUILD ...]] [--all] [--debug] [--build-verifier] [MAKE_OPTIONS]
 
 Build one or more predefined build configurations of Fast Downward. Each build
 uses {cmake_name} to generate {generator_name} and then uses {make_name} to compile the
@@ -63,9 +63,10 @@ behaviour.
 Build configurations
   {configs_string}
 
---all         Alias to build all build configurations.
---debug       Alias to build the default debug build configuration.
---help        Print this message and exit.
+--all            Alias to build all build configurations.
+--debug          Alias to build the default debug build configuration.
+--build-verifier Build verifier for all configurations.
+--help           Print this message and exit.
 
 Make options
   All other parameters are forwarded to {make_name}.
@@ -109,7 +110,7 @@ def try_run(cmd, cwd):
         else:
             raise
 
-def build(config_name, cmake_parameters, make_parameters):
+def build(config_name, cmake_parameters, make_parameters, build_verifier):
     print("Building configuration {config_name}.".format(**locals()))
     build_path = get_build_path(config_name)
     rel_src_path = os.path.relpath(get_src_path(), build_path)
@@ -124,13 +125,25 @@ def build(config_name, cmake_parameters, make_parameters):
     try_run([CMAKE, "-G", CMAKE_GENERATOR] + cmake_parameters + [rel_src_path],
             cwd=build_path)
     try_run([MAKE] + make_parameters, cwd=build_path)
-
+    
+    if(build_verifier):
+        print("Building verifier (certificate)")
+        verify_path = os.path.join(get_project_root_path(), "src/certificate-verifier")
+        try_run([MAKE], cwd=verify_path)
+        try_run(["cp", os.path.join(os.path.relpath(verify_path, build_path), "verify"), "bin/verify-certificate"], cwd=build_path)
+        
+        print("Building verifier (proof)")
+        verify_path = os.path.join(get_project_root_path(), "src/proof-verifier")
+        try_run([MAKE], cwd=verify_path)
+        try_run(["cp", os.path.join(os.path.relpath(verify_path, build_path), "verify"), "bin/verify-proof"], cwd=build_path)
+    
     print("Built configuration {config_name} successfully.".format(**locals()))
 
 
 def main():
     config_names = set()
     make_parameters = DEFAULT_MAKE_PARAMETERS
+    build_verifier=False;
     for arg in sys.argv[1:]:
         if arg == "--help" or arg == "-h":
             print_usage()
@@ -141,12 +154,14 @@ def main():
             config_names |= set(CONFIGS.keys())
         elif arg in CONFIGS:
             config_names.add(arg)
+        elif arg == "--build-verifier":
+            build_verifier=True;            
         else:
             make_parameters.append(arg)
     if not config_names:
         config_names.add(DEFAULT_CONFIG_NAME)
     for config_name in config_names:
-        build(config_name, CONFIGS[config_name], make_parameters)
+        build(config_name, CONFIGS[config_name], make_parameters, build_verifier)
 
 
 if __name__ == "__main__":
