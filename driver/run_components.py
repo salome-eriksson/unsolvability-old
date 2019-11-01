@@ -173,3 +173,45 @@ def run_validate(args):
             returncodes.exit_with_driver_critical_error(err)
     else:
         return (0, True)
+
+
+def run_verify(args):
+    logging.info("Running verify.")
+    
+    if args.verify_type == 'certificate':
+      REL_VERIFY_PATH = "verify-certificate"
+    elif args.verify_type == 'proof':
+      REL_VERIFY_PATH = "verify-proof"
+    elif args.verify_type == 'proof-discard':
+      REL_VERIFY_PATH = "verify-proof"
+      args.verify_options.append("--discard_formulas")
+    else:
+      returncodes.exit_with_driver_input_error("Error: no verify type specified")
+    
+    if args.verify_time_limit:
+      args.verify_options.append("--timeout={}".format(str(args.verify_time_limit)))
+    
+    
+    verify = get_executable(args.build, REL_VERIFY_PATH)
+    logging.info("verify executable: %s" % verify)
+        
+    try:
+        call.check_call(
+            "verify",
+            [verify] + args.verify_input + args.verify_options,
+            time_limit=args.verify_time_limit,
+            memory_limit=args.verify_memory_limit)
+    except OSError as err:
+        if err.errno == errno.ENOENT:
+            returncodes.exit_with_driver_input_error("Error: {} not found. Is it on the PATH?".format(VALIDATE))
+        else:
+            returncodes.exit_with_driver_critical_error(err)
+    
+    except subprocess.CalledProcessError as err:
+       #accept known exitcodes such as timeout, no task file etc
+       if 3 <=  err.returncode < 8:
+            return (err.returncode, False)
+       else:
+            returncodes.exit_with_driver_critical_error(err)
+    else:
+        return (0, True)
