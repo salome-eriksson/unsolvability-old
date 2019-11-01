@@ -605,7 +605,7 @@ void EagerSearch::write_unsolvability_proof() {
     if(search_space.get_node(state_registry.get_initial_state()).is_new()) {
         const GlobalState &init_state = state_registry.get_initial_state();
         EvaluationContext eval_context(init_state,
-                                       search_space.get_node(init_state).get_g(),
+                                       0,
                                        false, &statistics);
         std::pair<int,int> dead_superset =
                 open_list->get_set_and_deadknowledge_id(eval_context, unsolvmgr);
@@ -669,7 +669,7 @@ void EagerSearch::write_unsolvability_proof() {
             dead_ends.push_back(id);
 
             EvaluationContext eval_context(state,
-                                           search_space.get_node(state).get_g(),
+                                           0,
                                            false, &statistics);
             std::pair<int,int> dead_superset =
                     open_list->get_set_and_deadknowledge_id(eval_context, unsolvmgr);
