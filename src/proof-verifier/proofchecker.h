@@ -115,31 +115,64 @@ public:
     void add_actionset_union(ActionSetIndex left, ActionSetIndex right, ActionSetIndex index);
     void first_pass(std::string certfile);
 
-    bool check_rule_D1(KnowledgeIndex newki, FormulaIndex emptyi);
-    bool check_rule_D2(KnowledgeIndex newki, FormulaIndex fi,
-                     KnowledgeIndex ki1, KnowledgeIndex ki2);
-    bool check_rule_D3(KnowledgeIndex newki, FormulaIndex fi,
-                     KnowledgeIndex ki1, KnowledgeIndex ki2);
-    bool check_rule_D4(KnowledgeIndex newki, KnowledgeIndex ki);
-    bool check_rule_D5(KnowledgeIndex newki, KnowledgeIndex ki);
-    bool check_rule_D6(KnowledgeIndex newki, FormulaIndex fi,
-                     KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool check_rule_D7(KnowledgeIndex newki, FormulaIndex fi,
-                     KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool check_rule_D8(KnowledgeIndex newki, FormulaIndex fi,
-                     KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool check_rule_D9(KnowledgeIndex newki, FormulaIndex fi,
-                     KnowledgeIndex ki1, KnowledgeIndex ki2, KnowledgeIndex ki3);
-    bool check_rule_D10(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
-                      KnowledgeIndex ki);
-    bool check_rule_D11(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2,
-                      KnowledgeIndex ki);
+    // rules for checking if state sets are dead
+    bool check_rule_ed(KnowledgeIndex conclusion, FormulaIndex set);
+    bool check_rule_ud(KnowledgeIndex conclusion, FormulaIndex set,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_sd(KnowledgeIndex conclusion, FormulaIndex set,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_pg(KnowledgeIndex conclusion, FormulaIndex set,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2,
+                       KnowledgeIndex premise3);
+    bool check_rule_pi(KnowledgeIndex conclusion, FormulaIndex set,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2,
+                       KnowledgeIndex premise3);
+    bool check_rule_rg(KnowledgeIndex conclusion, FormulaIndex set,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2,
+                       KnowledgeIndex premise3);
+    bool check_rule_ri(KnowledgeIndex conclusion, FormulaIndex set,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2,
+                       KnowledgeIndex premise3);
 
-    bool check_statement_B1(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool check_statement_B2(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool check_statement_B3(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool check_statement_B4(KnowledgeIndex newki, FormulaIndex fi1, FormulaIndex fi2);
-    bool check_statement_B5(KnowledgeIndex newki, ActionSetIndex ai1, ActionSetIndex ai2);
+    // rules for ending the proof
+    bool check_rule_ci(KnowledgeIndex conclusion, KnowledgeIndex premise);
+    bool check_rule_cg(KnowledgeIndex conclusion, KnowledgeIndex premise);
+
+
+    // rules from basic set theory
+    bool check_rule_ur(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_rule_ul(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_rule_ir(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_rule_il(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_rule_di(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_rule_su(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_si(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_st(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+
+    // rules for progression and its relation to regression
+
+
+    bool check_rule_at(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_au(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_pt(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_pu(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                       KnowledgeIndex premise1, KnowledgeIndex premise2);
+    bool check_rule_rp(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                      KnowledgeIndex premise);
+    bool check_rule_pr(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
+                      KnowledgeIndex premise);
+
+    bool check_statement_B1(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_statement_B2(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_statement_B3(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_statement_B4(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right);
+    bool check_statement_B5(KnowledgeIndex conclusion, ActionSetIndex left, ActionSetIndex right);
 
     bool is_unsolvability_proven();
 };
