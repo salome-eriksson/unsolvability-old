@@ -730,46 +730,207 @@ bool ProofChecker::check_rule_cg(KnowledgeIndex conclusion, KnowledgeIndex premi
  */
 
 bool ProofChecker::check_rule_ur(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right) {
-    //TODO
-    return false;
+    SetFormulaUnion *runion = dynamic_cast<SetFormulaUnion *>formulas[right].fpointer.get();
+    if (!runion) {
+        std::cerr << "Error when applying rule UR: right side is not a union" << std::endl;
+        return false;
+    }
+    if (!runion->get_left_index() != left) {
+        std::cerr << "Error when applying rule UR: right does not have the form (left cup E')" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left, right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_ul(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right) {
-    //TODO
-    return false;
+    SetFormulaUnion *runion = dynamic_cast<SetFormulaUnion *>formulas[right].fpointer.get();
+    if (!runion) {
+        std::cerr << "Error when applying rule UL: right side is not a union" << std::endl;
+        return false;
+    }
+    if (!runion->get_right_index() != left) {
+        std::cerr << "Error when applying rule UL: right does not have the form (E' cup left)" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left, right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_ir(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right) {
-    //TODO
-    return false;
+    SetFormulaIntersection *lintersection = dynamic_cast<SetFormulaIntersection *>formulas[left].fpointer.get();
+    if (!lintersection) {
+        std::cerr << "Error when applying rule IR: left side is not an intersection" << std::endl;
+        return false;
+    }
+    if (!lintersection->get_left_index() != right) {
+        std::cerr << "Error when applying rule IR: left does not have the form (right cap E')" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left,right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_il(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right) {
-    //TODO
-    return false;
+    SetFormulaIntersection *lintersection = dynamic_cast<SetFormulaIntersection *>formulas[left].fpointer.get();
+    if (!lintersection) {
+        std::cerr << "Error when applying rule IL: left side is not an intersection" << std::endl;
+        return false;
+    }
+    if (!lintersection->get_right_index() != right) {
+        std::cerr << "Error when applying rule IL: left does not have the form (E' cap right)" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left,right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_di(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right) {
-    //TODO
-    return false;
+    FormulaIndex e0,e1,e2;
+
+    // left side
+    SetFormulaIntersection *si = dynamic_cast<SetFormulaIntersection *>formulas[left].fpointer.get();
+    if (!si) {
+        std::cerr << "Error when applying rule DI: left is not an intersection" << std::endl;
+        return false;
+    }
+    SetFormulaUnion *su = dynamic_cast<SetFormulaUnion *>formulas[si->get_left_index()].fpointer.get();
+    if (!su) {
+        std::cerr << "Error when applying rule DI: left side of left is not a union" << std::endl;
+        return false;
+    }
+    e0 = su->get_left_index();
+    e1 = su->get_right_index();
+    e2 = si->get_right_index();
+
+    // right side
+    su = dynamic_cast<SetFormulaUnion *>formulas[right].fpointer.get();
+    if (!su) {
+        std::cerr << "Error when applying rule DI: right is not a union" << std::endl;
+        return false;
+    }
+    si = dynamic_cast<SetFormulaIntersection *>formulas[su->get_left_index()].fpointer.get();
+    if (!si) {
+        std::cerr << "Error when applying rule DI: left side of right is not an intersection" << std::endl;
+        return false;
+    }
+    if (si->get_left_index() != e0 || si->get_right_index() != e2) {
+        std::cerr << "Error when applying rule DI: left side of right does not match with left" << std::endl;
+        return false;
+    }
+    si = dynamic_cast<SetFormulaIntersection *>formulas[su->get_right_index()].fpointer.get();
+    if (!si) {
+
+        std::cerr << "Error when applying rule DI: right side of right is not an intersection" << std::endl;
+        return false;
+    }
+    if (si->get_left_index() != e1 || si->get_right_index() != e2) {
+        std::cerr << "Error when applying rule DI: right side of right does not match with left" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left,right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_su(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
                                  KnowledgeIndex premise1, KnowledgeIndex premise2) {
-    //TODO
-    return false;
+    assert(kbentries[premise1] != nullptr && kbentries[premise2] != nullptr);
+    FormulaIndex e0,e1,e2;
+    SetFormulaUnion *su = dynamic_cast<SetFormulaUnion *>formulas[left].fpointer.get();
+    if (!su) {
+        std::cerr << "Error when applying rule SU: left is not a union" << std::endl;
+        return false;
+    }
+    e0 = su->get_left_index();
+    e1 = su->get_right_index();
+    e2 = right;
+
+    if (kbentries[premise1]->get_kbentry_type() != KBEntrySubset) {
+        std::cerr << "Error when applying rule SU: knowledge #" << premise1 << " is not subset knowledge" << std::endl;
+        return false;
+    }
+    if (kbentries[premise2]->get_kbentry_type() != KBEntrySubset) {
+        std::cerr << "Error when applying rule SU: knowledge #" << premise2 << " is not subset knowledge" << std::endl;
+        return false;
+    }
+    if (kbentries[premise1]->get_first() != e0 || kbentries[promise1]->get_second() != e2) {
+        std::cerr << "Error when applying rule SU: knowledge #" << premise1 << " does not state (E subset E'')" << std::endl;
+        return false;
+    }
+    if (kbentries[premise2]->get_first() != e1 || kbentries[premise2]->get_second() != e2) {
+        std::cerr << "Error when applying rule SU: knowledge #" << premise1 << " does not state (E' subset E'')" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left,right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_si(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
                                  KnowledgeIndex premise1, KnowledgeIndex premise2) {
-    //TODO
-    return false;
+    assert(kbentries[premise1] != nullptr && kbentries[premise2] != nullptr);
+    FormulaIndex e0,e1,e2;
+    SetFormulaIntersection *si = dynamic_cast<SetFormulaIntersection*>formulas[right].fpointer.get();
+    if (!si) {
+        std::cerr << "Error when applying rule SI: right is not an intersection" << std::endl;
+        return false;
+    }
+    e0 = left;
+    e1 = si->get_left_index();
+    e2 = si->get_right_index();
+
+    if (kbentries[premise1]->get_kbentry_type() != KBEntrySubset) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise1 << " is not subset knowledge" << std::endl;
+        return false;
+    }
+    if (kbentries[premise2]->get_kbentry_type() != KBEntrySubset) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise2 << " is not subset knowledge" << std::endl;
+        return false;
+    }
+    if (kbentries[premise1]->get_first() != e0 || kbentries[promise1]->get_second() != e1) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise1 << " does not state (E subset E')" << std::endl;
+        return false;
+    }
+    if (kbentries[premise2]->get_first() != e0 || kbentries[premise2]->get_second() != e2) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise1 << " does not state (E subset E'')" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left,right)), conclusion);
+    return true;
 }
 
 bool ProofChecker::check_rule_st(KnowledgeIndex conclusion, FormulaIndex left, FormulaIndex right,
                                  KnowledgeIndex premise1, KnowledgeIndex premise2) {
-    //TODO
-    return false;
+    assert(kbentries[premise1] != nullptr && kbentries[premise2] != nullptr);
+    if (kbentries[premise1]->get_kbentry_type() != KBEntrySubset) {
+        std::cerr << "Error when applying rule ST: knowledge #" << premise1 << " is not subset knowledge" << std::endl;
+        return false;
+    }
+    if (kbentries[premise2]->get_kbentry_type() != KBEntrySubset) {
+        std::cerr << "Error when applying rule ST: knowledge #" << premise2 << " is not subset knowledge" << std::endl;
+        return false;
+    }
+    if (kbentries[premise1]->get_first() != left) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise1 << " does not state (E subset E')" << std::endl;
+        return false;
+    }
+    if (kbentries[premise2]->get_second() != right) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise1 << " does not state (E subset E'')" << std::endl;
+        return false;
+    }
+    if (kbentries[premise1]->get_second() != kbentries[premise2]->get_first()) {
+        std::cerr << "Error when applying rule SI: knowledge #" << premise1 << " and #" << premise2 << " do not match on E'" << std::endl;
+        return false;
+    }
+
+    add_kbentry(std::unique_ptr<KBEntry>(new KBEntrySubset(left,right)), conclusion);
+    return true;
 }
 
 
