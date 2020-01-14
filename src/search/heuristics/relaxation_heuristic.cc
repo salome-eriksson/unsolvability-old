@@ -398,10 +398,10 @@ std::pair<int,int> RelaxationHeuristic::get_set_and_deadknowledge_id(
                    << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b1\n";
         int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
         certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
-                   << " d3 " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
+                   << " sd " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
 
         int k_set_dead = unsolvmanager.get_new_knowledgeid();
-        certstream << "k " << k_set_dead << " d " << setid << " d6 " << k_prog << " "
+        certstream << "k " << k_set_dead << " d " << setid << " pg " << k_prog << " "
                    << unsolvmanager.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
 
         ids.first = setid;

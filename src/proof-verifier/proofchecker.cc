@@ -305,7 +305,7 @@ bool ProofChecker::check_rule_ud(KnowledgeIndex conclusion, FormulaIndex set,
     // set represents S \cup S'
     SetFormulaUnion *f = dynamic_cast<SetFormulaUnion *>(formulas[set].fpointer.get());
     if (!f) {
-        std::cerr << "Error when applying rule D2 to conclude knowledge #" << conclusion
+        std::cerr << "Error when applying rule UD to conclude knowledge #" << conclusion
                   << ": set expression #" << set << "is not a union." << std::endl;
         return false;
     }
@@ -591,7 +591,7 @@ bool ProofChecker::check_rule_rg(KnowledgeIndex conclusion, FormulaIndex set,
     SetFormulaConstant *goal =
             dynamic_cast<SetFormulaConstant *>(formulas[s_not_and_goal->get_right_index()].fpointer.get());
     if((!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
-        std::cerr << "Error when applying rule D8: the set expression declared dead in knowledge #"
+        std::cerr << "Error when applying rule RG: the set expression declared dead in knowledge #"
                   << premise3 << " is not an intersection with the constant goal set on the right side."
                   << std::endl;
         return false;
