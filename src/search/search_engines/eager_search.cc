@@ -592,9 +592,9 @@ void EagerSearch::write_unsolvability_proof() {
                    << " " << dead_superset.first << " b1\n";
         int knowledge_init_dead = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << knowledge_init_dead << " d " << unsolvmgr.get_initsetid()
-                   << " d3 " << knowledge_init_subset << " " << dead_superset.second << "\n";
+                   << " sd " << knowledge_init_subset << " " << dead_superset.second << "\n";
 
-        certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u d4 "
+        certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u ci "
                    << knowledge_init_dead << "\n";
 
         open_list->finish_unsolvability_proof();
@@ -667,7 +667,7 @@ void EagerSearch::write_unsolvability_proof() {
                        << dead_superset.first << " b4\n";
             int k_expl_state_dead = unsolvmgr.get_new_knowledgeid();
             certstream << "k " << k_expl_state_dead << " d " << expl_state_setid
-                       << " d3 " << k_expl_state_subset << " " << dead_superset.second << "\n";
+                       << " sd " << k_expl_state_subset << " " << dead_superset.second << "\n";
 
             merge_tree[mt_pos].de_pos_begin = dead_ends.size()-1;
             merge_tree[mt_pos].setid = expl_state_setid;
@@ -686,7 +686,7 @@ void EagerSearch::write_unsolvability_proof() {
                            << mte_left.setid << " " << mte_right.setid << "\n";
                 int k_impl_union_dead = unsolvmgr.get_new_knowledgeid();
                 certstream << "k " << k_impl_union_dead << " d " << impl_union
-                           << " d2 " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
+                           << " ud " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
 
 
                 // build new explicit union and show that it is dead
@@ -702,7 +702,7 @@ void EagerSearch::write_unsolvability_proof() {
                 certstream << "k " << k_union_subset << " s "
                            << union_setid << " " << impl_union << " b1\n";
                 int k_union_dead = unsolvmgr.get_new_knowledgeid();
-                certstream << "k " << k_union_dead << " d " << union_setid << " d3 "
+                certstream << "k " << k_union_dead << " d " << union_setid << " sd "
                            << k_union_subset << " " << k_impl_union_dead << "\n";*/
 
                 // the left entry represents the merged entry while the right entry will be considered deleted
@@ -738,7 +738,7 @@ void EagerSearch::write_unsolvability_proof() {
                        << mte_left.setid << " " << mte_right.setid << "\n";
             int k_impl_union_dead = unsolvmgr.get_new_knowledgeid();
             certstream << "k " << k_impl_union_dead << " d " << impl_union
-                       << " d2 " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
+                       << " ud " << mte_left.k_set_dead << " " << mte_right.k_set_dead << "\n";
 
             // build new explicit union and show that it is dead
             /*int union_setid = unsolvmgr.get_new_setid();
@@ -752,7 +752,7 @@ void EagerSearch::write_unsolvability_proof() {
             certstream << "k " << k_union_subset << " s "
                        << union_setid << " " << impl_union << " b1\n";
             int k_union_dead = unsolvmgr.get_new_knowledgeid();
-            certstream << "k " << k_union_dead << " d " << union_setid << " d3 "
+            certstream << "k " << k_union_dead << " d " << union_setid << " sd "
                        << k_union_subset << " " << k_impl_union_dead << "\n";*/
 
             mt_pos--;
@@ -785,7 +785,7 @@ void EagerSearch::write_unsolvability_proof() {
                    << all_de_explicit << " " << merge_tree[0].setid << " b1\n";
         int k_all_de_explicit_dead = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << k_all_de_explicit_dead << " d " << all_de_explicit
-                   << " d3 " << k_all_de_explicit_subset << " " << merge_tree[0].k_set_dead << "\n";
+                   << " sd " << k_all_de_explicit_subset << " " << merge_tree[0].k_set_dead << "\n";
 
         // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
         int bdd_dead_setid = unsolvmgr.get_new_setid();
@@ -797,7 +797,7 @@ void EagerSearch::write_unsolvability_proof() {
                    << bdd_dead_setid << " " << all_de_explicit << " b4\n";
         int k_bdd_dead = unsolvmgr.get_new_knowledgeid();
         certstream << "k " << k_bdd_dead << " d " << bdd_dead_setid
-                   << " d3 " << k_bdd_subset_expl << " " << k_all_de_explicit_dead << "\n";
+                   << " sd " << k_bdd_subset_expl << " " << k_all_de_explicit_dead << "\n";
 
         de_setid = bdd_dead_setid;
         k_de_dead = k_bdd_dead;
@@ -827,19 +827,19 @@ void EagerSearch::write_unsolvability_proof() {
                << intersection_expanded_goal << " " << unsolvmgr.get_emptysetid() << " b1\n";
     int k_exp_goal_dead = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_exp_goal_dead << " d " << intersection_expanded_goal
-               << " d3 " << k_exp_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
+               << " sd " << k_exp_goal_empty << " " << unsolvmgr.get_k_empty_dead() << "\n";
 
     int k_exp_dead = unsolvmgr.get_new_knowledgeid();
-    certstream << "k " << k_exp_dead << " d " << expanded_setid << " d6 "
+    certstream << "k " << k_exp_dead << " d " << expanded_setid << " pg "
                << k_progression << " " << k_de_dead << " " << k_exp_goal_dead << "\n";
 
     int k_init_in_exp = unsolvmgr.get_new_knowledgeid();
     certstream << "k " << k_init_in_exp << " s "
                << unsolvmgr.get_initsetid() << " " << expanded_setid << " b1\n";
     int k_init_dead = unsolvmgr.get_new_knowledgeid();
-    certstream << "k " << k_init_dead << " d " << unsolvmgr.get_initsetid() << " d3 "
+    certstream << "k " << k_init_dead << " d " << unsolvmgr.get_initsetid() << " sd "
                << k_init_in_exp << " " << k_exp_dead << "\n";
-    certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u d4 " << k_init_dead << "\n";
+    certstream << "k " << unsolvmgr.get_new_knowledgeid() << " u ci " << k_init_dead << "\n";
 
     open_list->finish_unsolvability_proof();
 

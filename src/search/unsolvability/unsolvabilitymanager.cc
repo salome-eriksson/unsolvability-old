@@ -16,7 +16,7 @@ UnsolvabilityManager::UnsolvabilityManager(
     initsetid = setcount++;
     certstream << "e " << initsetid << " c i\n";
     k_empty_dead = knowledgecount++;
-    certstream << "k " << k_empty_dead << " d " << emptysetid << " d1\n";
+    certstream << "k " << k_empty_dead << " d " << emptysetid << " ed\n";
     certstream << "a 0 a\n";
 
     hex = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e' , 'f'};
