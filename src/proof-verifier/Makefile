@@ -12,17 +12,15 @@ DEPEND = $(CXX) -MM
 
 HEADERS = \
 	  actionset.h \
-          global_funcs.h \
-          task.h \
-	  timer.h \
-	  setformula.h \
-	  setformulaconstant.h \
-	  setformulacompound.h \
-	  setformulabasic.h \
-	  setformulahorn.h \
-	  setformulabdd.h \
-	  setformulaexplicit.h \
+      global_funcs.h \
 	  proofchecker.h \
+	  setformulabdd.h \
+	  setformulaconstant.h \
+	  setformulaexplicit.h \
+	  setformulahorn.h \
+	  stateset.h \
+      task.h \
+	  timer.h \
 
 SOURCES = verify.cc $(HEADERS:%.h=%.cc)
 OBJ = $(SOURCES:%.cc=%.o)

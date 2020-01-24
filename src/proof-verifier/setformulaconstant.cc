@@ -22,54 +22,29 @@ SetFormulaConstant::SetFormulaConstant(std::ifstream &input, Task *task)
     }
 }
 
-SetFormulaBasic *SetFormulaConstant::get_concrete_formula_instance(SetFormula *f1, SetFormula *f2) {
-    SetFormula *fx = f1;
-    if(fx->get_formula_type() == SetFormulaType::CONSTANT && f2) {
-        fx = f2;
-    }
-    switch (fx->get_formula_type()) {
-    case SetFormulaType::CONSTANT:{
-        // TODO: This is somewhat of a hack with the dummy variable, but this way we ensure
-        // that the static member of SetFormulaHorn is initialized properly, and that we can
-        // access get_constant_formula()
-        SetFormulaHorn dummy(task);
-        return dummy.get_constant_formula(this);
-        break;
-    }
-    case SetFormulaType::BDD:
-    case SetFormulaType::HORN:
-    case SetFormulaType::TWOCNF:
-    case SetFormulaType::EXPLICIT:
-        return static_cast<SetFormulaBasic *>(fx)->get_constant_formula(this);
-        break;
-    default:
-        return nullptr;
-    }
-}
-
-bool SetFormulaConstant::is_subset(std::vector<SetFormula *> &,
-                       std::vector<SetFormula *> &) {
+bool SetFormulaConstant::check_statement_b1(std::vector<StateSetVariable *> &,
+                                            std::vector<StateSetVariable *> &) {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::is_subset_with_progression(std::vector<SetFormula *> &,
-                                                    std::vector<SetFormula *> &,
-                                                    std::vector<SetFormula *> &,
-                                                    std::unordered_set<int> &) {
+bool SetFormulaConstant::check_statement_b2(std::vector<StateSetVariable *> &,
+                                            std::vector<StateSetVariable *> &,
+                                            std::vector<StateSetVariable *> &,
+                                            std::unordered_set<int> &) {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::is_subset_with_regression(std::vector<SetFormula *> &,
-                                                   std::vector<SetFormula *> &,
-                                                   std::vector<SetFormula *> &,
-                                                   std::unordered_set<int> &) {
+bool SetFormulaConstant::check_statement_b3(std::vector<StateSetVariable *> &,
+                                            std::vector<StateSetVariable *> &,
+                                            std::vector<StateSetVariable *> &,
+                                            std::unordered_set<int> &) {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-bool SetFormulaConstant::is_subset_of(SetFormula *, bool, bool) {
+bool SetFormulaConstant::check_statement_b4(StateSetVariable *, bool, bool) {
     std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
     exit_with(ExitCode::CRITICAL_ERROR);
 }

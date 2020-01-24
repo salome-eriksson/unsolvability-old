@@ -11,26 +11,11 @@
 #include "task.h"
 #include "timer.h"
 #include "proofchecker.h"
-#include "setformula.h"
-#include "setformulacompound.h"
+#include "stateset.h"
+#include "setformulaconstant.h"
 #include "setformulahorn.h"
 #include "setformulabdd.h"
 #include "setformulaexplicit.h"
-
-enum class ExpressionType {
-    BDD,
-    HORN,
-    DUALHORN,
-    EXPLICIT,
-    TWOCNF,
-    CONSTANT,
-    NEGATION,
-    INTERSECTION,
-    UNION,
-    PROGRESSION,
-    REGRESSION,
-    NONE
-};
 
 enum class KnowledgeOrigin {
     BSUBSET,
@@ -63,88 +48,6 @@ enum class KnowledgeOrigin {
     REGRESSIONTOPROGRESSION,
     NONE
 };
-
-
-void read_in_expression(std::ifstream &in, ProofChecker &proofchecker, Task *task,
-                        std::map<std::string, ExpressionType> type_map) {
-    FormulaIndex expression_index;
-    in >> expression_index;
-    std::string word;
-    // read in expression type
-    in >> word;
-    // the type is defined by a single character
-    if (word.length() != 1) {
-        std::cerr << "unknown expression type " << word << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-    }
-    std::unique_ptr<SetFormula> expression;
-
-    ExpressionType type = ExpressionType::NONE;
-    if (type_map.find(word) != type_map.end()) {
-        type = type_map.at(word);
-    }
-
-    switch(type) {
-    case ExpressionType::BDD:
-        expression = std::unique_ptr<SetFormula>(new SetFormulaBDD(in, task));
-        break;
-    case ExpressionType::HORN:
-        expression = std::unique_ptr<SetFormula>(new SetFormulaHorn(in, task));
-        break;
-    case ExpressionType::DUALHORN:
-        std::cerr << "not implemented yet" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-        break;
-    case ExpressionType::TWOCNF:
-        std::cerr << "not implemented yet" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-        break;
-    case ExpressionType::EXPLICIT:
-        expression = std::unique_ptr<SetFormula>(new SetFormulaExplicit(in, task));
-        break;
-    case ExpressionType::CONSTANT:
-        expression = std::unique_ptr<SetFormula>(new SetFormulaConstant(in, task));
-        break;
-    case ExpressionType::NEGATION: {
-        FormulaIndex subformulaindex;
-        in >> subformulaindex;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaNegation(subformulaindex));
-        break;
-    }
-    case ExpressionType::INTERSECTION: {
-        FormulaIndex left, right;
-        in >> left;
-        in >> right;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaIntersection(left, right));
-        break;
-    }
-    case ExpressionType::UNION: {
-        FormulaIndex left, right;
-        in >> left;
-        in >> right;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaUnion(left, right));
-        break;
-    }
-    case ExpressionType::PROGRESSION: {
-        FormulaIndex subformulaindex, actionsetindex;
-        in >> subformulaindex;
-        in >> actionsetindex;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaProgression(subformulaindex, actionsetindex));
-        break;
-    }
-    case ExpressionType::REGRESSION: {
-        FormulaIndex subformulaindex, actionsetindex;
-        in >> subformulaindex;
-        in >> actionsetindex;
-        expression = std::unique_ptr<SetFormula>(new SetFormulaRegression(subformulaindex, actionsetindex));
-        break;
-    }
-    default:
-        std::cerr << "unknown expression type " << word << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-    }
-    proofchecker.add_formula(std::move(expression), expression_index);
-}
 
 void read_in_actionset(std::ifstream &in, ProofChecker &proofchecker, Task *task) {
     ActionSetIndex action_index;
@@ -490,20 +393,6 @@ int main(int argc, char** argv) {
         proofchecker.first_pass(certificate_file);
     }
 
-    // build maps from shorthand used in certificate file to enum type
-    std::map<std::string, ExpressionType> expression_types {
-        { "b", ExpressionType::BDD },
-        { "h", ExpressionType::HORN },
-        { "d", ExpressionType::DUALHORN },
-        { "t", ExpressionType::TWOCNF },
-        { "e", ExpressionType::EXPLICIT },
-        { "c", ExpressionType::CONSTANT },
-        { "n", ExpressionType::NEGATION },
-        { "i", ExpressionType::INTERSECTION },
-        { "u", ExpressionType::UNION },
-        { "p", ExpressionType::PROGRESSION },
-        { "r", ExpressionType::REGRESSION }
-    };
     std::map<std::string, KnowledgeOrigin> knowledge_origins {
         { "b1", KnowledgeOrigin::BSUBSET },
         { "b2", KnowledgeOrigin::BSUBSETPROGRESSION },
@@ -549,7 +438,7 @@ int main(int argc, char** argv) {
         }
 
         if(input.compare("e") == 0) {
-            read_in_expression(certstream, proofchecker, task, expression_types);
+            proofchecker.add_expression(certstream, task);
         } else if(input.compare("k") == 0) {
             read_and_check_knowledge(certstream, proofchecker, knowledge_origins);
         } else if(input.compare("a") == 0) {
