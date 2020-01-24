@@ -1,7 +1,8 @@
 #ifndef SETFORMULABDD_H
 #define SETFORMULABDD_H
 
-#include "setformulabasic.h"
+#include "stateset.h"
+#include "setformulaconstant.h"
 
 #include <unordered_map>
 #include <sstream>
@@ -41,7 +42,7 @@ struct BDDAction {
     BDD eff;
 };
 
-class SetFormulaBDD : public SetFormulaBasic
+class SetFormulaBDD : public StateSetVariable
 {
     friend class BDDUtil;
 private:
@@ -56,31 +57,34 @@ public:
     SetFormulaBDD();
     SetFormulaBDD(std::ifstream &input, Task *task);
 
-    virtual bool is_subset(std::vector<SetFormula *> &left,
-                           std::vector<SetFormula *> &right);
-    virtual bool is_subset_with_progression(std::vector<SetFormula *> &left,
-                                            std::vector<SetFormula *> &right,
-                                            std::vector<SetFormula *> &prog,
-                                            std::unordered_set<int> &actions);
-    virtual bool is_subset_with_regression(std::vector<SetFormula *> &left,
-                                           std::vector<SetFormula *> &right,
-                                           std::vector<SetFormula *> &reg,
-                                           std::unordered_set<int> &actions);
-
-    virtual bool is_subset_of(SetFormula *superset, bool left_positive, bool right_positive);
+    virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
+                                    std::vector<StateSetVariable *> &right);
+    virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
+                                    std::vector<StateSetVariable *> &left,
+                                    std::vector<StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices);
+    virtual bool check_statement_b3(std::vector<StateSetVariable *> &regress,
+                                    std::vector<StateSetVariable *> &left,
+                                    std::vector<StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices);
+    virtual bool check_statement_b4(StateSetVariable *right,
+                                    bool left_positive, bool right_positive);
 
     virtual SetFormulaType get_formula_type();
-    virtual SetFormulaBasic *get_constant_formula(SetFormulaConstant *c_formula);
+    virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
     virtual const std::vector<int> &get_varorder();
 
     // used for checking statement B1 when the left side is an explicit SetFormula
     bool contains(const Cube &statecube) const;
 
-    virtual bool supports_implicant_check() { return true; }
-    virtual bool supports_clausal_entailment_check() { return true; }
-    virtual bool supports_dnf_enumeration() { return false; }
-    virtual bool supports_cnf_enumeration() { return false; }
-    virtual bool supports_model_counting() { return true; }
+    virtual bool supports_mo() { return true; }
+    virtual bool supports_ce() { return true; }
+    virtual bool supports_im() { return true; }
+    virtual bool supports_me() { return true; }
+    virtual bool supports_todnf() { return false; }
+    virtual bool supports_tocnf() { return false; }
+    virtual bool supports_ct() { return true; }
+    virtual bool is_nonsuccint() { return true; }
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const ;
@@ -126,7 +130,7 @@ private:
      * All SetFormulaBDDs must share the same variable order.
      * If either of these requirements is not satisfied, the method aborts and returns false.
      */
-    bool get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD *> &bdds);
+    bool get_bdd_vector(std::vector<StateSetVariable *> &formulas, std::vector<BDD *> &bdds);
 public:
     BDDUtil();
     BDDUtil(Task *task, std::vector<int> &varorder);

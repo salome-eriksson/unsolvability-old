@@ -48,12 +48,14 @@ HornUtil::HornUtil(Task *task)
     initformula = new SetFormulaHorn(clauses, varamount);
 }
 
-bool HornUtil::get_horn_vector(std::vector<SetFormula *> &formulas, std::vector<SetFormulaHorn *> &horn_formulas) {
+bool HornUtil::get_horn_vector(std::vector<StateSetVariable *> &formulas, std::vector<SetFormulaHorn *> &horn_formulas) {
     assert(horn_formulas.empty());
     horn_formulas.reserve(formulas.size());
+    // TODO: reimplement check whether formula is horn or constant
     for(size_t i = 0; i < formulas.size(); ++i) {
-        if (formulas[i]->get_formula_type() == SetFormulaType::CONSTANT) {
-            SetFormulaConstant *c_formula = static_cast<SetFormulaConstant *>(formulas[i]);
+        SetFormulaConstant *c_formula = dynamic_cast<SetFormulaConstant *>(formulas[i]);
+        SetFormulaHorn *h_formula = dynamic_cast<SetFormulaHorn* >(formulas[i]);
+        if (c_formula) {
             // see if we can use get_constant_formula
             switch (c_formula->get_constant_type()) {
             case ConstantType::EMPTY:
@@ -70,11 +72,10 @@ bool HornUtil::get_horn_vector(std::vector<SetFormula *> &formulas, std::vector<
                 exit_with(ExitCode::CRITICAL_ERROR);
                 break;
             }
-        } else if(formulas[i]->get_formula_type() == SetFormulaType::HORN) {
-            SetFormulaHorn *h_formula = static_cast<SetFormulaHorn *>(formulas[i]);
+        } else if(h_formula) {
             horn_formulas.push_back(h_formula);
         } else {
-            std::cerr << "Error: SetFormula of type other than Horn not allowed here."
+            std::cerr << "Error: StateSet of type other than Horn or Constant not allowed here."
                       << std::endl;
             return false;
         }
@@ -791,8 +792,8 @@ void SetFormulaHorn::dump() const{
     std::cout << std::endl;
 }
 
-bool SetFormulaHorn::is_subset(std::vector<SetFormula *> &left,
-                               std::vector<SetFormula *> &right) {
+bool SetFormulaHorn::check_statement_b1(std::vector<StateSetVariable *> &left,
+                                        std::vector<StateSetVariable *> &right) {
 
     std::vector<SetFormulaHorn *> horn_formulas_left;
     std::vector<SetFormulaHorn *> horn_formulas_right;
@@ -804,16 +805,16 @@ bool SetFormulaHorn::is_subset(std::vector<SetFormula *> &left,
     return util->conjunction_implies_disjunction(horn_formulas_left, horn_formulas_right);
 }
 
-bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
-                                                std::vector<SetFormula *> &right,
-                                                std::vector<SetFormula *> &prog,
-                                                std::unordered_set<int> &actions) {
+bool SetFormulaHorn::check_statement_b2(std::vector<StateSetVariable *> &progress,
+                                        std::vector<StateSetVariable *> &left,
+                                        std::vector<StateSetVariable *> &right,
+                                        std::unordered_set<int> &action_indices) {
     std::vector<SetFormulaHorn *> horn_formulas_left;
     std::vector<SetFormulaHorn *> horn_formulas_right;
     std::vector<SetFormulaHorn *> horn_formulas_prog;
     bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
             && util->get_horn_vector(right, horn_formulas_right)
-            && util->get_horn_vector(prog, horn_formulas_prog);
+            && util->get_horn_vector(progress, horn_formulas_prog);
     if (!valid_horn_formulas) {
         return false;
     }
@@ -841,7 +842,7 @@ bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
     if (left_singular) {
         vec.push_back(left_singular);
     }
-    for (int a : actions) {
+    for (int a : action_indices) {
         SetFormulaHorn prog_applied(*prog_singular, util->task->get_action(a), true);
         vec.push_back(&prog_applied);
         if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
@@ -852,16 +853,16 @@ bool SetFormulaHorn::is_subset_with_progression(std::vector<SetFormula *> &left,
     return true;
 }
 
-bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
-                                               std::vector<SetFormula *> &right,
-                                               std::vector<SetFormula *> &reg,
-                                               std::unordered_set<int> &actions) {
+bool SetFormulaHorn::check_statement_b3(std::vector<StateSetVariable *> &regress,
+                                               std::vector<StateSetVariable *> &left,
+                                               std::vector<StateSetVariable *> &right,
+                                               std::unordered_set<int> &action_indices) {
     std::vector<SetFormulaHorn *> horn_formulas_left;
     std::vector<SetFormulaHorn *> horn_formulas_right;
     std::vector<SetFormulaHorn *> horn_formulas_reg;
     bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
             && util->get_horn_vector(right, horn_formulas_right)
-            && util->get_horn_vector(reg, horn_formulas_reg);
+            && util->get_horn_vector(regress, horn_formulas_reg);
     if (!valid_horn_formulas) {
         return false;
     }
@@ -889,7 +890,7 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
     if (left_singular) {
         vec.push_back(left_singular);
     }
-    for (int a : actions) {
+    for (int a : action_indices) {
         SetFormulaHorn reg_applied(*reg_singular, util->task->get_action(a), false);
         vec.push_back(&reg_applied);
         if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
@@ -900,21 +901,21 @@ bool SetFormulaHorn::is_subset_with_regression(std::vector<SetFormula *> &left,
     return true;
 }
 
-bool SetFormulaHorn::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
+bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_positive, bool right_positive) {
     if (left_positive && right_positive) {
-        if (superset->supports_cnf_enumeration()) {
+        if (right->supports_tocnf()) {
             int count = 0;
             std::vector<int> varorder;
             std::vector<bool> clause;
-            while (superset->get_clause(count, varorder, clause)) {
+            while (right->get_clause(count, varorder, clause)) {
                 if (!is_entailed(varorder, clause)) {
                     return false;
                 }
                 count++;
             }
             return true;
-        } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT) {
-            const std::vector<int> sup_varorder = superset->get_varorder();
+        } else if (right->get_formula_type() == SetFormulaType::EXPLICIT) {
+            const std::vector<int> sup_varorder = right->get_varorder();
             std::vector<bool> model(sup_varorder.size());
             std::vector<int> var_transform(varorder.size(), -1);
             std::vector<int> vars_to_fill;
@@ -955,7 +956,7 @@ bool SetFormulaHorn::is_subset_of(SetFormula *superset, bool left_positive, bool
                     for (size_t i = 0; i < vars_to_fill.size(); ++i) {
                         model[vars_to_fill[i]] = ((count >> i) % 2 == 1);
                     }
-                    if (!superset->is_contained(model)) {
+                    if (!right->is_contained(model)) {
                         return false;
                     }
                 }
@@ -984,29 +985,29 @@ bool SetFormulaHorn::is_subset_of(SetFormula *superset, bool left_positive, bool
             return false;
         }
     } else if (left_positive && !right_positive) {
-        if (superset->supports_dnf_enumeration()) {
-            return superset->is_subset_of(this, true, false);
-        } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT) {
-            return superset->is_subset_of(this, true, false);
+        if (right->supports_todnf()) {
+            return right->check_statement_b4(this, true, false);
+        } else if (right->get_formula_type() == SetFormulaType::EXPLICIT) {
+            return right->check_statement_b4(this, true, false);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
             return false;
         }
     } else if (!left_positive && right_positive) {
-        if (superset->supports_implicant_check()) {
+        if (right->supports_im()) {
             std::vector<int> vars(1,-1);
             std::vector<bool> implicant;
             implicant.push_back(true);
             for (int var : forced_false) {
                 vars[0] = var;
-                if (!superset->is_implicant(vars, implicant)) {
+                if (!right->is_implicant(vars, implicant)) {
                     return false;
                 }
             }
             implicant[0] = false;
             for (int var : forced_true) {
                 vars[0] = var;
-                if (!superset->is_implicant(vars, implicant)) {
+                if (!right->is_implicant(vars, implicant)) {
                     return false;
                 }
             }
@@ -1021,19 +1022,19 @@ bool SetFormulaHorn::is_subset_of(SetFormula *superset, bool left_positive, bool
                     vars.push_back(right_side[i]);
                     implicant.push_back(false);
                 }
-                if (!superset->is_implicant(vars, implicant)) {
+                if (!right->is_implicant(vars, implicant)) {
                     return false;
                 }
             }
             return true;
-        } else if (superset->supports_cnf_enumeration()) {
-            return superset->is_subset_of(this, false, true);
+        } else if (right->supports_tocnf()) {
+            return right->check_statement_b4(this, false, true);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
             return false;
         }
     } else { // both negative
-        return superset->is_subset_of(this, true, true);
+        return right->check_statement_b4(this, true, true);
     }
 }
 
@@ -1042,7 +1043,7 @@ SetFormulaType SetFormulaHorn::get_formula_type() {
     return SetFormulaType::HORN;
 }
 
-SetFormulaBasic *SetFormulaHorn::get_constant_formula(SetFormulaConstant *c_formula) {
+StateSetVariable *SetFormulaHorn::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
         return util->emptyformula;

@@ -56,13 +56,15 @@ ExplicitUtil::ExplicitUtil(Task *task)
 
 }
 
-bool ExplicitUtil::get_explicit_vector(std::vector<SetFormula *> &formulas,
+bool ExplicitUtil::get_explicit_vector(std::vector<StateSetVariable *> &formulas,
                                        std::vector<SetFormulaExplicit *> &explicit_formulas) {
     assert(explicit_formulas.empty());
     explicit_formulas.reserve(formulas.size());
+    // TODO: reimplement check whether formula is horn or constant
     for(size_t i = 0; i < formulas.size(); ++i) {
-        if (formulas[i]->get_formula_type() == SetFormulaType::CONSTANT) {
-            SetFormulaConstant *c_formula = static_cast<SetFormulaConstant *>(formulas[i]);
+        SetFormulaConstant *c_formula = dynamic_cast<SetFormulaConstant *>(formulas[i]);
+        SetFormulaExplicit *e_formula = dynamic_cast<SetFormulaExplicit *>(formulas[i]);
+        if (c_formula) {
             // see if we can use get_constant_formula
             switch (c_formula->get_constant_type()) {
             case ConstantType::EMPTY:
@@ -79,9 +81,8 @@ bool ExplicitUtil::get_explicit_vector(std::vector<SetFormula *> &formulas,
                 exit_with(ExitCode::CRITICAL_ERROR);
                 break;
             }
-        } else if(formulas[i]->get_formula_type() == SetFormulaType::EXPLICIT) {
-            SetFormulaExplicit *h_formula = static_cast<SetFormulaExplicit *>(formulas[i]);
-            explicit_formulas.push_back(h_formula);
+        } else if(e_formula) {
+            explicit_formulas.push_back(e_formula);
         } else {
             std::cerr << "Error: SetFormula of type other than Explicit not allowed here."
                       << std::endl;
@@ -347,8 +348,8 @@ SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
     }
 }
 
-bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
-                                   std::vector<SetFormula *> &right) {
+bool SetFormulaExplicit::check_statement_b1(std::vector<StateSetVariable *> &left,
+                                            std::vector<StateSetVariable *> &right) {
 
     std::vector<SetFormulaExplicit *> left_explicit;
     std::vector<SetFormulaExplicit *> right_explicit;
@@ -397,17 +398,17 @@ bool SetFormulaExplicit::is_subset(std::vector<SetFormula *> &left,
     return true;
 }
 
-bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &left,
-                                                    std::vector<SetFormula *> &right,
-                                                    std::vector<SetFormula *> &prog,
-                                                    std::unordered_set<int> &actions) {
-    assert(!prog.empty());
+bool SetFormulaExplicit::check_statement_b2(std::vector<StateSetVariable *> &progress,
+                                            std::vector<StateSetVariable *> &left,
+                                            std::vector<StateSetVariable *> &right,
+                                            std::unordered_set<int> &action_indices) {
+    assert(!progress.empty());
     std::vector<SetFormulaExplicit *> left_explicit;
     std::vector<SetFormulaExplicit *> right_explicit;
     std::vector<SetFormulaExplicit *> prog_explicit;
     bool valid_formulas = util->get_explicit_vector(left, left_explicit)
             && util->get_explicit_vector(right, right_explicit)
-            && util->get_explicit_vector(prog, prog_explicit);
+            && util->get_explicit_vector(progress, prog_explicit);
     if(!valid_formulas) {
         return false;
     }
@@ -429,7 +430,7 @@ bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &l
     }
     std::vector<int> varorder;
     ExplicitUtil::SubsetCheckHelper helper;
-    for (int action_index : actions) {
+    for (int action_index : action_indices) {
 
         // check if varorder stays the same; if not get a new helper
         std::vector<int> new_varorder(prog_singular->vars);
@@ -520,17 +521,17 @@ bool SetFormulaExplicit::is_subset_with_progression(std::vector<SetFormula *> &l
     return true;
 }
 
-bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &left,
-                                                   std::vector<SetFormula *> &right,
-                                                   std::vector<SetFormula *> &reg,
-                                                   std::unordered_set<int> &actions) {
-    assert(!reg.empty());
+bool SetFormulaExplicit::check_statement_b3(std::vector<StateSetVariable *> &regress,
+                                            std::vector<StateSetVariable *> &left,
+                                            std::vector<StateSetVariable *> &right,
+                                            std::unordered_set<int> &action_indices) {
+    assert(!regress.empty());
     std::vector<SetFormulaExplicit *> left_explicit;
     std::vector<SetFormulaExplicit *> right_explicit;
     std::vector<SetFormulaExplicit *> reg_explicit;
     bool valid_formulas = util->get_explicit_vector(left, left_explicit)
             && util->get_explicit_vector(right, right_explicit)
-            && util->get_explicit_vector(reg, reg_explicit);
+            && util->get_explicit_vector(regress, reg_explicit);
     if(!valid_formulas) {
         return false;
     }
@@ -552,7 +553,7 @@ bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &le
     }
     std::vector<int> varorder;
     ExplicitUtil::SubsetCheckHelper helper;
-    for (int action_index : actions) {
+    for (int action_index : action_indices) {
 
         // check if varorder stays the same; if not get a new helper
         std::vector<int> new_varorder(reg_singular->vars);
@@ -645,8 +646,8 @@ bool SetFormulaExplicit::is_subset_with_regression(std::vector<SetFormula *> &le
     return true;
 }
 
-bool SetFormulaExplicit::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
-    const std::vector<int> &superset_varorder = superset->get_varorder();
+bool SetFormulaExplicit::check_statement_b4(StateSetVariable *right, bool left_positive, bool right_positive) {
+    const std::vector<int> &superset_varorder = right->get_varorder();
     bool superset_varorder_is_subset = true;
     std::vector<int> var_pos;
     for (int var : superset_varorder) {
@@ -667,23 +668,23 @@ bool SetFormulaExplicit::is_subset_of(SetFormula *superset, bool left_positive, 
                 for (size_t i = 0; i < transformed_model.size(); ++i) {
                     transformed_model[i] = model[var_pos[i]];
                 }
-                if (!superset->is_contained(transformed_model)) {
+                if (!right->is_contained(transformed_model)) {
                     return false;
                 }
             }
             return true;
-        } else if (superset->supports_implicant_check()) {
+        } else if (right->supports_im()) {
             for (Model model : models) {
-                if (!superset->is_implicant(vars, model)) {
+                if (!right->is_implicant(vars, model)) {
                     return false;
                 }
             }
             return true;
-        } else if (superset->supports_cnf_enumeration()) {
+        } else if (right->supports_tocnf()) {
             int count = 0;
             std::vector<int> varorder;
             std::vector<bool> clause;
-            while(superset->get_clause(count, varorder, clause)) {
+            while(right->get_clause(count, varorder, clause)) {
                 if (!is_entailed(varorder, clause)) {
                     return false;
                 }
@@ -704,23 +705,23 @@ bool SetFormulaExplicit::is_subset_of(SetFormula *superset, bool left_positive, 
                 for (size_t i = 0; i < transformed_model.size(); ++i) {
                     transformed_model[i] = model[var_pos[i]];
                 }
-                if (!superset->is_contained(transformed_model)) {
+                if (!right->is_contained(transformed_model)) {
                     return false;
                 }
             }
             return true;
-        } else if (superset->supports_clausal_entailment_check()) {
+        } else if (right->supports_ce()) {
             for (Model model : models) {
                 std::vector<bool> clause(model.size());
                 for (size_t i = 0; i < model.size(); ++i) {
                     clause[i] = !model[i];
                 }
-                if (!superset->is_entailed(vars, clause)) {
+                if (!right->is_entailed(vars, clause)) {
                     return false;
                 }
             }
-        } else if (superset->supports_dnf_enumeration()) {
-            return superset->is_subset_of(this, true, false);
+        } else if (right->supports_todnf()) {
+            return right->check_statement_b4(this, true, false);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
             return false;
@@ -729,30 +730,30 @@ bool SetFormulaExplicit::is_subset_of(SetFormula *superset, bool left_positive, 
 
     } else if (!left_positive && right_positive) {
         // superset varorder does not contain new vars --> can do model check
-        if (superset_varorder_is_subset && superset->supports_model_counting()) {
+        if (superset_varorder_is_subset && right->supports_me()) {
             std::vector<bool> transformed_model(var_pos.size());
             int count;
             for (Model model : models) {
                 for (size_t i = 0; i < transformed_model.size(); ++i) {
                     transformed_model[i] = model[var_pos[i]];
                 }
-                if (!superset->is_contained(transformed_model)) {
+                if (!right->is_contained(transformed_model)) {
                     count++;
                 }
             }
-            int sup_nonmodels = pow(2.0,superset_varorder.size()) - superset->get_model_count();
+            int sup_nonmodels = pow(2.0,superset_varorder.size()) - right->get_model_count();
             if (count != sup_nonmodels*pow(2.0,vars.size())) {
                 return false;
             }
             return true;
-        } else if (superset->supports_cnf_enumeration()) {
-            return superset->is_subset_of(this, false, true);
+        } else if (right->supports_tocnf()) {
+            return right->check_statement_b4(this, false, true);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
             return false;
         }
     } else { // both negative
-        return superset->is_subset_of(this, true, true);
+        return right->check_statement_b4(this, true, true);
     }
 }
 
@@ -760,7 +761,7 @@ SetFormulaType SetFormulaExplicit::get_formula_type() {
     return SetFormulaType::EXPLICIT;
 }
 
-SetFormulaBasic *SetFormulaExplicit::get_constant_formula(SetFormulaConstant *c_formula) {
+StateSetVariable *SetFormulaExplicit::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);

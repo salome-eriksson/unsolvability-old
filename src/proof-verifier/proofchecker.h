@@ -2,10 +2,12 @@
 #define PROOFCHECKER_H
 
 #include "actionset.h"
-#include "setformula.h"
+#include "stateset.h"
+#include "task.h"
 
-#include <iostream>
 #include <deque>
+#include <iostream>
+#include <map>
 #include <memory>
 
 typedef int KnowledgeIndex;
@@ -16,6 +18,22 @@ enum class KBType {
     ACTION,
     UNSOLVABLE
 };
+
+enum class ExpressionType {
+    BDD,
+    HORN,
+    DUALHORN,
+    EXPLICIT,
+    TWOCNF,
+    CONSTANT,
+    NEGATION,
+    INTERSECTION,
+    UNION,
+    PROGRESSION,
+    REGRESSION,
+    NONE
+};
+
 
 // TODO: virtual get_first() and get_second() methods are somewhat hacky
 // but it saves us dynamic casts
@@ -72,10 +90,10 @@ public:
 };
 
 struct FormulaEntry {
-    std::unique_ptr<SetFormula> fpointer;
+    std::unique_ptr<StateSet> fpointer;
     // the last KnowledgeIndex where we need the actual set representation
     KnowledgeIndex last_occ;
-    FormulaEntry(std::unique_ptr<SetFormula> fpointer, int last_occ)
+    FormulaEntry(std::unique_ptr<StateSetVariable> fpointer, int last_occ)
         : fpointer(std::move(fpointer)), last_occ(last_occ) {}
     FormulaEntry()
         : last_occ(-1) {}
@@ -89,6 +107,8 @@ private:
     std::deque<std::unique_ptr<ActionSet>> actionsets;
     bool unsolvability_proven;
 
+    std::map<std::string, ExpressionType> expression_types;
+
     void add_kbentry(std::unique_ptr<KBEntry> entry, KnowledgeIndex index);
     void remove_formulas_if_obsolete(std::vector<int> indices, int current_ki);
 
@@ -98,18 +118,18 @@ private:
      * If it is a constant formula, then all set variables involved are constant.
      * If it is a concrete type, then all set variables invovled are of this type or constant.
      */
-    SetFormula *gather_sets_intersection(SetFormula *f,
-                                 std::vector<SetFormula *>&positive,
-                                 std::vector<SetFormula *>&negative);
-    SetFormula *gather_sets_union(SetFormula *f,
-                           std::vector<SetFormula *>&positive,
-                           std::vector<SetFormula *>&negative);
-    SetFormula *update_reference_and_check_consistency(SetFormula *reference_formula,
-                                                       SetFormula *tmp, std::string stmt);
+    StateSetVariable *gather_sets_intersection(StateSet *f,
+                                 std::vector<StateSetVariable *> &positive,
+                                 std::vector<StateSetVariable *> &negative);
+    StateSetVariable *gather_sets_union(StateSet *f,
+                           std::vector<StateSetVariable *>&positive,
+                           std::vector<StateSetVariable *>&negative);
+    StateSetVariable *update_reference_and_check_consistency(StateSetVariable *reference_formula,
+                                                       StateSetVariable *tmp, std::string stmt);
 public:
     ProofChecker();
 
-    void add_formula(std::unique_ptr<SetFormula> formula, FormulaIndex index);
+    void add_expression(std::ifstream &in, Task *task);
     // TODO one function for both types of actionsets would be nicer...
     void add_actionset(std::unique_ptr<ActionSet> actionset, ActionSetIndex index);
     void add_actionset_union(ActionSetIndex left, ActionSetIndex right, ActionSetIndex index);

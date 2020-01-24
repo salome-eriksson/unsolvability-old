@@ -176,13 +176,15 @@ void BDDUtil::build_actionformulas() {
     }
 }
 
-bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BDD *> &bdds) {
+bool BDDUtil::get_bdd_vector(std::vector<StateSetVariable *> &formulas, std::vector<BDD *> &bdds) {
     assert(bdds.empty());
     bdds.reserve(formulas.size());
     std::vector<int> *varorder = nullptr;
+    // TODO: reimplement check whether formula is horn or constant
     for(size_t i = 0; i < formulas.size(); ++i) {
-        if (formulas[i]->get_formula_type() == SetFormulaType::CONSTANT) {
-            SetFormulaConstant *c_formula = static_cast<SetFormulaConstant *>(formulas[i]);
+        SetFormulaConstant *c_formula = dynamic_cast<SetFormulaConstant *>(formulas[i]);
+        SetFormulaBDD *b_formula = dynamic_cast<SetFormulaBDD *>(formulas[i]);
+        if (c_formula) {
             // see if we can use get_constant_formula
             switch (c_formula->get_constant_type()) {
             case ConstantType::EMPTY:
@@ -199,8 +201,7 @@ bool BDDUtil::get_bdd_vector(std::vector<SetFormula *> &formulas, std::vector<BD
                 exit_with(ExitCode::CRITICAL_ERROR);
                 break;
             }
-        } else if(formulas[i]->get_formula_type() == SetFormulaType::BDD) {
-            SetFormulaBDD *b_formula = static_cast<SetFormulaBDD *>(formulas[i]);
+        } else if(b_formula) {
             if (varorder && b_formula->util->varorder != *varorder) {
                 std::cerr << "Error: Trying to combine BDDs with different varorder."
                           << std::endl;
@@ -258,8 +259,8 @@ SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
     assert(declaration_end == ";");
 }
 
-bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &left,
-                              std::vector<SetFormula *> &right) {
+bool SetFormulaBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
+                                       std::vector<StateSetVariable *> &right) {
     std::vector<BDD *> left_bdds;
     std::vector<BDD *> right_bdds;
     bool valid_bdds = util->get_bdd_vector(left, left_bdds)
@@ -279,17 +280,17 @@ bool SetFormulaBDD::is_subset(std::vector<SetFormula *> &left,
     return left_singular.Leq(right_singular);
 }
 
-bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
-                                               std::vector<SetFormula *> &right,
-                                               std::vector<SetFormula *> &prog,
-                                               std::unordered_set<int> &actions) {
+bool SetFormulaBDD::check_statement_b2(std::vector<StateSetVariable *> &progress,
+                                       std::vector<StateSetVariable *> &left,
+                                       std::vector<StateSetVariable *> &right,
+                                       std::unordered_set<int> &action_indices) {
 
     std::vector<BDD *> left_bdds;
     std::vector<BDD *> right_bdds;
     std::vector<BDD *> prog_bdds;
     bool valid_bdds = util->get_bdd_vector(left, left_bdds)
             && util->get_bdd_vector(right, right_bdds)
-            && util->get_bdd_vector(prog, prog_bdds);
+            && util->get_bdd_vector(progress, prog_bdds);
     if (!valid_bdds) {
         return false;
     }
@@ -313,7 +314,7 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
         util->build_actionformulas();
     }
 
-    for (int a : actions) {
+    for (int a : action_indices) {
         const Action &action = util->task->get_action(a);
         BDD prog_rn = prog_singular * util->actionformulas[a].pre;
 
@@ -335,16 +336,16 @@ bool SetFormulaBDD::is_subset_with_progression(std::vector<SetFormula *> &left,
     return true;
 }
 
-bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
-                                              std::vector<SetFormula *> &right,
-                                              std::vector<SetFormula *> &reg,
-                                              std::unordered_set<int> &actions) {
+bool SetFormulaBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
+                                       std::vector<StateSetVariable *> &left,
+                                       std::vector<StateSetVariable *> &right,
+                                       std::unordered_set<int> &action_indices) {
     std::vector<BDD *> left_bdds;
     std::vector<BDD *> right_bdds;
     std::vector<BDD *> reg_bdds;
     bool valid_bdds = util->get_bdd_vector(left, left_bdds)
             && util->get_bdd_vector(right, right_bdds)
-            && util->get_bdd_vector(reg, reg_bdds);
+            && util->get_bdd_vector(regress, reg_bdds);
     if (!valid_bdds) {
         return false;
     }
@@ -368,7 +369,7 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
         util->build_actionformulas();
     }
 
-    for (int a : actions) {
+    for (int a : action_indices) {
         const Action &action = util->task->get_action(a);
         BDD reg_rn = reg_singular * util->actionformulas[a].eff;
         for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
@@ -389,13 +390,13 @@ bool SetFormulaBDD::is_subset_with_regression(std::vector<SetFormula *> &left,
     return true;
 }
 
-bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool right_positive) {
+bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positive, bool right_positive) {
 
     if (!left_positive && !right_positive) {
-        return superset->is_subset_of(this, true, true);
+        return right->check_statement_b4(this, true, true);
     } else if (left_positive && !right_positive) {
-        if (superset->supports_dnf_enumeration() || superset->get_formula_type() == SetFormulaType::EXPLICIT) {
-            return superset->is_subset_of(this, true, false);
+        if (right->supports_todnf() || right->get_formula_type() == SetFormulaType::EXPLICIT) {
+            return right->check_statement_b4(this, true, false);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
             return false;
@@ -414,11 +415,11 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
         return true;
     }
 
-    if (superset->supports_cnf_enumeration()) {
+    if (right->supports_tocnf()) {
         int count = 0;
         std::vector<int> varorder;
         std::vector<bool> clause;
-        while (superset->get_clause(count, varorder, clause)) {
+        while (right->get_clause(count, varorder, clause)) {
             BDD clause_bdd = manager.bddZero();
             for (size_t i = 0; i < clause.size(); ++i) {
                 if (varorder[i] > util->varorder.size()) {
@@ -439,8 +440,8 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
         return true;
 
     // enumerate models (only works with Explicit if Explicit has all vars this has)
-    } else if (superset->get_formula_type() == SetFormulaType::EXPLICIT) {
-        const std::vector<int> sup_varorder = superset->get_varorder();
+    } else if (right->get_formula_type() == SetFormulaType::EXPLICIT) {
+        const std::vector<int> sup_varorder = right->get_varorder();
         std::vector<bool> model(sup_varorder.size());
         std::vector<int> var_transform(util->varorder.size(), -1);
         std::vector<int> vars_to_fill_base;
@@ -482,7 +483,7 @@ bool SetFormulaBDD::is_subset_of(SetFormula *superset, bool left_positive, bool 
                 for (size_t i = 0; i < vars_to_fill.size(); ++i) {
                     model[vars_to_fill[i]] = ((count >> i) % 2 == 1);
                 }
-                if (!superset->is_contained(model)) {
+                if (!right->is_contained(model)) {
                     return false;
                 }
             }
@@ -500,7 +501,7 @@ SetFormulaType SetFormulaBDD::get_formula_type() {
     return SetFormulaType::BDD;
 }
 
-SetFormulaBasic *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formula) {
+StateSetVariable *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);

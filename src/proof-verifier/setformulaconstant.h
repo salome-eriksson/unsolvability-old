@@ -1,49 +1,43 @@
 #ifndef SETFORMULACONSTANT_H
 #define SETFORMULACONSTANT_H
 
-#include "setformula.h"
+#include "stateset.h"
 
-class SetFormulaBasic;
-
-class SetFormulaConstant : public SetFormula
+class SetFormulaConstant : public StateSetVariable
 {
 private:
     ConstantType constanttype;
     Task *task;
-    /* returns an actual representation of the constant set:
-     *  - if f1 is a basic setformula, then the type of f1 is chosen
-     *  - if f1 is a constant formula and f2 is a basic setformula, then the type of f2 is chosen
-     *  - if f1 and f2 are constant formulas, then Horn is chosen
-     *  - else (f1 and/or f2 are compound formulas) a nullptr is returned
-     * f2 can be a nullptr
-     */
-    SetFormulaBasic *get_concrete_formula_instance(SetFormula *f1, SetFormula *f2);
 public:
     SetFormulaConstant(std::ifstream &input, Task *task);
 
-    virtual bool is_subset(std::vector<SetFormula *> &left,
-                           std::vector<SetFormula *> &right);
-    virtual bool is_subset_with_progression(std::vector<SetFormula *> &left,
-                                            std::vector<SetFormula *> &right,
-                                            std::vector<SetFormula *> &prog,
-                                            std::unordered_set<int> &);
-    virtual bool is_subset_with_regression(std::vector<SetFormula *> &left,
-                                           std::vector<SetFormula *> &right,
-                                           std::vector<SetFormula *> &reg,
-                                           std::unordered_set<int> &);
-
-    virtual bool is_subset_of(SetFormula *superset, bool left_positive, bool right_positive);
+    virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
+                                    std::vector<StateSetVariable *> &right);
+    virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
+                                    std::vector<StateSetVariable *> &left,
+                                    std::vector<StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices);
+    virtual bool check_statement_b3(std::vector<StateSetVariable *> &regress,
+                                    std::vector<StateSetVariable *> &left,
+                                    std::vector<StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices);
+    virtual bool check_statement_b4(StateSetVariable *right,
+                                    bool left_positive, bool right_positive);
 
     virtual SetFormulaType get_formula_type();
     virtual const std::vector<int> &get_varorder();
 
     ConstantType get_constant_type();
 
-    virtual bool supports_implicant_check() { return false; }
-    virtual bool supports_clausal_entailment_check() { return false; }
-    virtual bool supports_dnf_enumeration() { return false; }
-    virtual bool supports_cnf_enumeration() { return false; }
-    virtual bool supports_model_counting() { return false; }
+    // TODO: what should we set here?
+    virtual bool supports_mo() { return true; }
+    virtual bool supports_ce() { return true; }
+    virtual bool supports_im() { return true; }
+    virtual bool supports_me() { return true; }
+    virtual bool supports_todnf() { return true; }
+    virtual bool supports_tocnf() { return true; }
+    virtual bool supports_ct() { return true; }
+    virtual bool is_nonsuccint() { return true; }
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const ;
