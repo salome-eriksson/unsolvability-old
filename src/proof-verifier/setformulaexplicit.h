@@ -28,7 +28,7 @@ private:
     SetFormulaExplicit(std::vector<int> &varorder, std::vector<SetFormulaExplicit *>&disjuncts);
 public:
     SetFormulaExplicit();
-    SetFormulaExplicit(std::ifstream &input, Task *task);
+    SetFormulaExplicit(std::stringstream &input, Task &task);
     virtual ~SetFormulaExplicit() {}
 
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
@@ -77,14 +77,14 @@ public:
 class ExplicitUtil {
     friend class SetFormulaExplicit;
 private:
-    Task *task;
+    Task &task;
     SetFormulaExplicit emptyformula;
     SetFormulaExplicit trueformula;
     SetFormulaExplicit initformula;
     SetFormulaExplicit goalformula;
     std::vector<std::vector<bool>> hex;
 
-    ExplicitUtil(Task *task);
+    ExplicitUtil(Task &task);
 
     struct OtherVarorderFormula {
         SetFormulaExplicit *formula;

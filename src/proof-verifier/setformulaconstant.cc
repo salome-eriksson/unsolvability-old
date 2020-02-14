@@ -6,18 +6,18 @@
 #include "setformulahorn.h"
 #include "global_funcs.h"
 
-SetFormulaConstant::SetFormulaConstant(std::ifstream &input, Task *task)
+SetFormulaConstant::SetFormulaConstant(std::stringstream &input, Task &task)
     : task(task) {
-    std::string type;
-    input >> type;
-    if(type.compare("e") == 0) {
+    std::string constant_type;
+    input >> constant_type;
+    if(constant_type.compare("e") == 0) {
         constanttype = ConstantType::EMPTY;
-    } else if(type.compare("i") == 0) {
+    } else if(constant_type.compare("i") == 0) {
         constanttype = ConstantType::INIT;
-    } else if(type.compare("g") == 0) {
+    } else if(constant_type.compare("g") == 0) {
         constanttype = ConstantType::GOAL;
     } else {
-        std::cerr << "unknown constant type " << type << std::endl;
+        std::cerr << "unknown constant type " << constant_type << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }
 }

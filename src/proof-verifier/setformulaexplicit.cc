@@ -12,7 +12,7 @@
 #include "global_funcs.h"
 
 
-ExplicitUtil::ExplicitUtil(Task *task)
+ExplicitUtil::ExplicitUtil(Task &task)
     : task(task) {
 
     std::vector<int> varorder(1,0);
@@ -23,7 +23,7 @@ ExplicitUtil::ExplicitUtil(Task *task)
     trueformula = SetFormulaExplicit(std::move(varorder), std::move(entries));
     varorder = std::vector<int>();
     int var = 0;
-    for ( int val : task->get_goal()) {
+    for ( int val : task.get_goal()) {
         if (val == 1) {
             varorder.push_back(var);
         }
@@ -31,14 +31,14 @@ ExplicitUtil::ExplicitUtil(Task *task)
     }
     entries = std::unordered_set<std::vector<bool>> {std::vector<bool>(varorder.size(), true)};
     goalformula = SetFormulaExplicit(std::move(varorder),std::move(entries));
-    varorder = std::vector<int>(task->get_number_of_facts(),-1);
+    varorder = std::vector<int>(task.get_number_of_facts(),-1);
     for (size_t i = 0; i < varorder.size(); ++i) {
         varorder[i] = i;
     }
     entries = std::unordered_set<std::vector<bool>>();
     std::vector<bool> entry(varorder.size());
     var = 0;
-    for ( int val : task->get_initial_state()) {
+    for ( int val : task.get_initial_state()) {
         if (val == 1) {
             entry[var] = true;
         }
@@ -294,7 +294,7 @@ SetFormulaExplicit::SetFormulaExplicit(std::vector<int> &varorder, std::vector<S
     }
 }
 
-SetFormulaExplicit::SetFormulaExplicit(std::ifstream &input, Task *task) {
+SetFormulaExplicit::SetFormulaExplicit(std::stringstream &input, Task &task) {
     if(!util) {
         util = std::unique_ptr<ExplicitUtil>(new ExplicitUtil(task));
     }
@@ -434,7 +434,7 @@ bool SetFormulaExplicit::check_statement_b2(std::vector<StateSetVariable *> &pro
 
         // check if varorder stays the same; if not get a new helper
         std::vector<int> new_varorder(prog_singular->vars);
-        const Action &action = util->task->get_action(action_index);
+        const Action &action = util->task.get_action(action_index);
         std::vector<int> add_pos;
         std::vector<int> del_pos;
         std::vector<int> pre_to_check;
@@ -557,7 +557,7 @@ bool SetFormulaExplicit::check_statement_b3(std::vector<StateSetVariable *> &reg
 
         // check if varorder stays the same; if not get a new helper
         std::vector<int> new_varorder(reg_singular->vars);
-        const Action &action = util->task->get_action(action_index);
+        const Action &action = util->task.get_action(action_index);
 
         std::vector<int> add_pos;
         std::vector<int> del_pos;

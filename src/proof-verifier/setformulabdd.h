@@ -31,7 +31,7 @@ private:
     std::unordered_map<int, DdNode *> ddnodes;
 public:
     BDDFile() {}
-    BDDFile(Task *task, std::string filename);
+    BDDFile(Task &task, std::string filename);
     // expects caller to take ownership and call deref!
     DdNode *get_ddnode(int index);
     BDDUtil *get_util();
@@ -54,8 +54,8 @@ private:
 
     SetFormulaBDD(BDDUtil *util, BDD bdd);
 public:
-    SetFormulaBDD();
-    SetFormulaBDD(std::ifstream &input, Task *task);
+    SetFormulaBDD() = delete;
+    SetFormulaBDD(std::stringstream &input, Task &task);
 
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right);
@@ -108,7 +108,7 @@ public:
 class BDDUtil {
     friend class SetFormulaBDD;
 private:
-    Task *task;
+    Task &task;
     // TODO: fix varorder meaning across the code!
     // global variable i is at position varorder[i](*2)
     std::vector<int> varorder;
@@ -132,8 +132,8 @@ private:
      */
     bool get_bdd_vector(std::vector<StateSetVariable *> &formulas, std::vector<BDD *> &bdds);
 public:
-    BDDUtil();
-    BDDUtil(Task *task, std::vector<int> &varorder);
+    BDDUtil() = delete;
+    BDDUtil(Task &task, std::vector<int> &varorder);
 };
 
 

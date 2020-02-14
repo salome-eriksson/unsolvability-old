@@ -22,8 +22,6 @@ enum class ConstantType {
     GOAL,
     INIT
 };
-typedef int FormulaIndex;
-typedef int ActionSetIndex;
 
 
 class StateSet
