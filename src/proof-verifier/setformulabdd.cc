@@ -13,7 +13,7 @@
 std::unordered_map<std::vector<int>, BDDUtil, VectorHasher> BDDFile::utils;
 std::vector<int> BDDFile::compose;
 
-BDDFile::BDDFile(Task *task, std::string filename) {
+BDDFile::BDDFile(Task &task, std::string filename) {
     if (compose.empty()) {
         /*
          * The dumped BDDs only contain the original variables.
@@ -23,8 +23,8 @@ BDDFile::BDDFile(Task *task, std::string filename) {
          * occurs directly after its unprimed version
          * (Example: BDD dump with vars "a b c": "a a' b b' c c'")
          */
-        compose.resize(task->get_number_of_facts());
-        for(int i = 0; i < task->get_number_of_facts(); ++i) {
+        compose.resize(task.get_number_of_facts());
+        for(int i = 0; i < task.get_number_of_facts(); ++i) {
             compose[i] = 2*i;
         }
 
@@ -37,7 +37,7 @@ BDDFile::BDDFile(Task *task, std::string filename) {
 
     // the first line contains the variable order, separated by space
     std::vector<int> varorder;
-    varorder.reserve(task->get_number_of_facts());
+    varorder.reserve(task.get_number_of_facts());
     // read in line char by char into a stringstream
     std::stringstream ss;
     char c;
@@ -51,7 +51,7 @@ BDDFile::BDDFile(Task *task, std::string filename) {
     while (ss >> n){
         varorder.push_back(n);
     }
-    assert(varorder.size() == task->get_number_of_facts());
+    assert(varorder.size() == task.get_number_of_facts());
     auto it = utils.find(varorder);
     if (it == utils.end()) {
         it = utils.emplace(std::piecewise_construct,
@@ -125,22 +125,17 @@ BDDUtil *BDDFile::get_util() {
     return util;
 }
 
-BDDUtil::BDDUtil(Task *task, std::vector<int> &varorder)
-    : task(task), varorder(varorder) {
+BDDUtil::BDDUtil(Task &task, std::vector<int> &varorder)
+    : task(task), varorder(varorder),
+      initformula(this, build_bdd_from_cube(task.get_initial_state())),
+      goalformula(this, build_bdd_from_cube(task.get_goal())),
+      emptyformula(this, BDD(manager.bddZero())) {
 
-    assert(varorder.size() == task->get_number_of_facts());
+    assert(varorder.size() == task.get_number_of_facts());
     other_varorder.resize(varorder.size(),-1);
     for (size_t i = 0; i < varorder.size(); ++i) {
         other_varorder[varorder[i]] = i;
     }
-
-    initformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_initial_state()) );
-    goalformula = SetFormulaBDD( this, build_bdd_from_cube(task->get_goal()) );
-    emptyformula = SetFormulaBDD( this, BDD(manager.bddZero()) );
-}
-
-BDDUtil::BDDUtil() {
-
 }
 
 // TODO: returning a new object is not a very safe way (see for example contains())
@@ -154,10 +149,10 @@ BDD BDDUtil::build_bdd_from_cube(const Cube &cube) {
 }
 
 void BDDUtil::build_actionformulas() {
-    actionformulas.reserve(task->get_number_of_actions());
-    for(int i = 0; i < task->get_number_of_actions(); ++i) {
+    actionformulas.reserve(task.get_number_of_actions());
+    for(int i = 0; i < task.get_number_of_actions(); ++i) {
         BDDAction bddaction;
-        const Action &action = task->get_action(i);
+        const Action &action = task.get_action(i);
         bddaction.pre = manager.bddOne();
         for (int var : action.pre) {
             bddaction.pre *= manager.bddVar(varorder[var]*2);
@@ -220,24 +215,19 @@ bool BDDUtil::get_bdd_vector(std::vector<StateSetVariable *> &formulas, std::vec
 std::unordered_map<std::string, BDDFile> SetFormulaBDD::bddfiles;
 std::vector<int> SetFormulaBDD::prime_permutation;
 
-SetFormulaBDD::SetFormulaBDD()
-    : util(nullptr), bdd(manager.bddZero()) {
-
-}
-
 SetFormulaBDD::SetFormulaBDD(BDDUtil *util, BDD bdd)
     : util(util), bdd(bdd) {
 }
 
-SetFormulaBDD::SetFormulaBDD(std::ifstream &input, Task *task) {
+SetFormulaBDD::SetFormulaBDD(std::stringstream &input, Task &task) {
     std::string filename;
     int bdd_index;
     input >> filename;
     input >> bdd_index;
     if(bddfiles.find(filename) == bddfiles.end()) {
         if(bddfiles.empty()) {
-            prime_permutation.resize(task->get_number_of_facts()*2, -1);
-            for(int i = 0 ; i < task->get_number_of_facts(); ++i) {
+            prime_permutation.resize(task.get_number_of_facts()*2, -1);
+            for(int i = 0 ; i < task.get_number_of_facts(); ++i) {
               prime_permutation[2*i] = (2*i)+1;
               prime_permutation[(2*i)+1] = 2*i;
             }
@@ -315,10 +305,10 @@ bool SetFormulaBDD::check_statement_b2(std::vector<StateSetVariable *> &progress
     }
 
     for (int a : action_indices) {
-        const Action &action = util->task->get_action(a);
+        const Action &action = util->task.get_action(a);
         BDD prog_rn = prog_singular * util->actionformulas[a].pre;
 
-        for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
+        for (int var = 0; var < util->task.get_number_of_facts(); ++var) {
             int local_var = util->varorder[var];
             if (action.change[var] != 0) {
                 prime_permutation[2*local_var] = 2*local_var+1;
@@ -370,9 +360,9 @@ bool SetFormulaBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
     }
 
     for (int a : action_indices) {
-        const Action &action = util->task->get_action(a);
+        const Action &action = util->task.get_action(a);
         BDD reg_rn = reg_singular * util->actionformulas[a].eff;
-        for (int var = 0; var < util->task->get_number_of_facts(); ++var) {
+        for (int var = 0; var < util->task.get_number_of_facts(); ++var) {
             int local_var = util->varorder[var];
             if (action.change[var] != 0) {
                 prime_permutation[2*local_var] = 2*local_var+1;

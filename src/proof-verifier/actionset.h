@@ -45,7 +45,7 @@ class ActionSetConstantAll : public ActionSet
 {
     int action_amount;
 public:
-    ActionSetConstantAll(Task *task);
+    ActionSetConstantAll(Task &task);
     virtual bool contains(int ai);
     virtual bool is_subset(ActionSet *other);
     virtual void get_actions(std::unordered_set<int> &set);

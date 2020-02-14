@@ -12,9 +12,9 @@ HornConjunctionElement::HornConjunctionElement (const SetFormulaHorn *formula)
     : formula(formula), removed_implications(formula->get_size(), false) {
 }
 
-HornUtil::HornUtil(Task *task)
+HornUtil::HornUtil(Task &task)
     : task(task) {
-    int varamount = task->get_number_of_facts();
+    int varamount = task.get_number_of_facts();
     std::vector<std::pair<std::vector<int>,int>> clauses;
     // this is the maximum amount of clauses the formulas need
     clauses.reserve(varamount*2);
@@ -26,7 +26,7 @@ HornUtil::HornUtil(Task *task)
     clauses.clear();
 
     // insert goal
-    const Cube &goal = task->get_goal();
+    const Cube &goal = task.get_goal();
     for(int i = 0; i < goal.size(); ++i) {
         if(goal.at(i) == 1) {
             clauses.push_back(std::make_pair(std::vector<int>(),i));
@@ -37,7 +37,7 @@ HornUtil::HornUtil(Task *task)
 
     // insert initial state
     clauses.clear();
-    const Cube &init = task->get_initial_state();
+    const Cube &init = task.get_initial_state();
     for(int i = 0; i < init.size(); ++i) {
         if(init.at(i) == 1) {
             clauses.push_back(std::make_pair(std::vector<int>(),i));
@@ -541,13 +541,13 @@ SetFormulaHorn::SetFormulaHorn(const SetFormulaHorn &other, const Action &action
 }
 
 
-SetFormulaHorn::SetFormulaHorn(Task *task) {
+SetFormulaHorn::SetFormulaHorn(Task &task) {
     if (util == nullptr) {
         util = new HornUtil(task);
     }
 }
 
-SetFormulaHorn::SetFormulaHorn(std::ifstream &input, Task *task) {
+SetFormulaHorn::SetFormulaHorn(std::stringstream &input, Task &task) {
     // parsing
     std::string word;
     int clausenum;
@@ -843,7 +843,7 @@ bool SetFormulaHorn::check_statement_b2(std::vector<StateSetVariable *> &progres
         vec.push_back(left_singular);
     }
     for (int a : action_indices) {
-        SetFormulaHorn prog_applied(*prog_singular, util->task->get_action(a), true);
+        SetFormulaHorn prog_applied(*prog_singular, util->task.get_action(a), true);
         vec.push_back(&prog_applied);
         if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
             return false;
@@ -891,7 +891,7 @@ bool SetFormulaHorn::check_statement_b3(std::vector<StateSetVariable *> &regress
         vec.push_back(left_singular);
     }
     for (int a : action_indices) {
-        SetFormulaHorn reg_applied(*reg_singular, util->task->get_action(a), false);
+        SetFormulaHorn reg_applied(*reg_singular, util->task.get_action(a), false);
         vec.push_back(&reg_applied);
         if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
             return false;
@@ -1087,7 +1087,7 @@ bool SetFormulaHorn::is_implicant(const std::vector<int> &varorder, const std::v
             clauses.push_back(std::make_pair(std::vector<int>(1,varorder[i]),-1));
         }
     }
-    SetFormulaHorn implicant_horn(clauses, util->task->get_number_of_facts());
+    SetFormulaHorn implicant_horn(clauses, util->task.get_number_of_facts());
     std::vector<SetFormulaHorn *>left,right;
     left.push_back(&implicant_horn);
     right.push_back(this);

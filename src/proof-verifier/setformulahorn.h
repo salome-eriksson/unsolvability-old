@@ -23,12 +23,12 @@ typedef std::vector<std::pair<std::forward_list<int>,std::forward_list<int>>> Va
 class HornUtil {
     friend class SetFormulaHorn;
 private:
-    Task *task;
+    Task &task;
     SetFormulaHorn *emptyformula;
     SetFormulaHorn *initformula;
     SetFormulaHorn *goalformula;
     SetFormulaHorn *trueformula;
-    HornUtil(Task *task);
+    HornUtil(Task &task);
 
     void build_actionformulas();
     bool get_horn_vector(std::vector<StateSetVariable *> &formulas, std::vector<SetFormulaHorn *> &horn_formulas);
@@ -88,8 +88,8 @@ private:
     void simplify();
 public:
     // TODO: this is currently only used for a dummy initialization
-    SetFormulaHorn(Task *task);
-    SetFormulaHorn(std::ifstream &input, Task *task);
+    SetFormulaHorn(Task &task);
+    SetFormulaHorn(std::stringstream &input, Task &task);
     virtual ~SetFormulaHorn() {}
 
     //void shift(std::vector<int> &vars);

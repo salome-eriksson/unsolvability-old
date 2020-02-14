@@ -13,6 +13,7 @@ DEPEND = $(CXX) -MM
 HEADERS = \
 	  actionset.h \
       global_funcs.h \
+      knowledge.h \
 	  proofchecker.h \
 	  setformulabdd.h \
 	  setformulaconstant.h \

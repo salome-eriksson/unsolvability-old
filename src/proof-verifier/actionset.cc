@@ -43,8 +43,8 @@ bool ActionSetUnion::is_constantall() {
     return false;
 }
 
-ActionSetConstantAll::ActionSetConstantAll(Task *task)
-    : action_amount(task->get_number_of_actions()) {
+ActionSetConstantAll::ActionSetConstantAll(Task &task)
+    : action_amount(task.get_number_of_actions()) {
 
 }
 bool ActionSetConstantAll::contains(int ai) {

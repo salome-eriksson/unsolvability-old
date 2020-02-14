@@ -3,13 +3,15 @@
 
 #include "stateset.h"
 
+#include <sstream>
+
 class SetFormulaConstant : public StateSetVariable
 {
 private:
     ConstantType constanttype;
-    Task *task;
+    Task &task;
 public:
-    SetFormulaConstant(std::ifstream &input, Task *task);
+    SetFormulaConstant(std::stringstream &input, Task &task);
 
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right);
