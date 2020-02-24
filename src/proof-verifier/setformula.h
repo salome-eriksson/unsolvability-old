@@ -9,6 +9,7 @@ enum class SetFormulaType {
     CONSTANT,
     BDD,
     HORN,
+    DUALHORN,
     TWOCNF,
     EXPLICIT,
     NEGATION,
