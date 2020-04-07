@@ -1,6 +1,7 @@
 #ifndef ACTIONSET_H
 #define ACTIONSET_H
 
+#include "setcompositions.h"
 #include "task.h"
 
 #include <unordered_set>
@@ -28,7 +29,7 @@ public:
     virtual bool is_constantall();
 };
 
-class ActionSetUnion : public ActionSet
+class ActionSetUnion : public ActionSet, public SetUnion
 {
 private:
     ActionSet *left;
@@ -39,6 +40,8 @@ public:
     virtual bool is_subset(ActionSet *other);
     virtual void get_actions(std::unordered_set<int> &set);
     virtual bool is_constantall();
+    virtual int get_left_id();
+    virtual int get_right_id();
 };
 
 class ActionSetConstantAll : public ActionSet
