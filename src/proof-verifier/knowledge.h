@@ -1,21 +1,16 @@
 #ifndef KNOWLEDGE_H
 #define KNOWLEDGE_H
 
-enum class SetType {
-    ACTION,
-    STATE
-};
-
 class Knowledge
 {
 public:
     virtual ~Knowledge() = 0;
 };
 
+template<class T>
 class SubsetKnowledge : public Knowledge
 {
 private:
-    SetType type;
     int left_id;
     int right_id;
 public:
@@ -26,6 +21,7 @@ public:
     int get_right_id();
 };
 
+// no template needed - only state sets can be dead (so far...)
 class DeadKnowledge : public Knowledge
 {
 private:

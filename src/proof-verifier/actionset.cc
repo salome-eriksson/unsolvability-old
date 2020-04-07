@@ -42,6 +42,14 @@ void ActionSetUnion::get_actions(std::unordered_set<int> &set) {
 bool ActionSetUnion::is_constantall() {
     return false;
 }
+int ActionSetUnion::get_left_id() {
+    //TODO
+    return -1;
+}
+int ActionSetUnion::get_right_id() {
+    //TODO
+    return -1;
+}
 
 ActionSetConstantAll::ActionSetConstantAll(Task &task)
     : action_amount(task.get_number_of_actions()) {
