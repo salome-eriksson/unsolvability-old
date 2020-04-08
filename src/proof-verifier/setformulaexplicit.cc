@@ -849,3 +849,5 @@ bool SetFormulaExplicit::get_clause(int i, std::vector<int> &vars, std::vector<b
 int SetFormulaExplicit::get_model_count() {
     return models.size();
 }
+
+StateSetBuilder<SetFormulaExplicit> explicit_builder("e");

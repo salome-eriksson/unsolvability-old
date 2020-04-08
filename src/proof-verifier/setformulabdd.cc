@@ -575,3 +575,5 @@ int SetFormulaBDD::get_model_count() {
     // TODO: not sure if this is correct
     return bdd.CountMinterm(util->varorder.size());
 }
+
+StateSetBuilder<SetFormulaBDD> bdd_builder("b");

@@ -4,6 +4,11 @@
 #include "setcompositions.h"
 #include "actionset.h"
 
+#include <functional>
+#include <map>
+#include <memory>
+#include <sstream>
+
 // TODO: remove eventually?
 enum class SetFormulaType {
     CONSTANT,
@@ -23,11 +28,16 @@ enum class ConstantType {
     INIT
 };
 
+class StateSet;
+typedef std::function<std::unique_ptr<StateSet>(std::stringstream &input, Task &task)> StateSetConstructor;
+
 
 class StateSet
 {
 public:
     virtual ~StateSet() {}
+
+    static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
 
    // TODO: can we get rid of this method?
    // (then we need to make the destructor pure virtual)
@@ -87,7 +97,7 @@ private:
     int id_left;
     int id_right;
 public:
-    StateSetUnion(int id_left, int id_right);
+    StateSetUnion(std::stringstream &input, Task &task);
     virtual ~StateSetUnion() {}
 
     virtual int get_left_id();
@@ -101,7 +111,7 @@ private:
     int id_left;
     int id_right;
 public:
-    StateSetIntersection(int id_left, int id_right);
+    StateSetIntersection(std::stringstream &input, Task &task);
     virtual ~StateSetIntersection() {}
 
     virtual int get_left_id();
@@ -114,7 +124,7 @@ class StateSetNegation : public StateSet, public SetNegation
 private:
     int id_child;
 public:
-    StateSetNegation(int id_child);
+    StateSetNegation(std::stringstream &input, Task &task);
     virtual ~StateSetNegation() {}
 
     virtual int get_child_id();
@@ -127,7 +137,7 @@ private:
     int id_stateset;
     int id_actionset;
 public:
-    StateSetProgression(int id_stateset, int id_actionset);
+    StateSetProgression(std::stringstream &input, Task &task);
     virtual ~StateSetProgression() {}
 
     virtual int get_stateset_id();
@@ -141,11 +151,26 @@ private:
     int id_stateset;
     int id_actionset;
 public:
-    StateSetRegression(int id_stateset, int id_actionset);
+    StateSetRegression(std::stringstream &input, Task &task);
     virtual ~StateSetRegression() {}
 
     virtual int get_stateset_id();
     virtual int get_actionset_id();
     virtual SetFormulaType get_formula_type();
+};
+
+
+template<class T>
+class StateSetBuilder {
+public:
+    StateSetBuilder(std::string key) {
+        StateSetConstructor constructor = [](std::stringstream &input, Task &task) -> std::unique_ptr<StateSet> {
+            return std::unique_ptr<T>(new T(input, task));
+        };
+        StateSet::get_stateset_constructors()->insert(std::make_pair(key, constructor));
+    }
+
+    ~StateSetBuilder() = default;
+    StateSetBuilder(const StateSetBuilder<T> &other) = delete;
 };
 #endif // STATESET_H
