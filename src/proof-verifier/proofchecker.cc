@@ -16,19 +16,6 @@
 
 ProofChecker::ProofChecker(std::string &task_file)
     : task(task_file), unsolvability_proven(false) {
-    expression_types = std::map<std::string,ExpressionType> {
-        { "b", ExpressionType::BDD },
-        { "h", ExpressionType::HORN },
-        { "d", ExpressionType::DUALHORN },
-        { "t", ExpressionType::TWOCNF },
-        { "e", ExpressionType::EXPLICIT },
-        { "c", ExpressionType::CONSTANT },
-        { "n", ExpressionType::NEGATION },
-        { "i", ExpressionType::INTERSECTION },
-        { "u", ExpressionType::UNION },
-        { "p", ExpressionType::PROGRESSION },
-        { "r", ExpressionType::REGRESSION }
-    };
 
     // TODO: understand what's going on
     using namespace std::placeholders;
@@ -202,80 +189,13 @@ void ProofChecker::add_state_set(std::string &line) {
     int expression_index;
     ssline >> expression_index;
     std::string word;
-    // read in expression type
     ssline >> word;
-    // the type is defined by a single character
-    if (word.length() != 1) {
+    auto stateset_constructors = StateSet::get_stateset_constructors();
+    if (stateset_constructors->find(word) == stateset_constructors->end()) {
         std::cerr << "unknown expression type " << word << std::endl;
         exit_with(ExitCode::CRITICAL_ERROR);
     }
-    std::unique_ptr<StateSet> expression;
-
-    ExpressionType type = ExpressionType::NONE;
-    if (expression_types.find(word) != expression_types.end()) {
-        type = expression_types.at(word);
-    }
-
-    switch(type) {
-    case ExpressionType::BDD:
-        expression = std::unique_ptr<StateSet>(new SetFormulaBDD(ssline, task));
-        break;
-    case ExpressionType::HORN:
-        expression = std::unique_ptr<StateSet>(new SetFormulaHorn(ssline, task));
-        break;
-    case ExpressionType::DUALHORN:
-        std::cerr << "not implemented yet" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-        break;
-    case ExpressionType::TWOCNF:
-        std::cerr << "not implemented yet" << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-        break;
-    case ExpressionType::EXPLICIT:
-        expression = std::unique_ptr<StateSet>(new SetFormulaExplicit(ssline, task));
-        break;
-    case ExpressionType::CONSTANT:
-        expression = std::unique_ptr<StateSet>(new SetFormulaConstant(ssline, task));
-        break;
-    case ExpressionType::NEGATION: {
-        int subformulaindex;
-        ssline >> subformulaindex;
-        expression = std::unique_ptr<StateSet>(new StateSetNegation(subformulaindex));
-        break;
-    }
-    case ExpressionType::INTERSECTION: {
-        int left, right;
-        ssline >> left;
-        ssline >> right;
-        expression = std::unique_ptr<StateSet>(new StateSetIntersection(left, right));
-        break;
-    }
-    case ExpressionType::UNION: {
-        int left, right;
-        ssline >> left;
-        ssline >> right;
-        expression = std::unique_ptr<StateSet>(new StateSetUnion(left, right));
-        break;
-    }
-    case ExpressionType::PROGRESSION: {
-        int subformulaindex, actionsetindex;
-        ssline >> subformulaindex;
-        ssline >> actionsetindex;
-        expression = std::unique_ptr<StateSet>(new StateSetProgression(subformulaindex, actionsetindex));
-        break;
-    }
-    case ExpressionType::REGRESSION: {
-        int subformulaindex, actionsetindex;
-        ssline >> subformulaindex;
-        ssline >> actionsetindex;
-        expression = std::unique_ptr<StateSet>(new StateSetRegression(subformulaindex, actionsetindex));
-        break;
-    }
-    default:
-        std::cerr << "unknown expression type " << word << std::endl;
-        exit_with(ExitCode::CRITICAL_ERROR);
-    }
-
+    std::unique_ptr<StateSet> expression = StateSet::get_stateset_constructors()->at(word)(ssline, task);
     if (expression_index >= formulas.size()) {
         formulas.resize(expression_index+1);
     }

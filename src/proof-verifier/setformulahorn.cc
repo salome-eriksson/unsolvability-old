@@ -1146,3 +1146,5 @@ int SetFormulaHorn::get_model_count() {
     std::cerr << "Horn Formula does not support model count";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
+
+StateSetBuilder<SetFormulaHorn> horn_builder("h");

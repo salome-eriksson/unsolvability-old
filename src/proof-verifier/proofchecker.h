@@ -37,8 +37,6 @@ private:
     std::deque<std::unique_ptr<Knowledge>> kbentries;
     bool unsolvability_proven;
 
-    // TODO: maybe we can remove this?
-    std::map<std::string, ExpressionType> expression_types;
     std::map<std::string, std::function<bool(int, int, std::vector<int> &)>> dead_knowledge_functions;
     std::map<std::string, std::function<bool(int, int, int, std::vector<int> &)>> subset_knowledge_functions;
 

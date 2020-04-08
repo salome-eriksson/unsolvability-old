@@ -87,4 +87,4 @@ int SetFormulaConstant::get_model_count() {
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-
+StateSetBuilder<SetFormulaConstant> constant_builder("c");
