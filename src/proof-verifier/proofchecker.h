@@ -12,21 +12,6 @@
 #include <map>
 #include <memory>
 
-enum class ExpressionType {
-    BDD,
-    HORN,
-    DUALHORN,
-    EXPLICIT,
-    TWOCNF,
-    CONSTANT,
-    NEGATION,
-    INTERSECTION,
-    UNION,
-    PROGRESSION,
-    REGRESSION,
-    NONE
-};
-
 class ProofChecker
 {
 private:
