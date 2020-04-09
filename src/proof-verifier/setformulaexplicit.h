@@ -44,7 +44,6 @@ public:
     virtual bool check_statement_b4(StateSetVariable *right,
                                     bool left_positive, bool right_positive);
 
-    virtual SetFormulaType get_formula_type();
     virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
     virtual const std::vector<int> &get_varorder();
 

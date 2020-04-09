@@ -22,35 +22,72 @@ SetFormulaConstant::SetFormulaConstant(std::stringstream &input, Task &task)
     }
 }
 
-bool SetFormulaConstant::check_statement_b1(std::vector<StateSetVariable *> &,
-                                            std::vector<StateSetVariable *> &) {
-    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
-    exit_with(ExitCode::CRITICAL_ERROR);
+StateSetVariable *SetFormulaConstant::find_first_non_constant_variable(std::vector<StateSetVariable *> &vec) {
+    for (StateSetVariable *var : vec) {
+        if (!var->is_constant()) {
+            return var;
+        }
+    }
+    return nullptr;
 }
 
-bool SetFormulaConstant::check_statement_b2(std::vector<StateSetVariable *> &,
-                                            std::vector<StateSetVariable *> &,
-                                            std::vector<StateSetVariable *> &,
-                                            std::unordered_set<int> &) {
-    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
-    exit_with(ExitCode::CRITICAL_ERROR);
+// TODO: we currently do not handle statements with only constant variables
+
+bool SetFormulaConstant::check_statement_b1(std::vector<StateSetVariable *> &left,
+                                            std::vector<StateSetVariable *> &right) {
+    StateSetVariable *non_constant;
+    for (auto vec : { left, right }) {
+        non_constant = find_first_non_constant_variable(vec);
+        if (non_constant)  {
+            break;
+        }
+    }
+    if (!non_constant) {
+        std::cerr << "Statements should not involve only constant StateSets" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+    return non_constant->check_statement_b1(left, right);
 }
 
-bool SetFormulaConstant::check_statement_b3(std::vector<StateSetVariable *> &,
-                                            std::vector<StateSetVariable *> &,
-                                            std::vector<StateSetVariable *> &,
-                                            std::unordered_set<int> &) {
-    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
-    exit_with(ExitCode::CRITICAL_ERROR);
+bool SetFormulaConstant::check_statement_b2(std::vector<StateSetVariable *> &prog,
+                                            std::vector<StateSetVariable *> &left,
+                                            std::vector<StateSetVariable *> &right,
+                                            std::unordered_set<int> &actions) {
+    StateSetVariable *non_constant;
+    for (auto vec : { prog, left, right }) {
+        non_constant = find_first_non_constant_variable(vec);
+        if (non_constant)  {
+            break;
+        }
+    }
+    if (!non_constant) {
+        std::cerr << "Statements should not involve only constant StateSets" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+    return non_constant->check_statement_b2(prog, left, right, actions);
+}
+
+bool SetFormulaConstant::check_statement_b3(std::vector<StateSetVariable *> &reg,
+                                            std::vector<StateSetVariable *> &left,
+                                            std::vector<StateSetVariable *> &right,
+                                            std::unordered_set<int> &actions) {
+    StateSetVariable *non_constant;
+    for (auto vec : { reg, left, right }) {
+        non_constant = find_first_non_constant_variable(vec);
+        if (non_constant)  {
+            break;
+        }
+    }
+    if (!non_constant) {
+        std::cerr << "Statements should not involve only constant StateSets" << std::endl;
+        exit_with(ExitCode::CRITICAL_ERROR);
+    }
+    return non_constant->check_statement_b3(reg, left, right, actions);
 }
 
 bool SetFormulaConstant::check_statement_b4(StateSetVariable *, bool, bool) {
-    std::cerr << "subset checks should not be forwarded to SetFormulaConstant";
+    std::cerr << "Statement B4 should not involve constants (use B1 instead)" << std::endl;
     exit_with(ExitCode::CRITICAL_ERROR);
-}
-
-SetFormulaType SetFormulaConstant::get_formula_type() {
-    return SetFormulaType::CONSTANT;
 }
 
 ConstantType SetFormulaConstant::get_constant_type() {

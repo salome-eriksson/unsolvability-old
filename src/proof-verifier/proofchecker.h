@@ -29,22 +29,6 @@ private:
     T *get_set_expression(int set_id);
     void add_knowledge(std::unique_ptr<Knowledge> entry, int id);
 
-    /*
-     * The return formula serves as a reference which basic formula type is involved.
-     * If it is null, then the set is not an intersection of set literals of the same type.
-     * If it is a constant formula, then all set variables involved are constant.
-     * If it is a concrete type, then all set variables invovled are of this type or constant.
-     */
-    // TODO: move to StateSetVariable
-    StateSetVariable *gather_sets_intersection(StateSet *f,
-                                 std::vector<StateSetVariable *> &positive,
-                                 std::vector<StateSetVariable *> &negative);
-    StateSetVariable *gather_sets_union(StateSet *f,
-                           std::vector<StateSetVariable *>&positive,
-                           std::vector<StateSetVariable *>&negative);
-    StateSetVariable *update_reference_and_check_consistency(StateSetVariable *reference_formula,
-                                                       StateSetVariable *tmp, std::string stmt);
-
     void gather_actions(int action_set_id, std::unordered_set<int> &actions);
 
     // rules for checking if state sets are dead

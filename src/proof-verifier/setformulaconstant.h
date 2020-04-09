@@ -10,6 +10,8 @@ class SetFormulaConstant : public StateSetVariable
 private:
     ConstantType constanttype;
     Task &task;
+
+    StateSetVariable *find_first_non_constant_variable(std::vector<StateSetVariable *> &vec);
 public:
     SetFormulaConstant(std::stringstream &input, Task &task);
 
@@ -26,10 +28,10 @@ public:
     virtual bool check_statement_b4(StateSetVariable *right,
                                     bool left_positive, bool right_positive);
 
-    virtual SetFormulaType get_formula_type();
     virtual const std::vector<int> &get_varorder();
 
     ConstantType get_constant_type();
+    virtual bool is_constant() override { return true; }
 
     // TODO: what should we set here?
     virtual bool supports_mo() { return true; }
@@ -39,7 +41,7 @@ public:
     virtual bool supports_todnf() { return true; }
     virtual bool supports_tocnf() { return true; }
     virtual bool supports_ct() { return true; }
-    virtual bool is_nonsuccint() { return true; }
+    virtual bool is_nonsuccint() { return false; }
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const ;

@@ -385,7 +385,7 @@ bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positi
     if (!left_positive && !right_positive) {
         return right->check_statement_b4(this, true, true);
     } else if (left_positive && !right_positive) {
-        if (right->supports_todnf() || right->get_formula_type() == SetFormulaType::EXPLICIT) {
+        if (right->supports_todnf() || right->is_nonsuccint()) {
             return right->check_statement_b4(this, true, false);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
@@ -429,8 +429,8 @@ bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positi
         }
         return true;
 
-    // enumerate models (only works with Explicit if Explicit has all vars this has)
-    } else if (right->get_formula_type() == SetFormulaType::EXPLICIT) {
+    // enumerate models (only works with right if right is nonsuccinct has all vars this has)
+    } else if (right->is_nonsuccint()) {
         const std::vector<int> sup_varorder = right->get_varorder();
         std::vector<bool> model(sup_varorder.size());
         std::vector<int> var_transform(util->varorder.size(), -1);
@@ -486,10 +486,6 @@ bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positi
     }
 }
 
-
-SetFormulaType SetFormulaBDD::get_formula_type() {
-    return SetFormulaType::BDD;
-}
 
 StateSetVariable *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {

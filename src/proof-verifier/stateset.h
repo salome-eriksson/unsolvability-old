@@ -4,24 +4,13 @@
 #include "setcompositions.h"
 #include "actionset.h"
 
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
 #include <sstream>
 
-// TODO: remove eventually?
-enum class SetFormulaType {
-    CONSTANT,
-    BDD,
-    HORN,
-    TWOCNF,
-    EXPLICIT,
-    NEGATION,
-    INTERSECTION,
-    UNION,
-    PROGRESSION,
-    REGRESSION
-};
+
 enum class ConstantType {
     EMPTY,
     GOAL,
@@ -30,31 +19,38 @@ enum class ConstantType {
 
 class StateSet;
 typedef std::function<std::unique_ptr<StateSet>(std::stringstream &input, Task &task)> StateSetConstructor;
-
+class StateSetVariable;
 
 class StateSet
 {
 public:
-    virtual ~StateSet() {}
+    virtual ~StateSet() = 0;
 
     static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
-
-   // TODO: can we get rid of this method?
-   // (then we need to make the destructor pure virtual)
-    virtual SetFormulaType get_formula_type() = 0;
+    virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                std::vector<StateSetVariable *> &positive,
+                                std::vector<StateSetVariable *> &negative,
+                                bool must_be_variable = false);
+    virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                std::vector<StateSetVariable *> &positive,
+                                std::vector<StateSetVariable *> &negative,
+                                bool must_be_variable = false);
 };
 
 
 class StateSetVariable : public StateSet
 {
 public:
-    /*
-     * We expect the calling method to eliminate negations:
-     * For example if the calling method tries to verify
-     * ((not S) \cap S') \subseteq (S'' \cup (not S'''))
-     * it should call with parameters left = <S',S'''> and
-     * right = <S,S''>
-     */
+    static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
+    virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                        std::vector<StateSetVariable *> &positive,
+                                        std::vector<StateSetVariable *> &negative,
+                                        bool must_be_variable = false) override;
+    virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                               std::vector<StateSetVariable *> &positive,
+                                               std::vector<StateSetVariable *> &negative,
+                                               bool must_be_variable = false) override;
+
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right) = 0;
     virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
@@ -70,6 +66,8 @@ public:
 
     // TODO: can we remove this method?
     virtual const std::vector<int> &get_varorder() = 0;
+
+    virtual bool is_constant();
 
     virtual bool supports_mo() = 0;
     virtual bool supports_ce() = 0;
@@ -102,7 +100,10 @@ public:
 
     virtual int get_left_id();
     virtual int get_right_id();
-    virtual SetFormulaType get_formula_type();
+    virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                        std::vector<StateSetVariable *> &positive,
+                                        std::vector<StateSetVariable *> &negative,
+                                        bool must_be_variable = false) override;
 };
 
 class StateSetIntersection : public StateSet, public SetIntersection
@@ -116,7 +117,10 @@ public:
 
     virtual int get_left_id();
     virtual int get_right_id();
-    virtual SetFormulaType get_formula_type();
+    virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                               std::vector<StateSetVariable *> &positive,
+                                               std::vector<StateSetVariable *> &negative,
+                                               bool must_be_variable = false) override;
 };
 
 class StateSetNegation : public StateSet, public SetNegation
@@ -128,7 +132,14 @@ public:
     virtual ~StateSetNegation() {}
 
     virtual int get_child_id();
-    virtual SetFormulaType get_formula_type();
+    virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                        std::vector<StateSetVariable *> &positive,
+                                        std::vector<StateSetVariable *> &negative,
+                                        bool must_be_variable = false) override;
+    virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                               std::vector<StateSetVariable *> &positive,
+                                               std::vector<StateSetVariable *> &negative,
+                                               bool must_be_variable = false) override;
 };
 
 class StateSetProgression : public StateSet
@@ -142,7 +153,6 @@ public:
 
     virtual int get_stateset_id();
     virtual int get_actionset_id();
-    virtual SetFormulaType get_formula_type();
 };
 
 class StateSetRegression : public StateSet
@@ -156,7 +166,6 @@ public:
 
     virtual int get_stateset_id();
     virtual int get_actionset_id();
-    virtual SetFormulaType get_formula_type();
 };
 
 

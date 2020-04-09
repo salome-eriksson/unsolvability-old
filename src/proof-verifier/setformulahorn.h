@@ -108,7 +108,6 @@ public:
     const bool is_satisfiable() const;
     void dump() const;
 
-    virtual SetFormulaType get_formula_type();
     virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
     virtual const std::vector<int> &get_varorder();
 

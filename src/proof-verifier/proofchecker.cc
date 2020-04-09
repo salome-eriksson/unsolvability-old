@@ -87,98 +87,6 @@ void ProofChecker::add_knowledge(std::unique_ptr<Knowledge> entry, int id) {
     kbentries.push_back(std::move(entry));
 }
 
-StateSetVariable *ProofChecker::gather_sets_intersection(StateSet *f,
-                                            std::vector<StateSetVariable *> &positive,
-                                            std::vector<StateSetVariable *> &negative) {
-    StateSetVariable *ret = nullptr;
-    switch(f->get_formula_type()) {
-    case SetFormulaType::CONSTANT:
-    case SetFormulaType::BDD:
-    case SetFormulaType::HORN:
-    case SetFormulaType::TWOCNF:
-    case SetFormulaType::EXPLICIT: {
-        StateSetVariable *f_var = static_cast<StateSetVariable *>(f);
-        positive.push_back(f_var);
-        ret = f_var;
-        break;
-    }
-    case SetFormulaType::NEGATION:
-        f = formulas[dynamic_cast<StateSetNegation *>(f)->get_child_id()].get();
-        ret = gather_sets_intersection(f, negative, positive);
-        break;
-    case SetFormulaType::INTERSECTION: {
-        StateSetIntersection *fi = dynamic_cast<StateSetIntersection *>(f);
-        ret = gather_sets_intersection(formulas[fi->get_left_id()].get(),
-                positive, negative);
-        if(ret) {
-            StateSetVariable *ret2 = gather_sets_intersection(formulas[fi->get_right_id()].get(),
-                positive, negative);
-            if(ret->get_formula_type() == SetFormulaType::CONSTANT) {
-                ret = ret2;
-            }
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    return ret;
-}
-
-StateSetVariable *ProofChecker::gather_sets_union(StateSet *f,
-                                     std::vector<StateSetVariable *> &positive,
-                                     std::vector<StateSetVariable *> &negative) {
-    StateSetVariable *ret = nullptr;
-    switch(f->get_formula_type()) {
-    case SetFormulaType::CONSTANT:
-    case SetFormulaType::BDD:
-    case SetFormulaType::HORN:
-    case SetFormulaType::TWOCNF:
-    case SetFormulaType::EXPLICIT: {
-        StateSetVariable *f_var = static_cast<StateSetVariable *>(f);
-        positive.push_back(f_var);
-        ret = f_var;
-        break;
-    }
-    case SetFormulaType::NEGATION:
-        f = formulas[dynamic_cast<StateSetNegation *>(f)->get_child_id()].get();
-        ret = gather_sets_union(f, negative, positive);
-        break;
-    case SetFormulaType::UNION: {
-        StateSetUnion *fi = dynamic_cast<StateSetUnion *>(f);
-        ret = gather_sets_union(formulas[fi->get_left_id()].get(),
-                positive, negative);
-        if(ret) {
-            StateSetVariable *ret2 = gather_sets_union(formulas[fi->get_right_id()].get(),
-                positive, negative);
-            if(ret->get_formula_type() == SetFormulaType::CONSTANT) {
-                ret = ret2;
-            }
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    return ret;
-}
-
-StateSetVariable *ProofChecker::update_reference_and_check_consistency(StateSetVariable *reference_formula, StateSetVariable *tmp, std::string stmt) {
-    // if the current reference formula is constant, update to tmp
-    if (reference_formula->get_formula_type() == SetFormulaType::CONSTANT) {
-        reference_formula = tmp;
-    }
-    // if the types differ and neither is constant, throw an error
-    // (reference_formula can only be constant if tmp is also constant)
-    if (reference_formula->get_formula_type() != tmp->get_formula_type()
-            && tmp->get_formula_type() != SetFormulaType::CONSTANT) {
-        std::string msg = "Error when checking statement " + stmt
-                + ": set expressions invovle different types.";
-        throw std::runtime_error(msg);
-    }
-    return reference_formula;
-}
-
 void ProofChecker::gather_actions(int action_set_id, std::unordered_set<int> &actions) {
     ActionSet *action_set = get_set_expression<ActionSet>(action_set_id);
     action_set->get_actions(actions);
@@ -1334,23 +1242,30 @@ bool ProofChecker::check_statement_B1(int conclusion_id, int left_id, int right_
     try {
         std::vector<StateSetVariable *> left;
         std::vector<StateSetVariable *> right;
+        bool gather_variables_successfull = false;
 
-        StateSetVariable *reference_formula = gather_sets_intersection(formulas[left_id].get(), left, right);
-        if(!reference_formula) {
+        gather_variables_successfull = get_set_expression<StateSet>(left_id)->gather_intersection_variables(formulas, left, right);
+        if (!gather_variables_successfull) {
             std::string msg = "Error when checking statement B1: set expression #"
                     + std::to_string(left_id)
                     + " is not a intersection of literals of the same type.";
             throw std::runtime_error(msg);
         }
-        StateSetVariable *tmp = gather_sets_union(formulas[right_id].get(), right, left);
-        if (!tmp) {
+        gather_variables_successfull =  get_set_expression<StateSet>(right_id)->gather_union_variables(formulas, right, left);
+        if (!gather_variables_successfull) {
             std::string msg = "Error when checking statement B1: set expression #"
                     + std::to_string(right_id)
                     + " is not a union of literals of the same type.";
             throw std::runtime_error(msg);
         }
-        reference_formula =
-                update_reference_and_check_consistency(reference_formula, tmp, "B1");
+
+        assert(left.size() + right.size() > 0);
+        StateSetVariable *reference_formula = nullptr;
+        if (!left.empty()) {
+            reference_formula = left[0];
+        } else {
+            reference_formula = right[0];
+        }
 
         if (!reference_formula->check_statement_b1(left, right)) {
             std::string msg = "Error when checking statement B1: set expression #"
@@ -1409,11 +1324,10 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
 
         /*
          * In the progression, we only allow set variables, not set literals.
-         * We abuse left here and know it will stay empty if the progression does
-         * not contain set literals.
+         * If right is not empty, then prog contianed set literals.
          */
-        StateSetVariable *reference_formula = gather_sets_intersection(prog_formula, prog, left);
-        if(!reference_formula || !left.empty()) {
+        bool gather_variables_successfull = prog_formula->gather_intersection_variables(formulas, prog, right);
+        if (!right.empty() || !gather_variables_successfull) {
             std::string msg = "Error when checking statement B2: "
                               "the progression in set expression #"
                     + std::to_string(left_id)
@@ -1423,26 +1337,25 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
 
         // left_formula is empty if the left side contains only a progression
         if(left_formula) {
-            StateSetVariable *tmp = gather_sets_intersection(left_formula, left, right);
-            if(!tmp) {
+            gather_variables_successfull = left_formula->gather_intersection_variables(formulas, left, right);
+            if(!gather_variables_successfull) {
                 std::string msg = "Error when checking statement B2: "
                                   "the non-progression part in set expression #"
                         + std::to_string(left_id)
                         + " is not an intersection of set literals.";
                 throw std::runtime_error(msg);
             }
-            reference_formula =
-                    update_reference_and_check_consistency(reference_formula, tmp, "B2");
         }
-        StateSetVariable *tmp = gather_sets_union(right_formula, right, left);
-        if(!tmp) {
+        gather_variables_successfull = right_formula->gather_union_variables(formulas, right, left);
+        if(!gather_variables_successfull) {
             std::string msg = "Error when checking statement B2: set expression #"
                     + std::to_string(right_id)
                     + " is not a union of literals.";
             throw std::runtime_error(msg);
         }
-        reference_formula =
-                update_reference_and_check_consistency(reference_formula, tmp, "B2");
+
+        assert(prog.size() > 0);
+        StateSetVariable *reference_formula = prog[0];
 
         if(!reference_formula->check_statement_b2(prog, left, right, actions)) {
             std::string msg = "Error when checking statement B2: set expression #"
@@ -1500,11 +1413,10 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
 
         /*
          * In the regression, we only allow set variables, not set literals.
-         * We abuse left here and know it will stay empty if the regression does
-         * not contain set literals.
+         * If right is not empty, then reg contianed set literals.
          */
-        StateSetVariable *reference_formula = gather_sets_intersection(reg_formula, reg, left);
-        if(!reference_formula || !left.empty()) {
+        bool gather_variables_successfull = reg_formula->gather_intersection_variables(formulas, reg, right);
+        if (!right.empty() || !gather_variables_successfull) {
             std::string msg = "Error when checking statement B3: "
                               "the regression in set expression #"
                     + std::to_string(left_id)
@@ -1514,26 +1426,25 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
 
         // left_formula is empty if the left side contains only a regression
         if(left_formula) {
-            StateSetVariable *tmp = gather_sets_intersection(left_formula, left, right);
-            if(!tmp) {
+            gather_variables_successfull = left_formula->gather_intersection_variables(formulas, left, right);
+            if(!gather_variables_successfull) {
                 std::string msg = "Error when checking statement B3: "
                                   "the non-regression part in set expression #"
                         + std::to_string(left_id)
                         + " is not an intersection of set literals.";
                 throw std::runtime_error(msg);
             }
-            reference_formula =
-                    update_reference_and_check_consistency(reference_formula, tmp, "B2");
         }
-        StateSetVariable *tmp = gather_sets_union(right_formula, right, left);
-        if(!tmp) {
+        gather_variables_successfull = right_formula->gather_union_variables(formulas, right, left);
+        if(!gather_variables_successfull) {
             std::string msg = "Error when checking statement B3: set expression #"
                     + std::to_string(right_id)
                     + " is not a union of literals.";
             throw std::runtime_error(msg);
         }
-        reference_formula =
-                update_reference_and_check_consistency(reference_formula, tmp, "B2");
+
+        assert(reg.size() > 0);
+        StateSetVariable *reference_formula = reg[0];
 
         if(!reference_formula->check_statement_b3(reg, left, right, actions)) {
             std::string msg = "Error when checking statement B3: set expression #"

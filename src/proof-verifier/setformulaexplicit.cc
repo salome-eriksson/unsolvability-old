@@ -757,10 +757,6 @@ bool SetFormulaExplicit::check_statement_b4(StateSetVariable *right, bool left_p
     }
 }
 
-SetFormulaType SetFormulaExplicit::get_formula_type() {
-    return SetFormulaType::EXPLICIT;
-}
-
 StateSetVariable *SetFormulaExplicit::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {
     case ConstantType::EMPTY:
