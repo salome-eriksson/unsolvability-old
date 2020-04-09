@@ -1,4 +1,4 @@
-#include "setformulahorn.h"
+﻿#include "setformulahorn.h"
 
 #include <fstream>
 #include <deque>
@@ -914,7 +914,7 @@ bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_posit
                 count++;
             }
             return true;
-        } else if (right->get_formula_type() == SetFormulaType::EXPLICIT) {
+        } else if (right->is_nonsuccint()) {
             const std::vector<int> sup_varorder = right->get_varorder();
             std::vector<bool> model(sup_varorder.size());
             std::vector<int> var_transform(varorder.size(), -1);
@@ -987,7 +987,7 @@ bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_posit
     } else if (left_positive && !right_positive) {
         if (right->supports_todnf()) {
             return right->check_statement_b4(this, true, false);
-        } else if (right->get_formula_type() == SetFormulaType::EXPLICIT) {
+        } else if (right->is_nonsuccint()) {
             return right->check_statement_b4(this, true, false);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
@@ -1038,10 +1038,6 @@ bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_posit
     }
 }
 
-
-SetFormulaType SetFormulaHorn::get_formula_type() {
-    return SetFormulaType::HORN;
-}
 
 StateSetVariable *SetFormulaHorn::get_constant_formula(SetFormulaConstant *c_formula) {
     switch(c_formula->get_constant_type()) {

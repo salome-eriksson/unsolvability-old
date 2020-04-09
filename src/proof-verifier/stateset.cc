@@ -1,9 +1,42 @@
 #include "stateset.h"
 
+StateSet::~StateSet() {}
 
 std::map<std::string, StateSetConstructor> *StateSet::get_stateset_constructors() {
     static std::map<std::string, StateSetConstructor> stateset_constructors;
     return &stateset_constructors;
+}
+
+
+bool StateSet::gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &,
+                                      std::vector<StateSetVariable *> &,
+                                      std::vector<StateSetVariable *> &, bool) {
+    return false;
+}
+
+bool StateSet::gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &,
+                                             std::vector<StateSetVariable *> &,
+                                             std::vector<StateSetVariable *> &, bool) {
+    return false;
+}
+
+
+bool StateSetVariable::gather_union_variables(const std::deque<std::unique_ptr<StateSet> > &,
+                                              std::vector<StateSetVariable *> &positive,
+                                              std::vector<StateSetVariable *> &, bool) {
+    positive.push_back(this);
+    return true;
+}
+
+bool StateSetVariable::gather_intersection_variables(const std::deque<std::unique_ptr<StateSet> > &,
+                                                     std::vector<StateSetVariable *> &positive,
+                                                     std::vector<StateSetVariable *> &, bool) {
+    positive.push_back(this);
+    return true;
+}
+
+bool StateSetVariable::is_constant() {
+    return false;
 }
 
 
@@ -20,8 +53,15 @@ int StateSetUnion::get_right_id() {
     return id_right;
 }
 
-SetFormulaType StateSetUnion::get_formula_type() {
-    return SetFormulaType::UNION;
+bool StateSetUnion::gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                           std::vector<StateSetVariable *> &positive,
+                                           std::vector<StateSetVariable *> &negative,
+                                           bool must_be_variable) {
+    if (must_be_variable) {
+        return false;
+    }
+    return formulas[id_left]->gather_union_variables(formulas, positive, negative, false) &&
+           formulas[id_right]->gather_union_variables(formulas, positive, negative, false);
 }
 StateSetBuilder<StateSetUnion> union_builder("u");
 
@@ -39,8 +79,15 @@ int StateSetIntersection::get_right_id() {
     return id_right;
 }
 
-SetFormulaType StateSetIntersection::get_formula_type() {
-    return SetFormulaType::INTERSECTION;
+bool StateSetIntersection::gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                                         std::vector<StateSetVariable *> &positive,
+                                                         std::vector<StateSetVariable *> &negative,
+                                                         bool must_be_variable) {
+    if (must_be_variable) {
+        return false;
+    }
+    return formulas[id_left]->gather_intersection_variables(formulas, positive, negative, false) &&
+           formulas[id_right]->gather_intersection_variables(formulas, positive, negative, false);
 }
 StateSetBuilder<StateSetIntersection> intersection_builder("i");
 
@@ -53,8 +100,24 @@ int StateSetNegation::get_child_id() {
     return id_child;
 }
 
-SetFormulaType StateSetNegation::get_formula_type() {
-    return SetFormulaType::NEGATION;
+bool StateSetNegation::gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                              std::vector<StateSetVariable *> &positive,
+                                              std::vector<StateSetVariable *> &negative,
+                                              bool must_be_variable) {
+    if (must_be_variable) {
+        return false;
+    }
+    return formulas[id_child]->gather_union_variables(formulas, negative, positive, true);
+}
+
+bool StateSetNegation::gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
+                                                     std::vector<StateSetVariable *> &positive,
+                                                     std::vector<StateSetVariable *> &negative,
+                                                     bool must_be_variable) {
+    if (must_be_variable) {
+        return false;
+    }
+    return formulas[id_child]->gather_intersection_variables(formulas, negative, positive, true);
 }
 StateSetBuilder<StateSetNegation> negation_builder("n");
 
@@ -71,10 +134,6 @@ int StateSetProgression::get_actionset_id() {
 int StateSetProgression::get_stateset_id() {
     return id_stateset;
 }
-
-SetFormulaType StateSetProgression::get_formula_type() {
-    return SetFormulaType::PROGRESSION;
-}
 StateSetBuilder<StateSetProgression> progression_builder("p");
 
 
@@ -85,10 +144,6 @@ StateSetRegression::StateSetRegression(std::stringstream &input, Task &) {
 
 int StateSetRegression::get_actionset_id() {
     return id_actionset;
-}
-
-SetFormulaType StateSetRegression::get_formula_type() {
-    return SetFormulaType::REGRESSION;
 }
 
 int StateSetRegression::get_stateset_id() {

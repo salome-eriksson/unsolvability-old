@@ -70,7 +70,6 @@ public:
     virtual bool check_statement_b4(StateSetVariable *right,
                                     bool left_positive, bool right_positive);
 
-    virtual SetFormulaType get_formula_type();
     virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
     virtual const std::vector<int> &get_varorder();
 
@@ -84,7 +83,7 @@ public:
     virtual bool supports_todnf() { return false; }
     virtual bool supports_tocnf() { return false; }
     virtual bool supports_ct() { return true; }
-    virtual bool is_nonsuccint() { return true; }
+    virtual bool is_nonsuccint() { return false; }
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const ;
