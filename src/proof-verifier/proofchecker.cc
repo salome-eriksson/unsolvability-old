@@ -87,11 +87,6 @@ void ProofChecker::add_knowledge(std::unique_ptr<Knowledge> entry, int id) {
     kbentries.push_back(std::move(entry));
 }
 
-void ProofChecker::gather_actions(int action_set_id, std::unordered_set<int> &actions) {
-    ActionSet *action_set = get_set_expression<ActionSet>(action_set_id);
-    action_set->get_actions(actions);
-}
-
 void ProofChecker::add_state_set(std::string &line) {
     std::stringstream ssline(line);
     int expression_index;
@@ -134,10 +129,10 @@ void ProofChecker::add_action_set(std::string &line) {
         action_set = std::unique_ptr<ActionSet>(new ActionSetBasic(actions));
 
     } else if(type.compare("u") == 0) { // union of action sets
-        int left, right;
-        ssline >> left;
-        ssline >> right;
-        action_set = std::unique_ptr<ActionSet>(new ActionSetUnion(actionsets[left].get(), actionsets[right].get()));
+        int left_id, right_id;
+        ssline >> left_id;
+        ssline >> right_id;
+        action_set = std::unique_ptr<ActionSet>(new ActionSetUnion(left_id, right_id));
 
     } else if(type.compare("a") == 0) { // constant (denoting the set of all actions)
         action_set = std::unique_ptr<ActionSet>(new ActionSetConstantAll(task));
@@ -1318,7 +1313,8 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
             }
             left_formula = get_set_expression<StateSet>(intersection->get_right_id());
         }
-        gather_actions(progression->get_actionset_id(), actions);
+        ActionSet *action_set = get_set_expression<ActionSet>(progression->get_actionset_id());
+        action_set->get_actions(actionsets, actions);
         prog_formula = get_set_expression<StateSet>(progression->get_stateset_id());
 
 
@@ -1407,7 +1403,8 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
             }
             left_formula = get_set_expression<StateSet>(intersection->get_right_id());
         }
-        gather_actions(regression->get_actionset_id(), actions);
+        ActionSet *action_set = get_set_expression<ActionSet>(regression->get_actionset_id());
+        action_set->get_actions(actionsets, actions);
         reg_formula = get_set_expression<StateSet>(regression->get_stateset_id());
 
 
@@ -1523,14 +1520,22 @@ bool ProofChecker::check_statement_B4(int conclusion_id, int left_id, int right_
 
 // check if A \subseteq A'
 bool ProofChecker::check_statement_B5(int conclusion_id, int left_id, int right_id, std::vector<int> &) {
-    if(!actionsets[left_id].get()->is_subset(actionsets[right_id].get())) {
-        std::cerr << "Error when checking statement B5: action set #"
-                  << left_id << " is not a subset of action set #" << right_id << "." << std::endl;
-        return false;
-    } else {
-        add_knowledge(std::unique_ptr<Knowledge>(new SubsetKnowledge<ActionSet>(left_id,right_id)), conclusion_id);
-        return true;
+    std::unordered_set<int> left_indices, right_indices;
+    ActionSet *left_set = get_set_expression<ActionSet>(right_id);
+    ActionSet *right_set = get_set_expression<ActionSet>(right_id);
+    left_set->get_actions(actionsets, left_indices);
+    right_set->get_actions(actionsets, right_indices);
+
+    for (int index: left_indices) {
+        if (right_indices.find(index) == right_indices.end()) {
+            std::cerr << "Error when checking statement B5: action set #"
+                      << left_id << " is not a subset of action set #" << right_id << "." << std::endl;
+            return false;
+        }
     }
+
+    add_knowledge(std::unique_ptr<Knowledge>(new SubsetKnowledge<ActionSet>(left_id,right_id)), conclusion_id);
+    return true;
 }
 
 

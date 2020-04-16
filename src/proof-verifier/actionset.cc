@@ -1,5 +1,7 @@
 #include "actionset.h"
 
+#include <assert.h>
+
 ActionSet::ActionSet()
 {
 
@@ -9,65 +11,38 @@ ActionSetBasic::ActionSetBasic(std::unordered_set<int> &action_indices)
     : action_indices(action_indices) {
 
 }
-bool ActionSetBasic::contains(int ai) {
-    return action_indices.find(ai) != action_indices.end();
-}
-bool ActionSetBasic::is_subset(ActionSet *other) {
-    int ret = true;
-    for(int elem : action_indices) {
-        ret = other->contains(elem);
-    }
-}
-void ActionSetBasic::get_actions(std::unordered_set<int> &set) {
-    set.insert(action_indices.begin(), action_indices.end());
+void ActionSetBasic::get_actions(const std::deque<std::unique_ptr<ActionSet>> &, std::unordered_set<int> &indices) {
+    indices.insert(action_indices.begin(), action_indices.end());
 }
 bool ActionSetBasic::is_constantall() {
     return false;
 }
 
-ActionSetUnion::ActionSetUnion(ActionSet *left, ActionSet *right)
-    : left(left), right(right) {
+ActionSetUnion::ActionSetUnion(int id_left, int id_right)
+    : id_left(id_left), id_right(id_right) {}
 
-}
-bool ActionSetUnion::contains(int ai) {
-    return (left->contains(ai) || right->contains(ai));
-}
-bool ActionSetUnion::is_subset(ActionSet *other) {
-    return (left->is_subset(other) && right->is_subset(other));
-}
-void ActionSetUnion::get_actions(std::unordered_set<int> &set) {
-    left->get_actions(set);
-    right->get_actions(set);
+void ActionSetUnion::get_actions(const std::deque<std::unique_ptr<ActionSet>> &action_sets, std::unordered_set<int> &indices) {
+    assert(id_left < action_sets.size() && id_right < action_sets.size());
+    action_sets[id_left]->get_actions(action_sets, indices);
+    action_sets[id_right]->get_actions(action_sets, indices);
 }
 bool ActionSetUnion::is_constantall() {
     return false;
 }
 int ActionSetUnion::get_left_id() {
-    //TODO
-    return -1;
+    return id_left;
 }
 int ActionSetUnion::get_right_id() {
-    //TODO
-    return -1;
+    return id_right;
 }
 
-ActionSetConstantAll::ActionSetConstantAll(Task &task)
-    : action_amount(task.get_number_of_actions()) {
-
-}
-bool ActionSetConstantAll::contains(int ai) {
-    return true;
-}
-bool ActionSetConstantAll::is_subset(ActionSet *other) {
-    int ret = true;
-    for(int i = 0; i < action_amount; ++i) {
-        ret = other->contains(i);
+ActionSetConstantAll::ActionSetConstantAll(Task &task) {
+    for (int i = 0; i < task.get_number_of_actions(); ++i) {
+        action_indices.insert(i);
     }
 }
-void ActionSetConstantAll::get_actions(std::unordered_set<int> &set) {
-    for(int i = 0; i < action_amount; ++i) {
-        set.insert(i);
-    }
+void ActionSetConstantAll::get_actions(const std::deque<std::unique_ptr<ActionSet>> &, std::unordered_set<int> &indices) {
+    indices.insert(action_indices.begin(), action_indices.end());
 }
 bool ActionSetConstantAll::is_constantall() {
     return true;

@@ -4,6 +4,8 @@
 #include "setcompositions.h"
 #include "task.h"
 
+#include <deque>
+#include <memory>
 #include <unordered_set>
 
 class ActionSet
@@ -11,9 +13,7 @@ class ActionSet
 public:
     ActionSet();
     virtual ~ActionSet() {}
-    virtual bool contains(int ai) = 0;
-    virtual bool is_subset(ActionSet *other) = 0;
-    virtual void get_actions(std::unordered_set<int> &set) = 0;
+    virtual void get_actions(const std::deque<std::unique_ptr<ActionSet>> &action_sets, std::unordered_set<int> &indices) = 0;
     virtual bool is_constantall() = 0;
 };
 
@@ -23,22 +23,18 @@ private:
     std::unordered_set<int> action_indices;
 public:
     ActionSetBasic(std::unordered_set<int> &action_indices);
-    virtual bool contains(int ai);
-    virtual bool is_subset(ActionSet *other);
-    virtual void get_actions(std::unordered_set<int> &set);
+    virtual void get_actions(const std::deque<std::unique_ptr<ActionSet>> &action_sets, std::unordered_set<int> &indices);
     virtual bool is_constantall();
 };
 
 class ActionSetUnion : public ActionSet, public SetUnion
 {
 private:
-    ActionSet *left;
-    ActionSet *right;
+    int id_left;
+    int id_right;
 public:
-    ActionSetUnion(ActionSet *left, ActionSet *right);
-    virtual bool contains(int ai);
-    virtual bool is_subset(ActionSet *other);
-    virtual void get_actions(std::unordered_set<int> &set);
+    ActionSetUnion(int id_left, int id_right);
+    virtual void get_actions(const std::deque<std::unique_ptr<ActionSet>> &action_sets, std::unordered_set<int> &indices);
     virtual bool is_constantall();
     virtual int get_left_id();
     virtual int get_right_id();
@@ -46,12 +42,10 @@ public:
 
 class ActionSetConstantAll : public ActionSet
 {
-    int action_amount;
+    std::unordered_set<int> action_indices;
 public:
     ActionSetConstantAll(Task &task);
-    virtual bool contains(int ai);
-    virtual bool is_subset(ActionSet *other);
-    virtual void get_actions(std::unordered_set<int> &set);
+    virtual void get_actions(const std::deque<std::unique_ptr<ActionSet>> &action_sets, std::unordered_set<int> &indices);
     virtual bool is_constantall();
 };
 
