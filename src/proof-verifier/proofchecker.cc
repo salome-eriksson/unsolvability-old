@@ -17,7 +17,6 @@
 ProofChecker::ProofChecker(std::string &task_file)
     : task(task_file), unsolvability_proven(false) {
 
-    // TODO: understand what's going on
     using namespace std::placeholders;
     dead_knowledge_functions = {
         { "ed", std::bind(&ProofChecker::check_rule_ed, this, _1, _2, _3) },
@@ -61,7 +60,6 @@ ProofChecker::ProofChecker(std::string &task_file)
         { "b5", std::bind(&ProofChecker::check_statement_B5, this, _1, _2, _3, _4)},
     };
 
-    // TODO: do we want to initialize this here?
     manager = Cudd(task.get_number_of_facts()*2);
     manager.setTimeoutHandler(exit_timeout);
     manager.InstallOutOfMemoryHandler(exit_oom);
@@ -106,7 +104,7 @@ void ProofChecker::add_state_set(std::string &line) {
     formulas[expression_index] = std::move(expression);
 }
 
-// TODO: fix action sets
+
 void ProofChecker::add_action_set(std::string &line) {
     std::stringstream ssline(line);
     int action_index;
@@ -223,7 +221,6 @@ void ProofChecker::verify_knowledge(std::string &line) {
         exit_with(ExitCode::CRITICAL_ERROR);
     }
 
-    // TODO: necessary?
     if(!knowledge_is_correct) {
         std::cerr << "check for knowledge #" << knowledge_id << " NOT successful!" << std::endl;
     }
@@ -248,13 +245,12 @@ bool ProofChecker::check_rule_ed(int conclusion_id, int stateset_id, std::vector
     return true;
 }
 
-// TODO: does nullptr work as check if kbentries containes std::unique_ptr?
 
 // Union Dead: given (1) S is dead and (2) S' is dead, set=S \cup S' is dead
 bool ProofChecker::check_rule_ud(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     // set represents S \cup S'
     StateSetUnion *f = dynamic_cast<StateSetUnion *>(formulas[stateset_id].get());
@@ -292,8 +288,8 @@ bool ProofChecker::check_rule_ud(int conclusion_id, int stateset_id, std::vector
 // Subset Dead: given (1) S \subseteq S' and (2) S' is dead, set=S is dead
 bool ProofChecker::check_rule_sd(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     // check if premise_ids[0] says that S is a subset of S' (S' can be anything)
     auto subset_knowledge = dynamic_cast<SubsetKnowledge<StateSet> *>(kbentries[premise_ids[0]].get());
@@ -323,9 +319,9 @@ bool ProofChecker::check_rule_sd(int conclusion_id, int stateset_id, std::vector
 // then set=S is dead
 bool ProofChecker::check_rule_pg(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 3 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr &&
-           kbentries[premise_ids[2]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]] &&
+           kbentries[premise_ids[2]]);
 
     // check if premise_ids[0] says that S[A] \subseteq S \cup S'
     auto subset_knowledge = dynamic_cast<SubsetKnowledge<StateSet> *>(kbentries[premise_ids[0]].get());
@@ -401,9 +397,9 @@ bool ProofChecker::check_rule_pg(int conclusion_id, int stateset_id, std::vector
 // then set=S_not is dead
 bool ProofChecker::check_rule_pi(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 3 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr &&
-           kbentries[premise_ids[2]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]] &&
+           kbentries[premise_ids[2]]);
 
     // check if set corresponds to s_not
     StateSetNegation *s_not = dynamic_cast<StateSetNegation *>(formulas[stateset_id].get());
@@ -485,9 +481,9 @@ bool ProofChecker::check_rule_pi(int conclusion_id, int stateset_id, std::vector
 // then set=S_not is dead
 bool ProofChecker::check_rule_rg(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 3 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr &&
-           kbentries[premise_ids[2]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]] &&
+           kbentries[premise_ids[2]]);
 
     // check if set corresponds to s_not
     StateSetNegation *s_not = dynamic_cast<StateSetNegation *>(formulas[stateset_id].get());
@@ -572,9 +568,9 @@ bool ProofChecker::check_rule_rg(int conclusion_id, int stateset_id, std::vector
 // then set=S is dead
 bool ProofChecker::check_rule_ri(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 3 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr &&
-           kbentries[premise_ids[2]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]] &&
+           kbentries[premise_ids[2]]);
 
     // check if premise_ids[0] says that [A]S \subseteq S \cup S'
     auto subset_knowledge = dynamic_cast<SubsetKnowledge<StateSet> *>(kbentries[premise_ids[0]].get());
@@ -833,8 +829,8 @@ bool ProofChecker::check_rule_di(int conclusion_id, int left_id, int right_id, s
 template<class T>
 bool ProofChecker::check_rule_su(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int e0,e1,e2;
     StateSetUnion *su = dynamic_cast<StateSetUnion *>(get_set_expression<T>(left_id));
@@ -874,8 +870,8 @@ bool ProofChecker::check_rule_su(int conclusion_id, int left_id, int right_id, s
 template<class T>
 bool ProofChecker::check_rule_si(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int e0,e1,e2;
     StateSetIntersection *si = dynamic_cast<StateSetIntersection*>(get_set_expression<T>(right_id));
@@ -916,8 +912,8 @@ bool ProofChecker::check_rule_si(int conclusion_id, int left_id, int right_id, s
 template<class T>
 bool ProofChecker::check_rule_st(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int e0,e1,e2;
     e0 = left_id;
@@ -956,8 +952,8 @@ bool ProofChecker::check_rule_st(int conclusion_id, int left_id, int right_id, s
 // then S[A'] \subseteq S'
 bool ProofChecker::check_rule_at(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int s0, s1, a0, a1;
     s1 = right_id;
@@ -999,8 +995,8 @@ bool ProofChecker::check_rule_at(int conclusion_id, int left_id, int right_id, s
 // then S[A \cup A'] \subseteq S'
 bool ProofChecker::check_rule_au(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int s0,s1,a0,a1;
     s1 = right_id;
@@ -1050,8 +1046,8 @@ bool ProofChecker::check_rule_au(int conclusion_id, int left_id, int right_id, s
 // then S'[A] \subseteq S''
 bool ProofChecker::check_rule_pt(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int s0,s1,s2,a0;
     s2 = right_id;
@@ -1093,8 +1089,8 @@ bool ProofChecker::check_rule_pt(int conclusion_id, int left_id, int right_id, s
 // then (S \cup S')[A] \subseteq S''
 bool ProofChecker::check_rule_pu(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 2 &&
-           kbentries[premise_ids[0]] != nullptr &&
-           kbentries[premise_ids[1]] != nullptr);
+           kbentries[premise_ids[0]] &&
+           kbentries[premise_ids[1]]);
 
     int s0,s1,s2,a0;
     auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
@@ -1144,7 +1140,7 @@ bool ProofChecker::check_rule_pu(int conclusion_id, int left_id, int right_id, s
 // Progression to Regression: given (1) S[A] \subseteq S', then [A]S'_not \subseteq S_not
 bool ProofChecker::check_rule_pr(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 1 &&
-           kbentries[premise_ids[0]] != nullptr);
+           kbentries[premise_ids[0]]);
 
     int s0,s1,a0;
     auto regression = dynamic_cast<StateSetRegression *>(get_set_expression<StateSet>(left_id));
@@ -1186,7 +1182,7 @@ bool ProofChecker::check_rule_pr(int conclusion_id, int left_id, int right_id, s
 // Regression to Progression: given (1) [A]S \subseteq S', then S'_not[A] \subseteq S_not
 bool ProofChecker::check_rule_rp(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.size() == 1 &&
-           kbentries[premise_ids[0]] != nullptr);
+           kbentries[premise_ids[0]]);
 
     int s0,s1,a0;
     auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
