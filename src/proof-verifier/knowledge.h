@@ -33,7 +33,6 @@ public:
     int get_set_id();
 };
 
-// TODO: an empty class seems pretty pointless
 class UnsolvableKnowledge : public Knowledge
 {
 public:

@@ -80,13 +80,11 @@ int main(int argc, char** argv) {
     std::string input;
     while(certstream >> input_type) {
         // check if timeout is reached
-        // TODO: we currently only check timeout here and in the Cudd manager. Is this sufficient?
         if(timer() > g_timeout) {
             exit_timeout("");
         }
 
         // read in rest of line
-        // TODO: is this safe even if the entire line consists only of "#"? Or will it skip a line?
         std::getline(certstream, input);
 
         if(input_type.compare("e") == 0) {

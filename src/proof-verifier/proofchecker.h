@@ -29,8 +29,6 @@ private:
     T *get_set_expression(int set_id);
     void add_knowledge(std::unique_ptr<Knowledge> entry, int id);
 
-    void gather_actions(int action_set_id, std::unordered_set<int> &actions);
-
     // rules for checking if state sets are dead
     bool check_rule_ed(int conclusion_id, int stateset_id, std::vector<int> &premise_ids);
     bool check_rule_ud(int conclusion_id, int stateset_id, std::vector<int> &premise_ids);
