@@ -31,7 +31,6 @@ private:
     HornUtil(Task &task);
 
     void build_actionformulas();
-    bool get_horn_vector(std::vector<StateSetVariable *> &formulas, std::vector<SetFormulaHorn *> &horn_formulas);
 
     /*
      * Perform unit propagation through the conjunction of the formulas, returning whether it is satisfiable or not.
@@ -90,26 +89,7 @@ public:
     // TODO: this is currently only used for a dummy initialization
     SetFormulaHorn(Task &task);
     SetFormulaHorn(std::stringstream &input, Task &task);
-    virtual ~SetFormulaHorn() {}
-
-    //void shift(std::vector<int> &vars);
-
-    int get_size() const;
-    int get_varamount() const;
-    int get_left(int index) const;
-    const std::vector<int> &get_left_sizes() const;
-    const std::vector<int> &get_left_vars(int index) const;
-    int get_right(int index) const;
-    const std::vector<int> &get_right_sides() const;
-    const std::forward_list<int> &get_variable_occurence_left(int var) const;
-    const std::forward_list<int> &get_variable_occurence_right(int var) const;
-    const std::vector<int> & get_forced_true() const;
-    const std::vector<int> & get_forced_false() const;
-    const bool is_satisfiable() const;
-    void dump() const;
-
-    virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
-    virtual const std::vector<int> &get_varorder();
+    virtual ~SetFormulaHorn() {}    
 
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right);
@@ -139,6 +119,25 @@ public:
     virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause);
     virtual bool get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
     virtual int get_model_count();
+
+    virtual const std::vector<int> &get_varorder();
+
+    int get_size() const;
+    int get_varamount() const;
+    int get_left(int index) const;
+    const std::vector<int> &get_left_sizes() const;
+    const std::vector<int> &get_left_vars(int index) const;
+    int get_right(int index) const;
+    const std::vector<int> &get_right_sides() const;
+    const std::forward_list<int> &get_variable_occurence_left(int var) const;
+    const std::forward_list<int> &get_variable_occurence_right(int var) const;
+    const std::vector<int> & get_forced_true() const;
+    const std::vector<int> & get_forced_false() const;
+    const bool is_satisfiable() const;
+    void dump() const;
+
+    virtual SetFormulaHorn *get_compatible(StateSetVariable *stateset) override;
+    virtual SetFormulaHorn *get_constant(ConstantType ctype) override;
 };
 
 #endif // SETFORMULAHORN_H

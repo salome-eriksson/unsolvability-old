@@ -171,47 +171,6 @@ void BDDUtil::build_actionformulas() {
     }
 }
 
-bool BDDUtil::get_bdd_vector(std::vector<StateSetVariable *> &formulas, std::vector<BDD *> &bdds) {
-    assert(bdds.empty());
-    bdds.reserve(formulas.size());
-    std::vector<int> *varorder = nullptr;
-    // TODO: reimplement check whether formula is horn or constant
-    for(size_t i = 0; i < formulas.size(); ++i) {
-        SetFormulaConstant *c_formula = dynamic_cast<SetFormulaConstant *>(formulas[i]);
-        SetFormulaBDD *b_formula = dynamic_cast<SetFormulaBDD *>(formulas[i]);
-        if (c_formula) {
-            // see if we can use get_constant_formula
-            switch (c_formula->get_constant_type()) {
-            case ConstantType::EMPTY:
-                bdds.push_back(&(emptyformula.bdd));
-                break;
-            case ConstantType::GOAL:
-                bdds.push_back(&(goalformula.bdd));
-                break;
-            case ConstantType::INIT:
-                bdds.push_back(&(initformula.bdd));
-                break;
-            default:
-                std::cerr << "Unknown constant type " << std::endl;
-                exit_with(ExitCode::CRITICAL_ERROR);
-                break;
-            }
-        } else if(b_formula) {
-            if (varorder && b_formula->util->varorder != *varorder) {
-                std::cerr << "Error: Trying to combine BDDs with different varorder."
-                          << std::endl;
-                return false;
-            }
-            bdds.push_back(&(b_formula->bdd));
-        } else {
-            std::cerr << "Error: SetFormula of type other than BDD not allowed here."
-                      << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
 std::unordered_map<std::string, BDDFile> SetFormulaBDD::bddfiles;
 std::vector<int> SetFormulaBDD::prime_permutation;
 
@@ -251,21 +210,16 @@ SetFormulaBDD::SetFormulaBDD(std::stringstream &input, Task &task) {
 
 bool SetFormulaBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
                                        std::vector<StateSetVariable *> &right) {
-    std::vector<BDD *> left_bdds;
-    std::vector<BDD *> right_bdds;
-    bool valid_bdds = util->get_bdd_vector(left, left_bdds)
-            && util->get_bdd_vector(right, right_bdds);
-    if(!valid_bdds) {
-        return false;
-    }
+    std::vector<SetFormulaBDD *> left_bdds = convert_to_formalism<SetFormulaBDD>(left, this);
+    std::vector<SetFormulaBDD *> right_bdds = convert_to_formalism<SetFormulaBDD>(right, this);
 
     BDD left_singular = manager.bddOne();
     for(size_t i = 0; i < left_bdds.size(); ++i) {
-        left_singular *= *(left_bdds[i]);
+        left_singular *= left_bdds[i]->bdd;
     }
     BDD right_singular = manager.bddZero();
     for(size_t i = 0; i < right_bdds.size(); ++i) {
-        right_singular += *(right_bdds[i]);
+        right_singular += right_bdds[i]->bdd;
     }
     return left_singular.Leq(right_singular);
 }
@@ -275,30 +229,24 @@ bool SetFormulaBDD::check_statement_b2(std::vector<StateSetVariable *> &progress
                                        std::vector<StateSetVariable *> &right,
                                        std::unordered_set<int> &action_indices) {
 
-    std::vector<BDD *> left_bdds;
-    std::vector<BDD *> right_bdds;
-    std::vector<BDD *> prog_bdds;
-    bool valid_bdds = util->get_bdd_vector(left, left_bdds)
-            && util->get_bdd_vector(right, right_bdds)
-            && util->get_bdd_vector(progress, prog_bdds);
-    if (!valid_bdds) {
-        return false;
-    }
+    std::vector<SetFormulaBDD *> left_bdds = convert_to_formalism<SetFormulaBDD>(left, this);
+    std::vector<SetFormulaBDD *> right_bdds = convert_to_formalism<SetFormulaBDD>(right, this);
+    std::vector<SetFormulaBDD *> prog_bdds = convert_to_formalism<SetFormulaBDD>(progress, this);
 
     BDD left_singular = manager.bddOne();
     for (size_t i = 0; i < left_bdds.size(); ++i) {
-        left_singular *= *(left_bdds[i]);
+        left_singular *= left_bdds[i]->bdd;
     }
     BDD right_singular = manager.bddZero();
     for (size_t i = 0; i < right_bdds.size(); ++i) {
-        right_singular += *(right_bdds[i]);
+        right_singular += right_bdds[i]->bdd;
     }
 
     BDD neg_left_or_right = (!left_singular) + right_singular;
 
     BDD prog_singular = manager.bddOne();
     for (size_t i = 0; i < prog_bdds.size(); ++i) {
-        prog_singular *= *(prog_bdds[i]);
+        prog_singular *= prog_bdds[i]->bdd;
     }
     if(util->actionformulas.size() == 0) {
         util->build_actionformulas();
@@ -330,30 +278,24 @@ bool SetFormulaBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
                                        std::vector<StateSetVariable *> &left,
                                        std::vector<StateSetVariable *> &right,
                                        std::unordered_set<int> &action_indices) {
-    std::vector<BDD *> left_bdds;
-    std::vector<BDD *> right_bdds;
-    std::vector<BDD *> reg_bdds;
-    bool valid_bdds = util->get_bdd_vector(left, left_bdds)
-            && util->get_bdd_vector(right, right_bdds)
-            && util->get_bdd_vector(regress, reg_bdds);
-    if (!valid_bdds) {
-        return false;
-    }
+    std::vector<SetFormulaBDD *> left_bdds = convert_to_formalism<SetFormulaBDD>(left, this);
+    std::vector<SetFormulaBDD *> right_bdds = convert_to_formalism<SetFormulaBDD>(right, this);
+    std::vector<SetFormulaBDD *> reg_bdds = convert_to_formalism<SetFormulaBDD>(regress, this);
 
     BDD left_singular = manager.bddOne();
     for (size_t i = 0; i < left_bdds.size(); ++i) {
-        left_singular *= *(left_bdds[i]);
+        left_singular *= left_bdds[i]->bdd;
     }
     BDD right_singular = manager.bddZero();
     for (size_t i = 0; i < right_bdds.size(); ++i) {
-        right_singular += *(right_bdds[i]);
+        right_singular += right_bdds[i]->bdd;
     }
 
     BDD neg_left_or_right = (!left_singular) + right_singular;
 
     BDD reg_singular = manager.bddOne();
     for (size_t i = 0; i < reg_bdds.size(); ++i) {
-        reg_singular *= *(reg_bdds[i]);
+        reg_singular *= reg_bdds[i]->bdd;
     }
     if(util->actionformulas.size() == 0) {
         util->build_actionformulas();
@@ -486,9 +428,24 @@ bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positi
     }
 }
 
+SetFormulaBDD *SetFormulaBDD::get_compatible(StateSetVariable *stateset) {
+    SetFormulaBDD *ret = dynamic_cast<SetFormulaBDD *>(stateset);
+    if (ret) {
+        if (ret->get_varorder() == get_varorder()) {
+            return ret;
+        } else {
+            return nullptr;
+        }
+    }
+    SetFormulaConstant *cformula = dynamic_cast<SetFormulaConstant *>(stateset);
+    if (cformula) {
+        return get_constant(cformula->get_constant_type());
+    }
+    return nullptr;
+}
 
-StateSetVariable *SetFormulaBDD::get_constant_formula(SetFormulaConstant *c_formula) {
-    switch(c_formula->get_constant_type()) {
+SetFormulaBDD *SetFormulaBDD::get_constant(ConstantType ctype) {
+    switch (ctype) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);
         break;

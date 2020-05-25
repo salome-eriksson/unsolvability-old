@@ -44,9 +44,6 @@ public:
     virtual bool check_statement_b4(StateSetVariable *right,
                                     bool left_positive, bool right_positive);
 
-    virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
-    virtual const std::vector<int> &get_varorder();
-
     virtual bool supports_mo() { return true; }
     virtual bool supports_ce() { return true; }
     virtual bool supports_im() { return true; }
@@ -62,6 +59,11 @@ public:
     virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause);
     virtual bool get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
     virtual int get_model_count();
+
+    virtual const std::vector<int> &get_varorder();
+
+    virtual SetFormulaExplicit *get_compatible(StateSetVariable *stateset) override;
+    virtual SetFormulaExplicit *get_constant(ConstantType ctype) override;
 
     /*
      * model is expected to have the same varorder (ie we need no transformation).
@@ -115,9 +117,6 @@ private:
         GlobalModel global_model;
         std::vector<ModelExtensions> model_extensions;
     };
-
-    bool get_explicit_vector(std::vector<StateSetVariable *> &formulas,
-                             std::vector<SetFormulaExplicit *> &explicit_formulas);
     bool check_same_vars(std::vector<SetFormulaExplicit *> &formulas);
     SubsetCheckHelper get_subset_checker_helper(std::vector<int> &varorder,
                                                 std::vector<SetFormulaExplicit *> &left_formulas,

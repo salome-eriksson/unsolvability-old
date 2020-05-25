@@ -27,9 +27,6 @@ public:
                                     std::unordered_set<int> &action_indices);
     virtual bool check_statement_b4(StateSetVariable *right,
                                     bool left_positive, bool right_positive);
-
-    virtual const std::vector<int> &get_varorder();
-
     ConstantType get_constant_type();
     virtual bool is_constant() override { return true; }
 
@@ -49,6 +46,11 @@ public:
     virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause);
     virtual bool get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
     virtual int get_model_count();
+
+    virtual SetFormulaConstant *get_compatible(StateSetVariable *stateset) override { return this; } // TODO: remove
+    virtual SetFormulaConstant *get_constant(ConstantType ctype) override { return this; } // TODO: remove
+
+    virtual const std::vector<int> &get_varorder();
 };
 
 #endif // SETFORMULACONSTANT_H
