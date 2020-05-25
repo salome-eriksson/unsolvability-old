@@ -51,6 +51,7 @@ public:
                                                std::vector<StateSetVariable *> &negative,
                                                bool must_be_variable = false) override;
 
+
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right) = 0;
     virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
@@ -63,9 +64,6 @@ public:
                                     std::unordered_set<int> &action_indices) = 0;
     virtual bool check_statement_b4(StateSetVariable *right, bool left_positive,
                                     bool right_positive) = 0;
-
-    // TODO: can we remove this method?
-    virtual const std::vector<int> &get_varorder() = 0;
 
     virtual bool is_constant();
 
@@ -86,6 +84,39 @@ public:
     // returns false if no clause with index i exists
     virtual bool get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) = 0;
     virtual int get_model_count() = 0;
+
+    // TODO: can we remove this method?
+    virtual const std::vector<int> &get_varorder() = 0;
+
+
+    /*
+     * checks whether stateset is compatible with this (using covariance)
+     *  - if yes, return a casted pointer to the subclass of this
+     *  - if no, return nullpointer
+     */
+    virtual StateSetVariable *get_compatible(StateSetVariable *stateset) = 0;
+    /*
+     * return a constant formula in the formalism of this (using covariance)
+     */
+    virtual StateSetVariable *get_constant(ConstantType ctype) = 0;
+
+    // TODO: think about error handling!
+    // TOOD: do we need reference? after all we are calling it from a T * formula
+    template <class T>
+    std::vector<T *> convert_to_formalism(std::vector<StateSetVariable *> &vector, T *reference) {
+        std::vector<T *>ret;
+        ret.reserve(vector.size());
+        for (StateSetVariable *formula : vector) {
+            T *element = reference->get_compatible(formula);
+            if (!element) {
+                std::string msg = "could not convert vector to specific formalism, incompatible formulas!";
+                throw std::runtime_error(msg);
+            }
+            ret.push_back(element);
+        }
+        return std::move(ret);
+    }
+
 };
 
 

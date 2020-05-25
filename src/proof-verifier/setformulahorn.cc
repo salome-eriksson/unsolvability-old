@@ -48,41 +48,6 @@ HornUtil::HornUtil(Task &task)
     initformula = new SetFormulaHorn(clauses, varamount);
 }
 
-bool HornUtil::get_horn_vector(std::vector<StateSetVariable *> &formulas, std::vector<SetFormulaHorn *> &horn_formulas) {
-    assert(horn_formulas.empty());
-    horn_formulas.reserve(formulas.size());
-    // TODO: reimplement check whether formula is horn or constant
-    for(size_t i = 0; i < formulas.size(); ++i) {
-        SetFormulaConstant *c_formula = dynamic_cast<SetFormulaConstant *>(formulas[i]);
-        SetFormulaHorn *h_formula = dynamic_cast<SetFormulaHorn* >(formulas[i]);
-        if (c_formula) {
-            // see if we can use get_constant_formula
-            switch (c_formula->get_constant_type()) {
-            case ConstantType::EMPTY:
-                horn_formulas.push_back(emptyformula);
-                break;
-            case ConstantType::GOAL:
-                horn_formulas.push_back(goalformula);
-                break;
-            case ConstantType::INIT:
-                horn_formulas.push_back(initformula);
-                break;
-            default:
-                std::cerr << "Unknown constant type " << std::endl;
-                exit_with(ExitCode::CRITICAL_ERROR);
-                break;
-            }
-        } else if(h_formula) {
-            horn_formulas.push_back(h_formula);
-        } else {
-            std::cerr << "Error: StateSet of type other than Horn or Constant not allowed here."
-                      << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
 bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment) {
     int total_varamount = partial_assignment.size();
     int amount_implications = 0;
@@ -795,13 +760,9 @@ void SetFormulaHorn::dump() const{
 bool SetFormulaHorn::check_statement_b1(std::vector<StateSetVariable *> &left,
                                         std::vector<StateSetVariable *> &right) {
 
-    std::vector<SetFormulaHorn *> horn_formulas_left;
-    std::vector<SetFormulaHorn *> horn_formulas_right;
-    bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
-            && util->get_horn_vector(right, horn_formulas_right);
-    if(!valid_horn_formulas) {
-        return false;
-    }
+    std::vector<SetFormulaHorn *> horn_formulas_left = convert_to_formalism<SetFormulaHorn>(left, this);
+    std::vector<SetFormulaHorn *> horn_formulas_right = convert_to_formalism<SetFormulaHorn>(right, this);
+
     return util->conjunction_implies_disjunction(horn_formulas_left, horn_formulas_right);
 }
 
@@ -809,15 +770,9 @@ bool SetFormulaHorn::check_statement_b2(std::vector<StateSetVariable *> &progres
                                         std::vector<StateSetVariable *> &left,
                                         std::vector<StateSetVariable *> &right,
                                         std::unordered_set<int> &action_indices) {
-    std::vector<SetFormulaHorn *> horn_formulas_left;
-    std::vector<SetFormulaHorn *> horn_formulas_right;
-    std::vector<SetFormulaHorn *> horn_formulas_prog;
-    bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
-            && util->get_horn_vector(right, horn_formulas_right)
-            && util->get_horn_vector(progress, horn_formulas_prog);
-    if (!valid_horn_formulas) {
-        return false;
-    }
+    std::vector<SetFormulaHorn *> horn_formulas_left = convert_to_formalism<SetFormulaHorn>(left, this);
+    std::vector<SetFormulaHorn *> horn_formulas_right = convert_to_formalism<SetFormulaHorn>(right, this);
+    std::vector<SetFormulaHorn *> horn_formulas_prog = convert_to_formalism<SetFormulaHorn>(progress, this);
 
     SetFormulaHorn *prog_singular;
     SetFormulaHorn prog_dummy(util->task);
@@ -857,15 +812,9 @@ bool SetFormulaHorn::check_statement_b3(std::vector<StateSetVariable *> &regress
                                                std::vector<StateSetVariable *> &left,
                                                std::vector<StateSetVariable *> &right,
                                                std::unordered_set<int> &action_indices) {
-    std::vector<SetFormulaHorn *> horn_formulas_left;
-    std::vector<SetFormulaHorn *> horn_formulas_right;
-    std::vector<SetFormulaHorn *> horn_formulas_reg;
-    bool valid_horn_formulas = util->get_horn_vector(left,horn_formulas_left)
-            && util->get_horn_vector(right, horn_formulas_right)
-            && util->get_horn_vector(regress, horn_formulas_reg);
-    if (!valid_horn_formulas) {
-        return false;
-    }
+    std::vector<SetFormulaHorn *> horn_formulas_left = convert_to_formalism<SetFormulaHorn>(left, this);
+    std::vector<SetFormulaHorn *> horn_formulas_right = convert_to_formalism<SetFormulaHorn>(right,this);
+    std::vector<SetFormulaHorn *> horn_formulas_reg  = convert_to_formalism<SetFormulaHorn>(regress, this);
 
     SetFormulaHorn *reg_singular;
     SetFormulaHorn reg_dummy(util->task);
@@ -1038,9 +987,20 @@ bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_posit
     }
 }
 
+SetFormulaHorn *SetFormulaHorn::get_compatible(StateSetVariable *stateset) {
+    SetFormulaHorn *ret = dynamic_cast<SetFormulaHorn *>(stateset);
+    if (ret) {
+        return ret;
+    }
+    SetFormulaConstant *cformula = dynamic_cast<SetFormulaConstant *>(stateset);
+    if (cformula) {
+        return get_constant(cformula->get_constant_type());
+    }
+    return nullptr;
+}
 
-StateSetVariable *SetFormulaHorn::get_constant_formula(SetFormulaConstant *c_formula) {
-    switch(c_formula->get_constant_type()) {
+SetFormulaHorn *SetFormulaHorn::get_constant(ConstantType ctype) {
+    switch (ctype) {
     case ConstantType::EMPTY:
         return util->emptyformula;
         break;

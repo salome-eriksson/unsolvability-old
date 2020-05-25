@@ -56,42 +56,6 @@ ExplicitUtil::ExplicitUtil(Task &task)
 
 }
 
-bool ExplicitUtil::get_explicit_vector(std::vector<StateSetVariable *> &formulas,
-                                       std::vector<SetFormulaExplicit *> &explicit_formulas) {
-    assert(explicit_formulas.empty());
-    explicit_formulas.reserve(formulas.size());
-    // TODO: reimplement check whether formula is horn or constant
-    for(size_t i = 0; i < formulas.size(); ++i) {
-        SetFormulaConstant *c_formula = dynamic_cast<SetFormulaConstant *>(formulas[i]);
-        SetFormulaExplicit *e_formula = dynamic_cast<SetFormulaExplicit *>(formulas[i]);
-        if (c_formula) {
-            // see if we can use get_constant_formula
-            switch (c_formula->get_constant_type()) {
-            case ConstantType::EMPTY:
-                explicit_formulas.push_back(&emptyformula);
-                break;
-            case ConstantType::GOAL:
-                explicit_formulas.push_back(&goalformula);
-                break;
-            case ConstantType::INIT:
-                explicit_formulas.push_back(&initformula);
-                break;
-            default:
-                std::cerr << "Unknown constant type " << std::endl;
-                exit_with(ExitCode::CRITICAL_ERROR);
-                break;
-            }
-        } else if(e_formula) {
-            explicit_formulas.push_back(e_formula);
-        } else {
-            std::cerr << "Error: SetFormula of type other than Explicit not allowed here."
-                      << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
 bool ExplicitUtil::check_same_vars(std::vector<SetFormulaExplicit *> &formulas) {
     for(size_t i = 1; i < formulas.size(); ++i) {
         if(!std::is_permutation(formulas[i-1]->vars.begin(), formulas[i-1]->vars.end(),
@@ -351,13 +315,8 @@ SetFormulaExplicit::SetFormulaExplicit(std::stringstream &input, Task &task) {
 bool SetFormulaExplicit::check_statement_b1(std::vector<StateSetVariable *> &left,
                                             std::vector<StateSetVariable *> &right) {
 
-    std::vector<SetFormulaExplicit *> left_explicit;
-    std::vector<SetFormulaExplicit *> right_explicit;
-    bool valid_formulas = util->get_explicit_vector(left, left_explicit)
-            && util->get_explicit_vector(right, right_explicit);
-    if(!valid_formulas) {
-        return false;
-    }
+    std::vector<SetFormulaExplicit *> left_explicit = convert_to_formalism<SetFormulaExplicit>(left, this);
+    std::vector<SetFormulaExplicit *> right_explicit = convert_to_formalism<SetFormulaExplicit>(right, this);
 
     right_explicit.erase(std::remove(right_explicit.begin(), right_explicit.end(),
                                      &(util->emptyformula)), right_explicit.end());
@@ -403,15 +362,9 @@ bool SetFormulaExplicit::check_statement_b2(std::vector<StateSetVariable *> &pro
                                             std::vector<StateSetVariable *> &right,
                                             std::unordered_set<int> &action_indices) {
     assert(!progress.empty());
-    std::vector<SetFormulaExplicit *> left_explicit;
-    std::vector<SetFormulaExplicit *> right_explicit;
-    std::vector<SetFormulaExplicit *> prog_explicit;
-    bool valid_formulas = util->get_explicit_vector(left, left_explicit)
-            && util->get_explicit_vector(right, right_explicit)
-            && util->get_explicit_vector(progress, prog_explicit);
-    if(!valid_formulas) {
-        return false;
-    }
+    std::vector<SetFormulaExplicit *> left_explicit = convert_to_formalism<SetFormulaExplicit>(left, this);
+    std::vector<SetFormulaExplicit *> right_explicit = convert_to_formalism<SetFormulaExplicit>(right, this);
+    std::vector<SetFormulaExplicit *> prog_explicit = convert_to_formalism<SetFormulaExplicit>(progress, this);
 
     right_explicit.erase(std::remove(right_explicit.begin(), right_explicit.end(),
                                      &(util->emptyformula)), right_explicit.end());
@@ -526,15 +479,9 @@ bool SetFormulaExplicit::check_statement_b3(std::vector<StateSetVariable *> &reg
                                             std::vector<StateSetVariable *> &right,
                                             std::unordered_set<int> &action_indices) {
     assert(!regress.empty());
-    std::vector<SetFormulaExplicit *> left_explicit;
-    std::vector<SetFormulaExplicit *> right_explicit;
-    std::vector<SetFormulaExplicit *> reg_explicit;
-    bool valid_formulas = util->get_explicit_vector(left, left_explicit)
-            && util->get_explicit_vector(right, right_explicit)
-            && util->get_explicit_vector(regress, reg_explicit);
-    if(!valid_formulas) {
-        return false;
-    }
+    std::vector<SetFormulaExplicit *> left_explicit = convert_to_formalism<SetFormulaExplicit>(left, this);
+    std::vector<SetFormulaExplicit *> right_explicit = convert_to_formalism<SetFormulaExplicit>(right, this);
+    std::vector<SetFormulaExplicit *> reg_explicit = convert_to_formalism<SetFormulaExplicit>(regress, this);
 
     right_explicit.erase(std::remove(right_explicit.begin(), right_explicit.end(),
                                      &(util->emptyformula)), right_explicit.end());
@@ -757,8 +704,20 @@ bool SetFormulaExplicit::check_statement_b4(StateSetVariable *right, bool left_p
     }
 }
 
-StateSetVariable *SetFormulaExplicit::get_constant_formula(SetFormulaConstant *c_formula) {
-    switch(c_formula->get_constant_type()) {
+SetFormulaExplicit *SetFormulaExplicit::get_compatible(StateSetVariable *stateset) {
+    SetFormulaExplicit *ret = dynamic_cast<SetFormulaExplicit *>(stateset);
+    if (ret) {
+        return ret;
+    }
+    SetFormulaConstant *cformula = dynamic_cast<SetFormulaConstant *>(stateset);
+    if (cformula) {
+        return get_constant(cformula->get_constant_type());
+    }
+    return nullptr;
+}
+
+SetFormulaExplicit *SetFormulaExplicit::get_constant(ConstantType ctype) {
+    switch (ctype) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);
         break;

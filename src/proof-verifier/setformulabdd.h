@@ -70,12 +70,6 @@ public:
     virtual bool check_statement_b4(StateSetVariable *right,
                                     bool left_positive, bool right_positive);
 
-    virtual StateSetVariable *get_constant_formula(SetFormulaConstant *c_formula);
-    virtual const std::vector<int> &get_varorder();
-
-    // used for checking statement B1 when the left side is an explicit SetFormula
-    bool contains(const Cube &statecube) const;
-
     virtual bool supports_mo() { return true; }
     virtual bool supports_ce() { return true; }
     virtual bool supports_im() { return true; }
@@ -91,6 +85,15 @@ public:
     virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause);
     virtual bool get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause);
     virtual int get_model_count();
+
+    virtual const std::vector<int> &get_varorder();
+
+    virtual SetFormulaBDD *get_compatible(StateSetVariable *stateset) override;
+    virtual SetFormulaBDD *get_constant(ConstantType ctype) override;
+
+private:
+    // used for checking statement B1 when the left side is an explicit SetFormula
+    bool contains(const Cube &statecube) const;
 
 };
 
@@ -122,14 +125,6 @@ private:
     BDD build_bdd_from_cube(const Cube &cube);
     //BDD build_bdd_for_action(const Action &a);
     void build_actionformulas();
-
-    /*
-     * Returns a vector containing all BDDs contained in the vector of SetFormulas.
-     * The SetFormulas can only be of type SetFormulaBDD or SetFormulaConstant.
-     * All SetFormulaBDDs must share the same variable order.
-     * If either of these requirements is not satisfied, the method aborts and returns false.
-     */
-    bool get_bdd_vector(std::vector<StateSetVariable *> &formulas, std::vector<BDD *> &bdds);
 public:
     BDDUtil() = delete;
     BDDUtil(Task &task, std::vector<int> &varorder);
