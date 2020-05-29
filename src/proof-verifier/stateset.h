@@ -1,14 +1,14 @@
 #ifndef STATESET_H
 #define STATESET_H
 
-#include "setcompositions.h"
-#include "actionset.h"
-
 #include <deque>
 #include <functional>
 #include <map>
 #include <memory>
 #include <sstream>
+#include <unordered_set>
+
+#include "task.h"
 
 
 enum class ConstantType {
@@ -17,10 +17,12 @@ enum class ConstantType {
     INIT
 };
 
+// TODO: can we avoid these forward declarations? I don't think so
 class StateSet;
 typedef std::function<std::unique_ptr<StateSet>(std::stringstream &input, Task &task)> StateSetConstructor;
-class StateSetVariable;
 
+
+class StateSetVariable;
 class StateSet
 {
 public:
@@ -41,7 +43,8 @@ public:
 class StateSetVariable : public StateSet
 {
 public:
-    static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
+    virtual ~StateSetVariable () = 0;
+    //static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
     virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
                                         std::vector<StateSetVariable *> &positive,
                                         std::vector<StateSetVariable *> &negative,
@@ -50,8 +53,12 @@ public:
                                                std::vector<StateSetVariable *> &positive,
                                                std::vector<StateSetVariable *> &negative,
                                                bool must_be_variable = false) override;
+};
 
 
+class StateSetFormalism : public StateSetVariable
+{
+public:
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right) = 0;
     virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
@@ -62,10 +69,8 @@ public:
                                     std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right,
                                     std::unordered_set<int> &action_indices) = 0;
-    virtual bool check_statement_b4(StateSetVariable *right, bool left_positive,
+    virtual bool check_statement_b4(StateSetFormalism *right, bool left_positive,
                                     bool right_positive) = 0;
-
-    virtual bool is_constant();
 
     virtual bool supports_mo() = 0;
     virtual bool supports_ce() = 0;
@@ -94,11 +99,11 @@ public:
      *  - if yes, return a casted pointer to the subclass of this
      *  - if no, return nullpointer
      */
-    virtual StateSetVariable *get_compatible(StateSetVariable *stateset) = 0;
+    virtual StateSetFormalism *get_compatible(StateSetVariable *stateset) = 0;
     /*
      * return a constant formula in the formalism of this (using covariance)
      */
-    virtual StateSetVariable *get_constant(ConstantType ctype) = 0;
+    virtual StateSetFormalism *get_constant(ConstantType ctype) = 0;
 
     // TODO: think about error handling!
     // TOOD: do we need reference? after all we are calling it from a T * formula
@@ -116,87 +121,6 @@ public:
         }
         return std::move(ret);
     }
-
-};
-
-
-class StateSetUnion : public StateSet, public SetUnion
-{
-private:
-    int id_left;
-    int id_right;
-public:
-    StateSetUnion(std::stringstream &input, Task &task);
-    virtual ~StateSetUnion() {}
-
-    virtual int get_left_id();
-    virtual int get_right_id();
-    virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                        std::vector<StateSetVariable *> &positive,
-                                        std::vector<StateSetVariable *> &negative,
-                                        bool must_be_variable = false) override;
-};
-
-class StateSetIntersection : public StateSet, public SetIntersection
-{
-private:
-    int id_left;
-    int id_right;
-public:
-    StateSetIntersection(std::stringstream &input, Task &task);
-    virtual ~StateSetIntersection() {}
-
-    virtual int get_left_id();
-    virtual int get_right_id();
-    virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                               std::vector<StateSetVariable *> &positive,
-                                               std::vector<StateSetVariable *> &negative,
-                                               bool must_be_variable = false) override;
-};
-
-class StateSetNegation : public StateSet, public SetNegation
-{
-private:
-    int id_child;
-public:
-    StateSetNegation(std::stringstream &input, Task &task);
-    virtual ~StateSetNegation() {}
-
-    virtual int get_child_id();
-    virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                        std::vector<StateSetVariable *> &positive,
-                                        std::vector<StateSetVariable *> &negative,
-                                        bool must_be_variable = false) override;
-    virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                               std::vector<StateSetVariable *> &positive,
-                                               std::vector<StateSetVariable *> &negative,
-                                               bool must_be_variable = false) override;
-};
-
-class StateSetProgression : public StateSet
-{
-private:
-    int id_stateset;
-    int id_actionset;
-public:
-    StateSetProgression(std::stringstream &input, Task &task);
-    virtual ~StateSetProgression() {}
-
-    virtual int get_stateset_id();
-    virtual int get_actionset_id();
-};
-
-class StateSetRegression : public StateSet
-{
-private:
-    int id_stateset;
-    int id_actionset;
-public:
-    StateSetRegression(std::stringstream &input, Task &task);
-    virtual ~StateSetRegression() {}
-
-    virtual int get_stateset_id();
-    virtual int get_actionset_id();
 };
 
 
@@ -213,4 +137,5 @@ public:
     ~StateSetBuilder() = default;
     StateSetBuilder(const StateSetBuilder<T> &other) = delete;
 };
+
 #endif // STATESET_H

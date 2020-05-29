@@ -1,4 +1,4 @@
-#include "setformulabdd.h"
+#include "ssfbdd.h"
 
 #include <algorithm>
 #include <cassert>
@@ -7,8 +7,8 @@
 #include "dddmp.h"
 
 #include "global_funcs.h"
-#include "setformulahorn.h"
-#include "setformulaexplicit.h"
+#include "ssfhorn.h"
+#include "ssfexplicit.h"
 
 std::unordered_map<std::vector<int>, BDDUtil, VectorHasher> BDDFile::utils;
 std::vector<int> BDDFile::compose;
@@ -171,14 +171,14 @@ void BDDUtil::build_actionformulas() {
     }
 }
 
-std::unordered_map<std::string, BDDFile> SetFormulaBDD::bddfiles;
-std::vector<int> SetFormulaBDD::prime_permutation;
+std::unordered_map<std::string, BDDFile> SSFBDD::bddfiles;
+std::vector<int> SSFBDD::prime_permutation;
 
-SetFormulaBDD::SetFormulaBDD(BDDUtil *util, BDD bdd)
+SSFBDD::SSFBDD(BDDUtil *util, BDD bdd)
     : util(util), bdd(bdd) {
 }
 
-SetFormulaBDD::SetFormulaBDD(std::stringstream &input, Task &task) {
+SSFBDD::SSFBDD(std::stringstream &input, Task &task) {
     std::string filename;
     int bdd_index;
     input >> filename;
@@ -208,10 +208,10 @@ SetFormulaBDD::SetFormulaBDD(std::stringstream &input, Task &task) {
     assert(declaration_end == ";");
 }
 
-bool SetFormulaBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
+bool SSFBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
                                        std::vector<StateSetVariable *> &right) {
-    std::vector<SetFormulaBDD *> left_bdds = convert_to_formalism<SetFormulaBDD>(left, this);
-    std::vector<SetFormulaBDD *> right_bdds = convert_to_formalism<SetFormulaBDD>(right, this);
+    std::vector<SSFBDD *> left_bdds = convert_to_formalism<SSFBDD>(left, this);
+    std::vector<SSFBDD *> right_bdds = convert_to_formalism<SSFBDD>(right, this);
 
     BDD left_singular = manager.bddOne();
     for(size_t i = 0; i < left_bdds.size(); ++i) {
@@ -224,14 +224,14 @@ bool SetFormulaBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
     return left_singular.Leq(right_singular);
 }
 
-bool SetFormulaBDD::check_statement_b2(std::vector<StateSetVariable *> &progress,
+bool SSFBDD::check_statement_b2(std::vector<StateSetVariable *> &progress,
                                        std::vector<StateSetVariable *> &left,
                                        std::vector<StateSetVariable *> &right,
                                        std::unordered_set<int> &action_indices) {
 
-    std::vector<SetFormulaBDD *> left_bdds = convert_to_formalism<SetFormulaBDD>(left, this);
-    std::vector<SetFormulaBDD *> right_bdds = convert_to_formalism<SetFormulaBDD>(right, this);
-    std::vector<SetFormulaBDD *> prog_bdds = convert_to_formalism<SetFormulaBDD>(progress, this);
+    std::vector<SSFBDD *> left_bdds = convert_to_formalism<SSFBDD>(left, this);
+    std::vector<SSFBDD *> right_bdds = convert_to_formalism<SSFBDD>(right, this);
+    std::vector<SSFBDD *> prog_bdds = convert_to_formalism<SSFBDD>(progress, this);
 
     BDD left_singular = manager.bddOne();
     for (size_t i = 0; i < left_bdds.size(); ++i) {
@@ -274,13 +274,13 @@ bool SetFormulaBDD::check_statement_b2(std::vector<StateSetVariable *> &progress
     return true;
 }
 
-bool SetFormulaBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
+bool SSFBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
                                        std::vector<StateSetVariable *> &left,
                                        std::vector<StateSetVariable *> &right,
                                        std::unordered_set<int> &action_indices) {
-    std::vector<SetFormulaBDD *> left_bdds = convert_to_formalism<SetFormulaBDD>(left, this);
-    std::vector<SetFormulaBDD *> right_bdds = convert_to_formalism<SetFormulaBDD>(right, this);
-    std::vector<SetFormulaBDD *> reg_bdds = convert_to_formalism<SetFormulaBDD>(regress, this);
+    std::vector<SSFBDD *> left_bdds = convert_to_formalism<SSFBDD>(left, this);
+    std::vector<SSFBDD *> right_bdds = convert_to_formalism<SSFBDD>(right, this);
+    std::vector<SSFBDD *> reg_bdds = convert_to_formalism<SSFBDD>(regress, this);
 
     BDD left_singular = manager.bddOne();
     for (size_t i = 0; i < left_bdds.size(); ++i) {
@@ -322,7 +322,7 @@ bool SetFormulaBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
     return true;
 }
 
-bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positive, bool right_positive) {
+bool SSFBDD::check_statement_b4(StateSetFormalism *right, bool left_positive, bool right_positive) {
 
     if (!left_positive && !right_positive) {
         return right->check_statement_b4(this, true, true);
@@ -428,8 +428,8 @@ bool SetFormulaBDD::check_statement_b4(StateSetVariable *right, bool left_positi
     }
 }
 
-SetFormulaBDD *SetFormulaBDD::get_compatible(StateSetVariable *stateset) {
-    SetFormulaBDD *ret = dynamic_cast<SetFormulaBDD *>(stateset);
+SSFBDD *SSFBDD::get_compatible(StateSetVariable *stateset) {
+    SSFBDD *ret = dynamic_cast<SSFBDD *>(stateset);
     if (ret) {
         if (ret->get_varorder() == get_varorder()) {
             return ret;
@@ -437,14 +437,14 @@ SetFormulaBDD *SetFormulaBDD::get_compatible(StateSetVariable *stateset) {
             return nullptr;
         }
     }
-    SetFormulaConstant *cformula = dynamic_cast<SetFormulaConstant *>(stateset);
+    SSVConstant *cformula = dynamic_cast<SSVConstant *>(stateset);
     if (cformula) {
         return get_constant(cformula->get_constant_type());
     }
     return nullptr;
 }
 
-SetFormulaBDD *SetFormulaBDD::get_constant(ConstantType ctype) {
+SSFBDD *SSFBDD::get_constant(ConstantType ctype) {
     switch (ctype) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);
@@ -462,15 +462,15 @@ SetFormulaBDD *SetFormulaBDD::get_constant(ConstantType ctype) {
     }
 }
 
-const std::vector<int> &SetFormulaBDD::get_varorder() {
+const std::vector<int> &SSFBDD::get_varorder() {
     return util->other_varorder;
 }
 
-bool SetFormulaBDD::contains(const Cube &statecube) const {
+bool SSFBDD::contains(const Cube &statecube) const {
     return util->build_bdd_from_cube(statecube).Leq(bdd);
 }
 
-bool SetFormulaBDD::is_contained(const std::vector<bool> &model) const {
+bool SSFBDD::is_contained(const std::vector<bool> &model) const {
     assert(model.size() == util->varorder.size());
     Cube cube(util->varorder.size()*2);
     for (size_t i = 0; i < model.size(); ++i) {
@@ -485,7 +485,7 @@ bool SetFormulaBDD::is_contained(const std::vector<bool> &model) const {
 
 }
 
-bool SetFormulaBDD::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+bool SSFBDD::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
     assert(varorder.size() == implicant.size());
     Cube cube(util->varorder.size(), 2);
     for (size_t i = 0; i < varorder.size(); ++i) {
@@ -503,7 +503,7 @@ bool SetFormulaBDD::is_implicant(const std::vector<int> &varorder, const std::ve
     return util->build_bdd_from_cube(cube).Leq(bdd);
 }
 
-bool SetFormulaBDD::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+bool SSFBDD::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
     assert(varorder.size() == clause.size());
     BDD clause_bdd = manager.bddZero();
     for (size_t i = 0; i < clause.size(); ++i) {
@@ -520,13 +520,13 @@ bool SetFormulaBDD::is_entailed(const std::vector<int> &varorder, const std::vec
     return bdd.Leq(clause_bdd);
 }
 
-bool SetFormulaBDD::get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) {
+bool SSFBDD::get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) {
     return false;
 }
 
-int SetFormulaBDD::get_model_count() {
+int SSFBDD::get_model_count() {
     // TODO: not sure if this is correct
     return bdd.CountMinterm(util->varorder.size());
 }
 
-StateSetBuilder<SetFormulaBDD> bdd_builder("b");
+StateSetBuilder<SSFBDD> bdd_builder("b");

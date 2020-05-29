@@ -1,33 +1,33 @@
-#ifndef SETFORMULAHORN_H
-#define SETFORMULAHORN_H
+#ifndef SSFHORN_H
+#define SSFAHORN_H
 
 #include <forward_list>
 #include <unordered_set>
 
 #include "stateset.h"
-#include "setformulaconstant.h"
+#include "ssvconstant.h"
 #include "task.h"
 
-class SetFormulaHorn;
+class SSFHorn;
 
 struct HornConjunctionElement {
-    const SetFormulaHorn *formula;
+    const SSFHorn *formula;
     std::vector<bool> removed_implications;
 
-    HornConjunctionElement(const SetFormulaHorn *formula);
+    HornConjunctionElement(const SSFHorn *formula);
 };
 
-typedef std::vector<std::pair<const SetFormulaHorn *,bool>> HornFormulaList;
+typedef std::vector<std::pair<const SSFHorn *,bool>> HornFormulaList;
 typedef std::vector<std::pair<std::forward_list<int>,std::forward_list<int>>> VariableOccurences;
 
 class HornUtil {
-    friend class SetFormulaHorn;
+    friend class SSFHorn;
 private:
     Task &task;
-    SetFormulaHorn *emptyformula;
-    SetFormulaHorn *initformula;
-    SetFormulaHorn *goalformula;
-    SetFormulaHorn *trueformula;
+    SSFHorn *emptyformula;
+    SSFHorn *initformula;
+    SSFHorn *goalformula;
+    SSFHorn *trueformula;
     HornUtil(Task &task);
 
     void build_actionformulas();
@@ -38,10 +38,10 @@ private:
      * are forced true/false by the conjunction.
      */
     bool simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment);
-    bool is_restricted_satisfiable(const SetFormulaHorn *formula, Cube &restriction);
+    bool is_restricted_satisfiable(const SSFHorn *formula, Cube &restriction);
 
-    bool conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &conjuncts,
-                                         std::vector<SetFormulaHorn *> &disjuncts);
+    bool conjunction_implies_disjunction(std::vector<SSFHorn *> &conjuncts,
+                                         std::vector<SSFHorn *> &disjuncts);
 };
 
 
@@ -59,7 +59,7 @@ private:
  *   - variable occurences stores for each variable, in which clause it appears
  *     (the first unordered_set is for negative occurence, the second for positive)
  */
-class SetFormulaHorn : public StateSetVariable
+class SSFHorn : public StateSetFormalism
 {
     friend class HornUtil;
 private:
@@ -75,21 +75,21 @@ private:
     static HornUtil *util;
 
     /*
-     * Private constructors can only be called by SetFormulaHorn or HornUtil,
-     * meaning the static member SetFormulaHorn::util is already initialized
+     * Private constructors can only be called by SSFHorn or HornUtil,
+     * meaning the static member SSFHorn::util is already initialized
      * and we thus do not need to worry about initializing it.
      */
     // this constructor is used for setting up the formulas in util
-    SetFormulaHorn(const std::vector<std::pair<std::vector<int>,int>> &clauses, int varamount);
+    SSFHorn(const std::vector<std::pair<std::vector<int>,int>> &clauses, int varamount);
     // used for getting a simplified conjunction of several (possibly primed) formulas
-    SetFormulaHorn(std::vector<SetFormulaHorn *> &formulas);
-    SetFormulaHorn(const SetFormulaHorn &other, const Action &action, bool progression);
+    SSFHorn(std::vector<SSFHorn *> &formulas);
+    SSFHorn(const SSFHorn &other, const Action &action, bool progression);
     void simplify();
 public:
     // TODO: this is currently only used for a dummy initialization
-    SetFormulaHorn(Task &task);
-    SetFormulaHorn(std::stringstream &input, Task &task);
-    virtual ~SetFormulaHorn() {}    
+    SSFHorn(Task &task);
+    SSFHorn(std::stringstream &input, Task &task);
+    virtual ~SSFHorn() {}
 
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right);
@@ -101,7 +101,7 @@ public:
                                     std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right,
                                     std::unordered_set<int> &action_indices);
-    virtual bool check_statement_b4(StateSetVariable *right,
+    virtual bool check_statement_b4(StateSetFormalism *right,
                                     bool left_positive, bool right_positive);
 
     virtual bool supports_mo() { return true; }
@@ -136,8 +136,8 @@ public:
     const bool is_satisfiable() const;
     void dump() const;
 
-    virtual SetFormulaHorn *get_compatible(StateSetVariable *stateset) override;
-    virtual SetFormulaHorn *get_constant(ConstantType ctype) override;
+    virtual SSFHorn *get_compatible(StateSetVariable *stateset) override;
+    virtual SSFHorn *get_constant(ConstantType ctype) override;
 };
 
-#endif // SETFORMULAHORN_H
+#endif // SSFHORN_H

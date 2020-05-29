@@ -12,10 +12,10 @@
 #include "timer.h"
 #include "proofchecker.h"
 #include "stateset.h"
-#include "setformulaconstant.h"
-#include "setformulahorn.h"
-#include "setformulabdd.h"
-#include "setformulaexplicit.h"
+#include "ssvconstant.h"
+#include "ssfhorn.h"
+#include "ssfbdd.h"
+#include "ssfexplicit.h"
 
 void expand_environment_variables(std::string &file) {
     size_t found = file.find('$');
