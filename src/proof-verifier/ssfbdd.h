@@ -1,8 +1,8 @@
-#ifndef SETFORMULABDD_H
-#define SETFORMULABDD_H
+#ifndef SSFBDD_H
+#define SSFBDD_H
 
 #include "stateset.h"
-#include "setformulaconstant.h"
+#include "ssvconstant.h"
 
 #include <unordered_map>
 #include <sstream>
@@ -42,7 +42,7 @@ struct BDDAction {
     BDD eff;
 };
 
-class SetFormulaBDD : public StateSetVariable
+class SSFBDD : public StateSetFormalism
 {
     friend class BDDUtil;
 private:
@@ -52,10 +52,10 @@ private:
     BDDUtil *util;
     BDD bdd;
 
-    SetFormulaBDD(BDDUtil *util, BDD bdd);
+    SSFBDD(BDDUtil *util, BDD bdd);
 public:
-    SetFormulaBDD() = delete;
-    SetFormulaBDD(std::stringstream &input, Task &task);
+    SSFBDD() = delete;
+    SSFBDD(std::stringstream &input, Task &task);
 
     virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right);
@@ -67,7 +67,7 @@ public:
                                     std::vector<StateSetVariable *> &left,
                                     std::vector<StateSetVariable *> &right,
                                     std::unordered_set<int> &action_indices);
-    virtual bool check_statement_b4(StateSetVariable *right,
+    virtual bool check_statement_b4(StateSetFormalism *right,
                                     bool left_positive, bool right_positive);
 
     virtual bool supports_mo() { return true; }
@@ -88,11 +88,11 @@ public:
 
     virtual const std::vector<int> &get_varorder();
 
-    virtual SetFormulaBDD *get_compatible(StateSetVariable *stateset) override;
-    virtual SetFormulaBDD *get_constant(ConstantType ctype) override;
+    virtual SSFBDD *get_compatible(StateSetVariable *stateset) override;
+    virtual SSFBDD *get_constant(ConstantType ctype) override;
 
 private:
-    // used for checking statement B1 when the left side is an explicit SetFormula
+    // used for checking statement B1 when the left side is an explicit StateSetFormalism
     bool contains(const Cube &statecube) const;
 
 };
@@ -105,10 +105,10 @@ private:
  *
  * Note: action formulas are only created on demand (when the method
  * pro/regression_is_union_subset is used the first time by some
- * SetFormulaBDD using this particual BDDUtil)
+ * SSFBDD using this particual BDDUtil)
  */
 class BDDUtil {
-    friend class SetFormulaBDD;
+    friend class SSFBDD;
 private:
     Task &task;
     // TODO: fix varorder meaning across the code!
@@ -117,9 +117,9 @@ private:
     // bdd variable i is global variable other_varorder[i]
     std::vector<int> other_varorder;
     // constant formulas
-    SetFormulaBDD emptyformula;
-    SetFormulaBDD initformula;
-    SetFormulaBDD goalformula;
+    SSFBDD emptyformula;
+    SSFBDD initformula;
+    SSFBDD goalformula;
     std::vector<BDDAction> actionformulas;
 
     BDD build_bdd_from_cube(const Cube &cube);
@@ -131,4 +131,4 @@ public:
 };
 
 
-#endif // SETFORMULABDD_H
+#endif // SSFBDD_H

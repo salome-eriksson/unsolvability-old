@@ -12,15 +12,16 @@ DEPEND = $(CXX) -MM
 
 HEADERS = \
 	  actionset.h \
-      global_funcs.h \
-      knowledge.h \
+     	  global_funcs.h \
+          knowledge.h \
 	  proofchecker.h \
-	  setformulabdd.h \
-	  setformulaconstant.h \
-	  setformulaexplicit.h \
-	  setformulahorn.h \
-	  stateset.h \
-      task.h \
+	  ssfbdd.h \
+	  ssfexplicit.h \
+	  ssfhorn.h \
+	  ssvconstant.h \
+          stateset.h \
+	  statesetcompositions.h \
+          task.h \
 	  timer.h \
 
 SOURCES = verify.cc $(HEADERS:%.h=%.cc)

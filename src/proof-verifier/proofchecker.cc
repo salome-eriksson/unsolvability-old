@@ -7,10 +7,9 @@
 #include <limits>
 
 #include "global_funcs.h"
-#include "setformulaconstant.h"
-#include "setformulabdd.h"
-#include "setformulaexplicit.h"
-#include "setformulahorn.h"
+#include "stateset.h"
+#include "statesetcompositions.h"
+#include "ssvconstant.h"
 
 // TODO: should all error messages here be printed in cerr?
 
@@ -235,7 +234,7 @@ void ProofChecker::verify_knowledge(std::string &line) {
 bool ProofChecker::check_rule_ed(int conclusion_id, int stateset_id, std::vector<int> &premise_ids) {
     assert(premise_ids.empty());
 
-    SetFormulaConstant *f = dynamic_cast<SetFormulaConstant *>(formulas[stateset_id].get());
+    SSVConstant *f = dynamic_cast<SSVConstant *>(formulas[stateset_id].get());
     if ((!f) || (f->get_constant_type() != ConstantType::EMPTY)) {
         std::cerr << "Error when applying rule ED: set expression #" << stateset_id
                   << " is not the constant empty set." << std::endl;
@@ -379,8 +378,8 @@ bool ProofChecker::check_rule_pg(int conclusion_id, int stateset_id, std::vector
                   << " on the left side." << std::endl;
         return false;
     }
-    SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[s_and_goal->get_right_id()].get());
+    SSVConstant *goal =
+            dynamic_cast<SSVConstant *>(formulas[s_and_goal->get_right_id()].get());
     if((!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
         std::cerr << "Error when applying rule PG: the set expression declared dead in knowledge #"
                   << premise_ids[2] << " is not an intersection with the constant goal set on the right side."
@@ -458,8 +457,8 @@ bool ProofChecker::check_rule_pi(int conclusion_id, int stateset_id, std::vector
         return false;
     }
     // check that left side of premise_ids[2] is {I}
-    SetFormulaConstant *init =
-            dynamic_cast<SetFormulaConstant *>(formulas[subset_knowledge->get_left_id()].get());
+    SSVConstant *init =
+            dynamic_cast<SSVConstant *>(formulas[subset_knowledge->get_left_id()].get());
     if((!init) || (init->get_constant_type() != ConstantType::INIT)) {
         std::cerr << "Error when applying rule PI: the left side of subset knowledge #" << premise_ids[2]
                   << " is not the constant initial set." << std::endl;
@@ -550,8 +549,8 @@ bool ProofChecker::check_rule_rg(int conclusion_id, int stateset_id, std::vector
                   << " on the left side." << std::endl;
         return false;
     }
-    SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[s_not_and_goal->get_right_id()].get());
+    SSVConstant *goal =
+            dynamic_cast<SSVConstant *>(formulas[s_not_and_goal->get_right_id()].get());
     if((!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
         std::cerr << "Error when applying rule RG: the set expression declared dead in knowledge #"
                   << premise_ids[2] << " is not an intersection with the constant goal set on the right side."
@@ -620,8 +619,8 @@ bool ProofChecker::check_rule_ri(int conclusion_id, int stateset_id, std::vector
         return false;
     }
     // check that left side of premise_ids[2] is {I}
-    SetFormulaConstant *init =
-            dynamic_cast<SetFormulaConstant *>(formulas[subset_knowledge->get_left_id()].get());
+    SSVConstant *init =
+            dynamic_cast<SSVConstant *>(formulas[subset_knowledge->get_left_id()].get());
     if((!init) || (init->get_constant_type() != ConstantType::INIT)) {
         std::cerr << "Error when applying rule RI: the left side of subset knowledge #" << premise_ids[2]
                   << " is not the constant initial set." << std::endl;
@@ -655,8 +654,8 @@ bool ProofChecker::check_rule_ci(int conclusion_id, int premise_id) {
                   << " is not of type DEAD." << std::endl;
         return false;
     }
-    SetFormulaConstant *init =
-            dynamic_cast<SetFormulaConstant *>(formulas[dead_knowledge->get_set_id()].get());
+    SSVConstant *init =
+            dynamic_cast<SSVConstant *>(formulas[dead_knowledge->get_set_id()].get());
     if ((!init) || (init->get_constant_type() != ConstantType::INIT)) {
         std::cerr << "Error when applying rule CI: knowledge #" << premise_id
                   << " does not state that the constant initial set is dead." << std::endl;
@@ -679,8 +678,8 @@ bool ProofChecker::check_rule_cg(int conclusion_id, int premise_id) {
                   << " is not of type DEAD." << std::endl;
         return false;
     }
-    SetFormulaConstant *goal =
-            dynamic_cast<SetFormulaConstant *>(formulas[dead_knowledge->get_set_id()].get());
+    SSVConstant *goal =
+            dynamic_cast<SSVConstant *>(formulas[dead_knowledge->get_set_id()].get());
     if ( (!goal) || (goal->get_constant_type() != ConstantType::GOAL)) {
         std::cerr << "Error when applying rule CG: knowledge #" << premise_id
                   << " does not state that the constant goal set is dead." << std::endl;
@@ -1251,11 +1250,10 @@ bool ProofChecker::check_statement_B1(int conclusion_id, int left_id, int right_
         }
 
         assert(left.size() + right.size() > 0);
-        StateSetVariable *reference_formula = nullptr;
-        if (!left.empty()) {
-            reference_formula = left[0];
-        } else {
-            reference_formula = right[0];
+        StateSetFormalism *reference_formula = get_reference_formula({left ,right});
+        if (!reference_formula) {
+            std::string msg = "Error when checking statement B1: no concrete subformula!";
+            throw std::runtime_error(msg);
         }
 
         if (!reference_formula->check_statement_b1(left, right)) {
@@ -1347,7 +1345,11 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
         }
 
         assert(prog.size() > 0);
-        StateSetVariable *reference_formula = prog[0];
+        StateSetFormalism *reference_formula = get_reference_formula({prog, left ,right});
+        if (!reference_formula) {
+            std::string msg = "Error when checking statement B2: no concrete subformula!";
+            throw std::runtime_error(msg);
+        }
 
         if(!reference_formula->check_statement_b2(prog, left, right, actions)) {
             std::string msg = "Error when checking statement B2: set expression #"
@@ -1437,7 +1439,11 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
         }
 
         assert(reg.size() > 0);
-        StateSetVariable *reference_formula = reg[0];
+        StateSetFormalism *reference_formula = get_reference_formula({reg, left ,right});
+        if (!reference_formula) {
+            std::string msg = "Error when checking statement B1: no concrete subformula!";
+            throw std::runtime_error(msg);
+        }
 
         if(!reference_formula->check_statement_b3(reg, left, right, actions)) {
             std::string msg = "Error when checking statement B3: set expression #"
@@ -1498,7 +1504,15 @@ bool ProofChecker::check_statement_B4(int conclusion_id, int left_id, int right_
             }
         }
 
-        if(!lvar->check_statement_b4(rvar, left_positive, right_positive)) {
+        // TODO: currently, left cannot be a constant but right can. We probably want to overthink this
+        StateSetFormalism *lformalism = dynamic_cast<StateSetFormalism *>(lvar);
+        StateSetFormalism *rformalism = dynamic_cast<StateSetFormalism *>(rvar);
+        if (!lformalism || !rformalism) {
+            std::string msg = "Error when checking statement B4: left and/or right is no concrete formalism!";
+            throw std::runtime_error(msg);
+        }
+
+        if(!lformalism->check_statement_b4(rformalism, left_positive, right_positive)) {
             std::string msg = "Error when checking statement B4: set expression #"
                     + std::to_string(left_id) + " is not a subset of set expression #"
                     + std::to_string(right_id) + ".";
@@ -1532,6 +1546,18 @@ bool ProofChecker::check_statement_B5(int conclusion_id, int left_id, int right_
 
     add_knowledge(std::unique_ptr<Knowledge>(new SubsetKnowledge<ActionSet>(left_id,right_id)), conclusion_id);
     return true;
+}
+
+StateSetFormalism *ProofChecker::get_reference_formula(std::vector<std::reference_wrapper<std::vector<StateSetVariable *>>> vars) {
+    StateSetFormalism *ret = nullptr;
+    for (std::vector<StateSetVariable *> &vec : vars) {
+        for (StateSetVariable *var : vec) {
+            ret = dynamic_cast<StateSetFormalism *>(var);
+            if(ret) {
+                return ret;
+            }
+        }
+    }
 }
 
 

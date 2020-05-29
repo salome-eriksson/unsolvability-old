@@ -1,4 +1,4 @@
-﻿#include "setformulahorn.h"
+﻿#include "ssfhorn.h"
 
 #include <fstream>
 #include <deque>
@@ -8,7 +8,7 @@
 
 #include "global_funcs.h"
 
-HornConjunctionElement::HornConjunctionElement (const SetFormulaHorn *formula)
+HornConjunctionElement::HornConjunctionElement (const SSFHorn *formula)
     : formula(formula), removed_implications(formula->get_size(), false) {
 }
 
@@ -19,10 +19,10 @@ HornUtil::HornUtil(Task &task)
     // this is the maximum amount of clauses the formulas need
     clauses.reserve(varamount*2);
 
-    trueformula = new SetFormulaHorn(clauses, varamount);
+    trueformula = new SSFHorn(clauses, varamount);
     clauses.push_back(std::make_pair(std::vector<int>(1,0),-1));
     clauses.push_back(std::make_pair(std::vector<int>(),0));
-    emptyformula = new SetFormulaHorn(clauses, varamount);
+    emptyformula = new SSFHorn(clauses, varamount);
     clauses.clear();
 
     // insert goal
@@ -32,7 +32,7 @@ HornUtil::HornUtil(Task &task)
             clauses.push_back(std::make_pair(std::vector<int>(),i));
         }
     }
-    goalformula = new SetFormulaHorn(clauses, varamount);
+    goalformula = new SSFHorn(clauses, varamount);
     clauses.clear();
 
     // insert initial state
@@ -45,7 +45,7 @@ HornUtil::HornUtil(Task &task)
             clauses.push_back(std::make_pair(std::vector<int>(1,i),-1));
         }
     }
-    initformula = new SetFormulaHorn(clauses, varamount);
+    initformula = new SSFHorn(clauses, varamount);
 }
 
 bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjuncts, Cube &partial_assignment) {
@@ -187,7 +187,7 @@ bool HornUtil::simplify_conjunction(std::vector<HornConjunctionElement> &conjunc
     return true;
 }
 
-bool HornUtil::is_restricted_satisfiable(const SetFormulaHorn *formula, Cube &restriction) {
+bool HornUtil::is_restricted_satisfiable(const SSFHorn *formula, Cube &restriction) {
     std::vector<HornConjunctionElement> vec(1,HornConjunctionElement(formula));
     return simplify_conjunction(vec, restriction);
 }
@@ -206,8 +206,8 @@ inline bool update_current_clauses(std::vector<int> &current_clauses, std::vecto
 }
 
 
-bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &conjuncts,
-                                               std::vector<SetFormulaHorn *> &disjuncts) {
+bool HornUtil::conjunction_implies_disjunction(std::vector<SSFHorn *> &conjuncts,
+                                               std::vector<SSFHorn *> &disjuncts) {
     if (conjuncts.size() == 0) {
         conjuncts.push_back(trueformula);
     }
@@ -215,9 +215,9 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &co
     std::vector<int> current_clauses;
     int disj_varamount = 0;
     // iterator for removing while iterating
-    std::vector<SetFormulaHorn *>::iterator disjunct_it = disjuncts.begin();
+    std::vector<SSFHorn *>::iterator disjunct_it = disjuncts.begin();
     while (disjunct_it != disjuncts.end()) {
-        SetFormulaHorn *formula = *disjunct_it;
+        SSFHorn *formula = *disjunct_it;
         /*
          * An empty formula is equivalent to \top
          * -> return true since everything is a subset of a union containing \top
@@ -241,10 +241,10 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &co
         disjunct_it++;
     }
 
-    SetFormulaHorn conjunction_dummy(task);
-    const SetFormulaHorn *conjunction = conjuncts[0];
+    SSFHorn conjunction_dummy(task);
+    const SSFHorn *conjunction = conjuncts[0];
     if(conjuncts.size() > 1) {
-        conjunction_dummy = SetFormulaHorn(conjuncts);
+        conjunction_dummy = SSFHorn(conjuncts);
         conjunction = &conjunction_dummy;
     }
 
@@ -259,7 +259,7 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &co
         bool unsatisfiable = false;
         Cube partial_assignment(disj_varamount,2);
         for (size_t i = 0; i < current_clauses.size(); ++i) {
-            const SetFormulaHorn *formula = disjuncts[i];
+            const SSFHorn *formula = disjuncts[i];
             int clausenum = current_clauses[i];
             if (clausenum < formula->get_forced_true().size()) {
                 int forced_true = formula->get_forced_true().at(clausenum);
@@ -319,9 +319,9 @@ bool HornUtil::conjunction_implies_disjunction(std::vector<SetFormulaHorn *> &co
     return true;
 }
 
-HornUtil *SetFormulaHorn::util = nullptr;
+HornUtil *SSFHorn::util = nullptr;
 
-SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int> > &clauses, int varamount)
+SSFHorn::SSFHorn(const std::vector<std::pair<std::vector<int>, int> > &clauses, int varamount)
     : variable_occurences(varamount), varamount(varamount) {
 
     for(auto clause : clauses) {
@@ -350,10 +350,10 @@ SetFormulaHorn::SetFormulaHorn(const std::vector<std::pair<std::vector<int>, int
     }
 }
 
-SetFormulaHorn::SetFormulaHorn(std::vector<SetFormulaHorn *> &formulas) {
+SSFHorn::SSFHorn(std::vector<SSFHorn *> &formulas) {
     std::vector<HornConjunctionElement> elements;
     elements.reserve(formulas.size());
-    for (SetFormulaHorn *f : formulas) {
+    for (SSFHorn *f : formulas) {
         elements.emplace_back(HornConjunctionElement(f));
     }
     Cube partial_assignments;
@@ -430,7 +430,7 @@ SetFormulaHorn::SetFormulaHorn(std::vector<SetFormulaHorn *> &formulas) {
     }
 }
 
-SetFormulaHorn::SetFormulaHorn(const SetFormulaHorn &other, const Action &action, bool progression)
+SSFHorn::SSFHorn(const SSFHorn &other, const Action &action, bool progression)
     : left_vars(other.left_vars), left_sizes(other.left_sizes), right_side(other.right_side),
       forced_true(other.forced_true), forced_false(other.forced_false), varamount(2*action.change.size()) {
     variable_occurences.resize(action.change.size()*2);
@@ -506,13 +506,13 @@ SetFormulaHorn::SetFormulaHorn(const SetFormulaHorn &other, const Action &action
 }
 
 
-SetFormulaHorn::SetFormulaHorn(Task &task) {
+SSFHorn::SSFHorn(Task &task) {
     if (util == nullptr) {
         util = new HornUtil(task);
     }
 }
 
-SetFormulaHorn::SetFormulaHorn(std::stringstream &input, Task &task) {
+SSFHorn::SSFHorn(std::stringstream &input, Task &task) {
     // parsing
     std::string word;
     int clausenum;
@@ -587,7 +587,7 @@ SetFormulaHorn::SetFormulaHorn(std::stringstream &input, Task &task) {
     }
 }
 
-void SetFormulaHorn::simplify() {
+void SSFHorn::simplify() {
     // call simplify_conjunction to get a partial assignment and implications to remove
     std::vector<HornConjunctionElement> tmpvec(1,HornConjunctionElement(this));
     Cube assignments(varamount, 2);
@@ -681,51 +681,51 @@ void SetFormulaHorn::simplify() {
     }
 }
 
-const std::forward_list<int> &SetFormulaHorn::get_variable_occurence_left(int var) const {
+const std::forward_list<int> &SSFHorn::get_variable_occurence_left(int var) const {
     return variable_occurences[var].first;
 }
 
-const std::forward_list<int> &SetFormulaHorn::get_variable_occurence_right(int var) const {
+const std::forward_list<int> &SSFHorn::get_variable_occurence_right(int var) const {
     return variable_occurences[var].second;
 }
 
-int SetFormulaHorn::get_size() const {
+int SSFHorn::get_size() const {
     return left_vars.size();
 }
 
-int SetFormulaHorn::get_varamount() const {
+int SSFHorn::get_varamount() const {
     return varamount;
 }
 
-int SetFormulaHorn::get_left(int index) const{
+int SSFHorn::get_left(int index) const{
     return left_sizes[index];
 }
 
-const std::vector<int> &SetFormulaHorn::get_left_sizes() const {
+const std::vector<int> &SSFHorn::get_left_sizes() const {
     return left_sizes;
 }
 
-int SetFormulaHorn::get_right(int index) const {
+int SSFHorn::get_right(int index) const {
     return right_side[index];
 }
 
-const std::vector<int> &SetFormulaHorn::get_right_sides() const {
+const std::vector<int> &SSFHorn::get_right_sides() const {
     return right_side;
 }
 
-const std::vector<int> &SetFormulaHorn::get_forced_true() const {
+const std::vector<int> &SSFHorn::get_forced_true() const {
     return forced_true;
 }
 
-const std::vector<int> &SetFormulaHorn::get_forced_false() const {
+const std::vector<int> &SSFHorn::get_forced_false() const {
     return forced_false;
 }
 
-const std::vector<int> &SetFormulaHorn::get_left_vars(int index) const {
+const std::vector<int> &SSFHorn::get_left_vars(int index) const {
     return left_vars[index];
 }
 
-void SetFormulaHorn::dump() const{
+void SSFHorn::dump() const{
     std::cout << "forced true: ";
     for(int i = 0; i < forced_true.size(); ++i) {
         std::cout << forced_true[i] << " ";
@@ -757,48 +757,48 @@ void SetFormulaHorn::dump() const{
     std::cout << std::endl;
 }
 
-bool SetFormulaHorn::check_statement_b1(std::vector<StateSetVariable *> &left,
+bool SSFHorn::check_statement_b1(std::vector<StateSetVariable *> &left,
                                         std::vector<StateSetVariable *> &right) {
 
-    std::vector<SetFormulaHorn *> horn_formulas_left = convert_to_formalism<SetFormulaHorn>(left, this);
-    std::vector<SetFormulaHorn *> horn_formulas_right = convert_to_formalism<SetFormulaHorn>(right, this);
+    std::vector<SSFHorn *> horn_formulas_left = convert_to_formalism<SSFHorn>(left, this);
+    std::vector<SSFHorn *> horn_formulas_right = convert_to_formalism<SSFHorn>(right, this);
 
     return util->conjunction_implies_disjunction(horn_formulas_left, horn_formulas_right);
 }
 
-bool SetFormulaHorn::check_statement_b2(std::vector<StateSetVariable *> &progress,
+bool SSFHorn::check_statement_b2(std::vector<StateSetVariable *> &progress,
                                         std::vector<StateSetVariable *> &left,
                                         std::vector<StateSetVariable *> &right,
                                         std::unordered_set<int> &action_indices) {
-    std::vector<SetFormulaHorn *> horn_formulas_left = convert_to_formalism<SetFormulaHorn>(left, this);
-    std::vector<SetFormulaHorn *> horn_formulas_right = convert_to_formalism<SetFormulaHorn>(right, this);
-    std::vector<SetFormulaHorn *> horn_formulas_prog = convert_to_formalism<SetFormulaHorn>(progress, this);
+    std::vector<SSFHorn *> horn_formulas_left = convert_to_formalism<SSFHorn>(left, this);
+    std::vector<SSFHorn *> horn_formulas_right = convert_to_formalism<SSFHorn>(right, this);
+    std::vector<SSFHorn *> horn_formulas_prog = convert_to_formalism<SSFHorn>(progress, this);
 
-    SetFormulaHorn *prog_singular;
-    SetFormulaHorn prog_dummy(util->task);
+    SSFHorn *prog_singular;
+    SSFHorn prog_dummy(util->task);
     if (horn_formulas_prog.size() > 1) {
-        prog_dummy = SetFormulaHorn(horn_formulas_prog);
+        prog_dummy = SSFHorn(horn_formulas_prog);
         prog_singular = &prog_dummy;
     } else {
         prog_singular = horn_formulas_prog[0];
     }
-    SetFormulaHorn *left_singular = nullptr;
-    SetFormulaHorn left_dummy(util->task);
+    SSFHorn *left_singular = nullptr;
+    SSFHorn left_dummy(util->task);
     if (!horn_formulas_left.empty()) {
         if (horn_formulas_left.size() > 1) {
-            left_dummy = SetFormulaHorn(horn_formulas_left);
+            left_dummy = SSFHorn(horn_formulas_left);
             left_singular = &left_dummy;
         } else {
             left_singular = horn_formulas_left[0];
         }
     }
 
-    std::vector<SetFormulaHorn *> vec;
+    std::vector<SSFHorn *> vec;
     if (left_singular) {
         vec.push_back(left_singular);
     }
     for (int a : action_indices) {
-        SetFormulaHorn prog_applied(*prog_singular, util->task.get_action(a), true);
+        SSFHorn prog_applied(*prog_singular, util->task.get_action(a), true);
         vec.push_back(&prog_applied);
         if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
             return false;
@@ -808,39 +808,39 @@ bool SetFormulaHorn::check_statement_b2(std::vector<StateSetVariable *> &progres
     return true;
 }
 
-bool SetFormulaHorn::check_statement_b3(std::vector<StateSetVariable *> &regress,
+bool SSFHorn::check_statement_b3(std::vector<StateSetVariable *> &regress,
                                                std::vector<StateSetVariable *> &left,
                                                std::vector<StateSetVariable *> &right,
                                                std::unordered_set<int> &action_indices) {
-    std::vector<SetFormulaHorn *> horn_formulas_left = convert_to_formalism<SetFormulaHorn>(left, this);
-    std::vector<SetFormulaHorn *> horn_formulas_right = convert_to_formalism<SetFormulaHorn>(right,this);
-    std::vector<SetFormulaHorn *> horn_formulas_reg  = convert_to_formalism<SetFormulaHorn>(regress, this);
+    std::vector<SSFHorn *> horn_formulas_left = convert_to_formalism<SSFHorn>(left, this);
+    std::vector<SSFHorn *> horn_formulas_right = convert_to_formalism<SSFHorn>(right,this);
+    std::vector<SSFHorn *> horn_formulas_reg  = convert_to_formalism<SSFHorn>(regress, this);
 
-    SetFormulaHorn *reg_singular;
-    SetFormulaHorn reg_dummy(util->task);
+    SSFHorn *reg_singular;
+    SSFHorn reg_dummy(util->task);
     if (horn_formulas_reg.size() > 1) {
-        reg_dummy = SetFormulaHorn(horn_formulas_reg);
+        reg_dummy = SSFHorn(horn_formulas_reg);
         reg_singular = &reg_dummy;
     } else {
         reg_singular = horn_formulas_reg[0];
     }
-    SetFormulaHorn *left_singular = nullptr;
-    SetFormulaHorn left_dummy(util->task);
+    SSFHorn *left_singular = nullptr;
+    SSFHorn left_dummy(util->task);
     if (!horn_formulas_left.empty()) {
         if (horn_formulas_left.size() > 1) {
-            left_dummy = SetFormulaHorn(horn_formulas_left);
+            left_dummy = SSFHorn(horn_formulas_left);
             left_singular = &left_dummy;
         } else {
             left_singular = horn_formulas_left[0];
         }
     }
 
-    std::vector<SetFormulaHorn *> vec;
+    std::vector<SSFHorn *> vec;
     if (left_singular) {
         vec.push_back(left_singular);
     }
     for (int a : action_indices) {
-        SetFormulaHorn reg_applied(*reg_singular, util->task.get_action(a), false);
+        SSFHorn reg_applied(*reg_singular, util->task.get_action(a), false);
         vec.push_back(&reg_applied);
         if (!util->conjunction_implies_disjunction(vec, horn_formulas_right)) {
             return false;
@@ -850,7 +850,7 @@ bool SetFormulaHorn::check_statement_b3(std::vector<StateSetVariable *> &regress
     return true;
 }
 
-bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_positive, bool right_positive) {
+bool SSFHorn::check_statement_b4(StateSetFormalism *right, bool left_positive, bool right_positive) {
     if (left_positive && right_positive) {
         if (right->supports_tocnf()) {
             int count = 0;
@@ -987,19 +987,19 @@ bool SetFormulaHorn::check_statement_b4(StateSetVariable *right, bool left_posit
     }
 }
 
-SetFormulaHorn *SetFormulaHorn::get_compatible(StateSetVariable *stateset) {
-    SetFormulaHorn *ret = dynamic_cast<SetFormulaHorn *>(stateset);
+SSFHorn *SSFHorn::get_compatible(StateSetVariable *stateset) {
+    SSFHorn *ret = dynamic_cast<SSFHorn *>(stateset);
     if (ret) {
         return ret;
     }
-    SetFormulaConstant *cformula = dynamic_cast<SetFormulaConstant *>(stateset);
+    SSVConstant *cformula = dynamic_cast<SSVConstant *>(stateset);
     if (cformula) {
         return get_constant(cformula->get_constant_type());
     }
     return nullptr;
 }
 
-SetFormulaHorn *SetFormulaHorn::get_constant(ConstantType ctype) {
+SSFHorn *SSFHorn::get_constant(ConstantType ctype) {
     switch (ctype) {
     case ConstantType::EMPTY:
         return util->emptyformula;
@@ -1018,11 +1018,11 @@ SetFormulaHorn *SetFormulaHorn::get_constant(ConstantType ctype) {
 }
 
 
-const std::vector<int> &SetFormulaHorn::get_varorder() {
+const std::vector<int> &SSFHorn::get_varorder() {
     return varorder;
 }
 
-bool SetFormulaHorn::is_contained(const std::vector<bool> &model) const {
+bool SSFHorn::is_contained(const std::vector<bool> &model) const {
     Cube cube(varamount, 2);
     for (size_t i = 0; i < model.size(); ++i) {
         if(model[i]) {
@@ -1034,7 +1034,7 @@ bool SetFormulaHorn::is_contained(const std::vector<bool> &model) const {
     return util->is_restricted_satisfiable(this, cube);
 }
 
-bool SetFormulaHorn::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+bool SSFHorn::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
     std::vector<std::pair<std::vector<int>,int>> clauses(varorder.size());
     for (size_t i = 0; i < varorder.size(); ++i) {
         if(implicant[i]) {
@@ -1043,14 +1043,14 @@ bool SetFormulaHorn::is_implicant(const std::vector<int> &varorder, const std::v
             clauses.push_back(std::make_pair(std::vector<int>(1,varorder[i]),-1));
         }
     }
-    SetFormulaHorn implicant_horn(clauses, util->task.get_number_of_facts());
-    std::vector<SetFormulaHorn *>left,right;
+    SSFHorn implicant_horn(clauses, util->task.get_number_of_facts());
+    std::vector<SSFHorn *>left,right;
     left.push_back(&implicant_horn);
     right.push_back(this);
     return util->conjunction_implies_disjunction(left, right);
 }
 
-bool SetFormulaHorn::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+bool SSFHorn::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
     Cube cube(varamount, 2);
     for (size_t i = 0; i < clause.size(); ++i) {
         if(clause[i]) {
@@ -1062,7 +1062,7 @@ bool SetFormulaHorn::is_entailed(const std::vector<int> &varorder, const std::ve
     return util->is_restricted_satisfiable(this, cube);
 }
 
-bool SetFormulaHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SSFHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
     if(i < forced_true.size()) {
         vars.clear();
         clause.clear();
@@ -1098,9 +1098,9 @@ bool SetFormulaHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool>
     return false;
 }
 
-int SetFormulaHorn::get_model_count() {
+int SSFHorn::get_model_count() {
     std::cerr << "Horn Formula does not support model count";
     exit_with(ExitCode::CRITICAL_ERROR);
 }
 
-StateSetBuilder<SetFormulaHorn> horn_builder("h");
+StateSetBuilder<SSFHorn> horn_builder("h");

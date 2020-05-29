@@ -76,6 +76,9 @@ private:
     bool check_statement_B4(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids);
     bool check_statement_B5(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids);
 
+    // helper function for finding formalism for b* statements
+    StateSetFormalism *get_reference_formula(std::vector<std::reference_wrapper<std::vector<StateSetVariable *>>>);
+
 public:
     ProofChecker(std::string &task_file);
 
