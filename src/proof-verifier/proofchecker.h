@@ -26,7 +26,7 @@ private:
     std::map<std::string, std::function<bool(int, int, int, std::vector<int> &)>> subset_knowledge_functions;
 
     template<class T>
-    T *get_set_expression(int set_id);
+    const T *get_set_expression(int set_id) const;
     void add_knowledge(std::unique_ptr<Knowledge> entry, int id);
 
     // rules for checking if state sets are dead
@@ -77,7 +77,7 @@ private:
     bool check_statement_B5(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids);
 
     // helper function for finding formalism for b* statements
-    StateSetFormalism *get_reference_formula(std::vector<std::reference_wrapper<std::vector<StateSetVariable *>>>);
+    const StateSetFormalism *get_reference_formula(std::vector<const StateSetVariable *> &vars) const;
 
 public:
     ProofChecker(std::string &task_file);

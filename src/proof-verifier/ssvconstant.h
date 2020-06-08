@@ -10,11 +10,9 @@ class SSVConstant : public StateSetVariable
 private:
     ConstantType constanttype;
     Task &task;
-
-    StateSetVariable *find_first_non_constant_variable(std::vector<StateSetVariable *> &vec);
 public:
     SSVConstant(std::stringstream &input, Task &task);
-    ConstantType get_constant_type();
+    ConstantType get_constant_type() const;
 };
 
 #endif // SSVCONSTANT_H

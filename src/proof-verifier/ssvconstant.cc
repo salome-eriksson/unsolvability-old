@@ -22,7 +22,7 @@ SSVConstant::SSVConstant(std::stringstream &input, Task &task)
     }
 }
 
-ConstantType SSVConstant::get_constant_type() {
+ConstantType SSVConstant::get_constant_type() const {
     return constanttype;
 }
 
