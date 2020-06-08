@@ -30,13 +30,14 @@ public:
 
     static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
     virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                std::vector<StateSetVariable *> &positive,
-                                std::vector<StateSetVariable *> &negative,
-                                bool must_be_variable = false);
+                                std::vector<const StateSetVariable *> &positive,
+                                std::vector<const StateSetVariable *> &negative,
+                                bool must_be_variable = false) const;
     virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                std::vector<StateSetVariable *> &positive,
-                                std::vector<StateSetVariable *> &negative,
-                                bool must_be_variable = false);
+                                std::vector<const StateSetVariable *> &positive,
+                                std::vector<const StateSetVariable *> &negative,
+                                bool must_be_variable = false) const;
+    // TODO: is it problematic to have the formulas passed like this? We could probably also pass the (const?) proofchecker to call get_set_expression)
 };
 
 
@@ -44,54 +45,53 @@ class StateSetVariable : public StateSet
 {
 public:
     virtual ~StateSetVariable () = 0;
-    //static std::map<std::string, StateSetConstructor> *get_stateset_constructors();
     virtual bool gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                        std::vector<StateSetVariable *> &positive,
-                                        std::vector<StateSetVariable *> &negative,
-                                        bool must_be_variable = false) override;
+                                        std::vector<const StateSetVariable *> &positive,
+                                        std::vector<const StateSetVariable *> &negative,
+                                        bool must_be_variable = false) const override;
     virtual bool gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                               std::vector<StateSetVariable *> &positive,
-                                               std::vector<StateSetVariable *> &negative,
-                                               bool must_be_variable = false) override;
+                                               std::vector<const StateSetVariable *> &positive,
+                                               std::vector<const StateSetVariable *> &negative,
+                                               bool must_be_variable = false) const override;
 };
 
 
 class StateSetFormalism : public StateSetVariable
 {
 public:
-    virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
-                                    std::vector<StateSetVariable *> &right) = 0;
-    virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
-                                    std::vector<StateSetVariable *> &left,
-                                    std::vector<StateSetVariable *> &right,
-                                    std::unordered_set<int> &action_indices) = 0;
-    virtual bool check_statement_b3(std::vector<StateSetVariable *> &regress,
-                                    std::vector<StateSetVariable *> &left,
-                                    std::vector<StateSetVariable *> &right,
-                                    std::unordered_set<int> &action_indices) = 0;
-    virtual bool check_statement_b4(StateSetFormalism *right, bool left_positive,
-                                    bool right_positive) = 0;
-
-    virtual bool supports_mo() = 0;
-    virtual bool supports_ce() = 0;
-    virtual bool supports_im() = 0;
-    virtual bool supports_me() = 0;
-    virtual bool supports_todnf() = 0;
-    virtual bool supports_tocnf() = 0;
-    virtual bool supports_ct() = 0;
-    virtual bool is_nonsuccint() = 0;
+    virtual bool check_statement_b1(std::vector<const StateSetVariable *> &left,
+                                    std::vector<const StateSetVariable *> &right) const = 0;
+    virtual bool check_statement_b2(std::vector<const StateSetVariable *> &progress,
+                                    std::vector<const StateSetVariable *> &left,
+                                    std::vector<const StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices) const = 0;
+    virtual bool check_statement_b3(std::vector<const StateSetVariable *> &regress,
+                                    std::vector<const StateSetVariable *> &left,
+                                    std::vector<const StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices) const = 0;
+    virtual bool check_statement_b4(const StateSetFormalism *right, bool left_positive,
+                                    bool right_positive) const = 0;
 
     // TODO: remodel this
     // expects the model in the varorder of the formula;
-    virtual bool is_contained(const std::vector<bool> &model) const = 0;
-    virtual bool is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) = 0;
-    virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) = 0;
+    virtual bool is_contained(const std::vector<bool> &model) const = 0; // TODO: this could be covered by is_entailed
+    virtual bool is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) const = 0; // TODO: use global varorder
+    virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) const = 0; // TODO: use global varorder
     // returns false if no clause with index i exists
-    virtual bool get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) = 0;
-    virtual int get_model_count() = 0;
+    virtual bool get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) const = 0; // TODO: remove
+    virtual int get_model_count() const = 0;
 
-    // TODO: can we remove this method?
-    virtual const std::vector<int> &get_varorder() = 0;
+    virtual const std::vector<int> &get_varorder() const = 0; // TODO: remove
+
+
+    virtual bool supports_mo() const = 0;
+    virtual bool supports_ce() const = 0;
+    virtual bool supports_im() const = 0;
+    virtual bool supports_me() const = 0;
+    virtual bool supports_todnf() const = 0;
+    virtual bool supports_tocnf() const = 0;
+    virtual bool supports_ct() const = 0;
+    virtual bool is_nonsuccint() const = 0;
 
 
     /*
@@ -99,20 +99,21 @@ public:
      *  - if yes, return a casted pointer to the subclass of this
      *  - if no, return nullpointer
      */
-    virtual StateSetFormalism *get_compatible(StateSetVariable *stateset) = 0;
+    virtual const StateSetFormalism *get_compatible(const StateSetVariable *stateset) const = 0;
     /*
      * return a constant formula in the formalism of this (using covariance)
      */
-    virtual StateSetFormalism *get_constant(ConstantType ctype) = 0;
+    virtual const StateSetFormalism *get_constant(ConstantType ctype) const = 0;
 
     // TODO: think about error handling!
     // TOOD: do we need reference? after all we are calling it from a T * formula
+    // TODO: const_cast is a HACK; remove!
     template <class T>
-    std::vector<T *> convert_to_formalism(std::vector<StateSetVariable *> &vector, T *reference) {
+    std::vector<T *> convert_to_formalism(std::vector<const StateSetVariable *> &vector, const T *reference) const {
         std::vector<T *>ret;
         ret.reserve(vector.size());
-        for (StateSetVariable *formula : vector) {
-            T *element = reference->get_compatible(formula);
+        for (const StateSetVariable *formula : vector) {
+            T *element = const_cast<T *>(reference->get_compatible(formula));
             if (!element) {
                 std::string msg = "could not convert vector to specific formalism, incompatible formulas!";
                 throw std::runtime_error(msg);
@@ -124,6 +125,7 @@ public:
 };
 
 
+// TODO: can we force each class derived from StateSet to have a fitting constructor (not just inherit, but dedicated implementation)
 template<class T>
 class StateSetBuilder {
 public:

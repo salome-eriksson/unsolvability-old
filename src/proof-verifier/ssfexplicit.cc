@@ -312,8 +312,8 @@ SSFExplicit::SSFExplicit(std::stringstream &input, Task &task) {
     }
 }
 
-bool SSFExplicit::check_statement_b1(std::vector<StateSetVariable *> &left,
-                                            std::vector<StateSetVariable *> &right) {
+bool SSFExplicit::check_statement_b1(std::vector<const StateSetVariable *> &left,
+                                     std::vector<const StateSetVariable *> &right) const {
 
     std::vector<SSFExplicit *> left_explicit = convert_to_formalism<SSFExplicit>(left, this);
     std::vector<SSFExplicit *> right_explicit = convert_to_formalism<SSFExplicit>(right, this);
@@ -357,10 +357,10 @@ bool SSFExplicit::check_statement_b1(std::vector<StateSetVariable *> &left,
     return true;
 }
 
-bool SSFExplicit::check_statement_b2(std::vector<StateSetVariable *> &progress,
-                                            std::vector<StateSetVariable *> &left,
-                                            std::vector<StateSetVariable *> &right,
-                                            std::unordered_set<int> &action_indices) {
+bool SSFExplicit::check_statement_b2(std::vector<const StateSetVariable *> &progress,
+                                     std::vector<const StateSetVariable *> &left,
+                                     std::vector<const StateSetVariable *> &right,
+                                     std::unordered_set<int> &action_indices) const {
     assert(!progress.empty());
     std::vector<SSFExplicit *> left_explicit = convert_to_formalism<SSFExplicit>(left, this);
     std::vector<SSFExplicit *> right_explicit = convert_to_formalism<SSFExplicit>(right, this);
@@ -474,10 +474,10 @@ bool SSFExplicit::check_statement_b2(std::vector<StateSetVariable *> &progress,
     return true;
 }
 
-bool SSFExplicit::check_statement_b3(std::vector<StateSetVariable *> &regress,
-                                            std::vector<StateSetVariable *> &left,
-                                            std::vector<StateSetVariable *> &right,
-                                            std::unordered_set<int> &action_indices) {
+bool SSFExplicit::check_statement_b3(std::vector<const StateSetVariable *> &regress,
+                                     std::vector<const StateSetVariable *> &left,
+                                     std::vector<const StateSetVariable *> &right,
+                                     std::unordered_set<int> &action_indices) const {
     assert(!regress.empty());
     std::vector<SSFExplicit *> left_explicit = convert_to_formalism<SSFExplicit>(left, this);
     std::vector<SSFExplicit *> right_explicit = convert_to_formalism<SSFExplicit>(right, this);
@@ -593,7 +593,7 @@ bool SSFExplicit::check_statement_b3(std::vector<StateSetVariable *> &regress,
     return true;
 }
 
-bool SSFExplicit::check_statement_b4(StateSetFormalism *right, bool left_positive, bool right_positive) {
+bool SSFExplicit::check_statement_b4(const StateSetFormalism *right, bool left_positive, bool right_positive) const {
     const std::vector<int> &superset_varorder = right->get_varorder();
     bool superset_varorder_is_subset = true;
     std::vector<int> var_pos;
@@ -704,19 +704,19 @@ bool SSFExplicit::check_statement_b4(StateSetFormalism *right, bool left_positiv
     }
 }
 
-SSFExplicit *SSFExplicit::get_compatible(StateSetVariable *stateset) {
-    SSFExplicit *ret = dynamic_cast<SSFExplicit *>(stateset);
+const SSFExplicit *SSFExplicit::get_compatible(const StateSetVariable *stateset) const {
+    const SSFExplicit *ret = dynamic_cast<const SSFExplicit *>(stateset);
     if (ret) {
         return ret;
     }
-    SSVConstant *cformula = dynamic_cast<SSVConstant *>(stateset);
+    const SSVConstant *cformula = dynamic_cast<const SSVConstant *>(stateset);
     if (cformula) {
         return get_constant(cformula->get_constant_type());
     }
     return nullptr;
 }
 
-SSFExplicit *SSFExplicit::get_constant(ConstantType ctype) {
+const SSFExplicit *SSFExplicit::get_constant(ConstantType ctype) const {
     switch (ctype) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);
@@ -735,7 +735,7 @@ SSFExplicit *SSFExplicit::get_constant(ConstantType ctype) {
 }
 
 
-const std::vector<int> &SSFExplicit::get_varorder() {
+const std::vector<int> &SSFExplicit::get_varorder() const {
     return vars;
 }
 
@@ -758,7 +758,7 @@ bool SSFExplicit::is_contained(const std::vector<bool> &model) const {
     return (models.find(model) != models.end());
 }
 
-bool SSFExplicit::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+bool SSFExplicit::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) const {
     std::vector<bool> model(vars.size());
     std::vector<int> vars_to_fill;
     for (int var : vars) {
@@ -781,7 +781,7 @@ bool SSFExplicit::is_implicant(const std::vector<int> &varorder, const std::vect
     return true;
 }
 
-bool SSFExplicit::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+bool SSFExplicit::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) const {
     for (Model model : models) {
         bool found = false;
         for (size_t i = 0; i < clause.size(); ++i) {
@@ -797,11 +797,11 @@ bool SSFExplicit::is_entailed(const std::vector<int> &varorder, const std::vecto
     return true;
 }
 
-bool SSFExplicit::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SSFExplicit::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) const {
     return false;
 }
 
-int SSFExplicit::get_model_count() {
+int SSFExplicit::get_model_count() const {
     return models.size();
 }
 

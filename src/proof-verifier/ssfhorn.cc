@@ -697,7 +697,7 @@ int SSFHorn::get_varamount() const {
     return varamount;
 }
 
-int SSFHorn::get_left(int index) const{
+int SSFHorn::get_left(int index) const {
     return left_sizes[index];
 }
 
@@ -725,7 +725,7 @@ const std::vector<int> &SSFHorn::get_left_vars(int index) const {
     return left_vars[index];
 }
 
-void SSFHorn::dump() const{
+void SSFHorn::dump() const {
     std::cout << "forced true: ";
     for(int i = 0; i < forced_true.size(); ++i) {
         std::cout << forced_true[i] << " ";
@@ -757,8 +757,8 @@ void SSFHorn::dump() const{
     std::cout << std::endl;
 }
 
-bool SSFHorn::check_statement_b1(std::vector<StateSetVariable *> &left,
-                                        std::vector<StateSetVariable *> &right) {
+bool SSFHorn::check_statement_b1(std::vector<const StateSetVariable *> &left,
+                                 std::vector<const StateSetVariable *> &right) const {
 
     std::vector<SSFHorn *> horn_formulas_left = convert_to_formalism<SSFHorn>(left, this);
     std::vector<SSFHorn *> horn_formulas_right = convert_to_formalism<SSFHorn>(right, this);
@@ -766,10 +766,10 @@ bool SSFHorn::check_statement_b1(std::vector<StateSetVariable *> &left,
     return util->conjunction_implies_disjunction(horn_formulas_left, horn_formulas_right);
 }
 
-bool SSFHorn::check_statement_b2(std::vector<StateSetVariable *> &progress,
-                                        std::vector<StateSetVariable *> &left,
-                                        std::vector<StateSetVariable *> &right,
-                                        std::unordered_set<int> &action_indices) {
+bool SSFHorn::check_statement_b2(std::vector<const StateSetVariable *> &progress,
+                                 std::vector<const StateSetVariable *> &left,
+                                 std::vector<const StateSetVariable *> &right,
+                                 std::unordered_set<int> &action_indices) const {
     std::vector<SSFHorn *> horn_formulas_left = convert_to_formalism<SSFHorn>(left, this);
     std::vector<SSFHorn *> horn_formulas_right = convert_to_formalism<SSFHorn>(right, this);
     std::vector<SSFHorn *> horn_formulas_prog = convert_to_formalism<SSFHorn>(progress, this);
@@ -808,10 +808,10 @@ bool SSFHorn::check_statement_b2(std::vector<StateSetVariable *> &progress,
     return true;
 }
 
-bool SSFHorn::check_statement_b3(std::vector<StateSetVariable *> &regress,
-                                               std::vector<StateSetVariable *> &left,
-                                               std::vector<StateSetVariable *> &right,
-                                               std::unordered_set<int> &action_indices) {
+bool SSFHorn::check_statement_b3(std::vector<const StateSetVariable *> &regress,
+                                 std::vector<const StateSetVariable *> &left,
+                                 std::vector<const StateSetVariable *> &right,
+                                 std::unordered_set<int> &action_indices) const {
     std::vector<SSFHorn *> horn_formulas_left = convert_to_formalism<SSFHorn>(left, this);
     std::vector<SSFHorn *> horn_formulas_right = convert_to_formalism<SSFHorn>(right,this);
     std::vector<SSFHorn *> horn_formulas_reg  = convert_to_formalism<SSFHorn>(regress, this);
@@ -850,7 +850,9 @@ bool SSFHorn::check_statement_b3(std::vector<StateSetVariable *> &regress,
     return true;
 }
 
-bool SSFHorn::check_statement_b4(StateSetFormalism *right, bool left_positive, bool right_positive) {
+bool SSFHorn::check_statement_b4(const StateSetFormalism *right_const, bool left_positive, bool right_positive) const {
+    // TODO: HACK - remove!
+    StateSetFormalism *right = const_cast<StateSetFormalism *>(right_const);
     if (left_positive && right_positive) {
         if (right->supports_tocnf()) {
             int count = 0;
@@ -987,19 +989,19 @@ bool SSFHorn::check_statement_b4(StateSetFormalism *right, bool left_positive, b
     }
 }
 
-SSFHorn *SSFHorn::get_compatible(StateSetVariable *stateset) {
-    SSFHorn *ret = dynamic_cast<SSFHorn *>(stateset);
+const SSFHorn *SSFHorn::get_compatible(const StateSetVariable *stateset) const {
+    const SSFHorn *ret = dynamic_cast<const SSFHorn *>(stateset);
     if (ret) {
         return ret;
     }
-    SSVConstant *cformula = dynamic_cast<SSVConstant *>(stateset);
+    const SSVConstant *cformula = dynamic_cast<const SSVConstant *>(stateset);
     if (cformula) {
         return get_constant(cformula->get_constant_type());
     }
     return nullptr;
 }
 
-SSFHorn *SSFHorn::get_constant(ConstantType ctype) {
+const SSFHorn *SSFHorn::get_constant(ConstantType ctype) const {
     switch (ctype) {
     case ConstantType::EMPTY:
         return util->emptyformula;
@@ -1018,7 +1020,7 @@ SSFHorn *SSFHorn::get_constant(ConstantType ctype) {
 }
 
 
-const std::vector<int> &SSFHorn::get_varorder() {
+const std::vector<int> &SSFHorn::get_varorder() const {
     return varorder;
 }
 
@@ -1034,7 +1036,7 @@ bool SSFHorn::is_contained(const std::vector<bool> &model) const {
     return util->is_restricted_satisfiable(this, cube);
 }
 
-bool SSFHorn::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+bool SSFHorn::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) const {
     std::vector<std::pair<std::vector<int>,int>> clauses(varorder.size());
     for (size_t i = 0; i < varorder.size(); ++i) {
         if(implicant[i]) {
@@ -1046,11 +1048,12 @@ bool SSFHorn::is_implicant(const std::vector<int> &varorder, const std::vector<b
     SSFHorn implicant_horn(clauses, util->task.get_number_of_facts());
     std::vector<SSFHorn *>left,right;
     left.push_back(&implicant_horn);
-    right.push_back(this);
+    // TODO: HACK - remove!
+    right.push_back(const_cast<SSFHorn *>(this));
     return util->conjunction_implies_disjunction(left, right);
 }
 
-bool SSFHorn::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+bool SSFHorn::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) const {
     Cube cube(varamount, 2);
     for (size_t i = 0; i < clause.size(); ++i) {
         if(clause[i]) {
@@ -1062,7 +1065,7 @@ bool SSFHorn::is_entailed(const std::vector<int> &varorder, const std::vector<bo
     return util->is_restricted_satisfiable(this, cube);
 }
 
-bool SSFHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) {
+bool SSFHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) const {
     if(i < forced_true.size()) {
         vars.clear();
         clause.clear();
@@ -1098,7 +1101,7 @@ bool SSFHorn::get_clause(int i, std::vector<int> &vars, std::vector<bool> &claus
     return false;
 }
 
-int SSFHorn::get_model_count() {
+int SSFHorn::get_model_count() const {
     std::cerr << "Horn Formula does not support model count";
     exit_with(ExitCode::CRITICAL_ERROR);
 }

@@ -11,11 +11,6 @@
 #include "task.h"
 #include "timer.h"
 #include "proofchecker.h"
-#include "stateset.h"
-#include "ssvconstant.h"
-#include "ssfhorn.h"
-#include "ssfbdd.h"
-#include "ssfexplicit.h"
 
 void expand_environment_variables(std::string &file) {
     size_t found = file.find('$');
@@ -69,6 +64,7 @@ int main(int argc, char** argv) {
     }
     set_timeout(timeout);
 
+    // TODO: should task be a global variable? (would save references)
     ProofChecker proofchecker(task_file);
 
     std::ifstream certstream;

@@ -208,8 +208,8 @@ SSFBDD::SSFBDD(std::stringstream &input, Task &task) {
     assert(declaration_end == ";");
 }
 
-bool SSFBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
-                                       std::vector<StateSetVariable *> &right) {
+bool SSFBDD::check_statement_b1(std::vector<const StateSetVariable *> &left,
+                                std::vector<const StateSetVariable *> &right) const {
     std::vector<SSFBDD *> left_bdds = convert_to_formalism<SSFBDD>(left, this);
     std::vector<SSFBDD *> right_bdds = convert_to_formalism<SSFBDD>(right, this);
 
@@ -224,10 +224,10 @@ bool SSFBDD::check_statement_b1(std::vector<StateSetVariable *> &left,
     return left_singular.Leq(right_singular);
 }
 
-bool SSFBDD::check_statement_b2(std::vector<StateSetVariable *> &progress,
-                                       std::vector<StateSetVariable *> &left,
-                                       std::vector<StateSetVariable *> &right,
-                                       std::unordered_set<int> &action_indices) {
+bool SSFBDD::check_statement_b2(std::vector<const StateSetVariable *> &progress,
+                                std::vector<const StateSetVariable *> &left,
+                                std::vector<const StateSetVariable *> &right,
+                                std::unordered_set<int> &action_indices) const {
 
     std::vector<SSFBDD *> left_bdds = convert_to_formalism<SSFBDD>(left, this);
     std::vector<SSFBDD *> right_bdds = convert_to_formalism<SSFBDD>(right, this);
@@ -274,10 +274,10 @@ bool SSFBDD::check_statement_b2(std::vector<StateSetVariable *> &progress,
     return true;
 }
 
-bool SSFBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
-                                       std::vector<StateSetVariable *> &left,
-                                       std::vector<StateSetVariable *> &right,
-                                       std::unordered_set<int> &action_indices) {
+bool SSFBDD::check_statement_b3(std::vector<const StateSetVariable *> &regress,
+                                std::vector<const StateSetVariable *> &left,
+                                std::vector<const StateSetVariable *> &right,
+                                std::unordered_set<int> &action_indices) const {
     std::vector<SSFBDD *> left_bdds = convert_to_formalism<SSFBDD>(left, this);
     std::vector<SSFBDD *> right_bdds = convert_to_formalism<SSFBDD>(right, this);
     std::vector<SSFBDD *> reg_bdds = convert_to_formalism<SSFBDD>(regress, this);
@@ -322,19 +322,21 @@ bool SSFBDD::check_statement_b3(std::vector<StateSetVariable *> &regress,
     return true;
 }
 
-bool SSFBDD::check_statement_b4(StateSetFormalism *right, bool left_positive, bool right_positive) {
+bool SSFBDD::check_statement_b4(const StateSetFormalism *right_const, bool left_positive, bool right_positive) const {
 
     if (!left_positive && !right_positive) {
-        return right->check_statement_b4(this, true, true);
+        return right_const->check_statement_b4(this, true, true);
     } else if (left_positive && !right_positive) {
-        if (right->supports_todnf() || right->is_nonsuccint()) {
-            return right->check_statement_b4(this, true, false);
+        if (right_const->supports_todnf() || right_const->is_nonsuccint()) {
+            return right_const->check_statement_b4(this, true, false);
         } else {
             std::cerr << "mixed representation subset check not possible" << std::endl;
             return false;
         }
     }
 
+    // TODO: HACK - remove!
+    StateSetFormalism *right = const_cast<StateSetFormalism *>(right_const);
     // right positive
 
     BDD pos_bdd = bdd;
@@ -428,8 +430,8 @@ bool SSFBDD::check_statement_b4(StateSetFormalism *right, bool left_positive, bo
     }
 }
 
-SSFBDD *SSFBDD::get_compatible(StateSetVariable *stateset) {
-    SSFBDD *ret = dynamic_cast<SSFBDD *>(stateset);
+const SSFBDD *SSFBDD::get_compatible(const StateSetVariable *stateset) const {
+    const SSFBDD *ret = dynamic_cast<const SSFBDD *>(stateset);
     if (ret) {
         if (ret->get_varorder() == get_varorder()) {
             return ret;
@@ -437,14 +439,14 @@ SSFBDD *SSFBDD::get_compatible(StateSetVariable *stateset) {
             return nullptr;
         }
     }
-    SSVConstant *cformula = dynamic_cast<SSVConstant *>(stateset);
+    const SSVConstant *cformula = dynamic_cast<const SSVConstant *>(stateset);
     if (cformula) {
         return get_constant(cformula->get_constant_type());
     }
     return nullptr;
 }
 
-SSFBDD *SSFBDD::get_constant(ConstantType ctype) {
+const SSFBDD *SSFBDD::get_constant(ConstantType ctype) const {
     switch (ctype) {
     case ConstantType::EMPTY:
         return &(util->emptyformula);
@@ -462,7 +464,7 @@ SSFBDD *SSFBDD::get_constant(ConstantType ctype) {
     }
 }
 
-const std::vector<int> &SSFBDD::get_varorder() {
+const std::vector<int> &SSFBDD::get_varorder() const {
     return util->other_varorder;
 }
 
@@ -485,7 +487,7 @@ bool SSFBDD::is_contained(const std::vector<bool> &model) const {
 
 }
 
-bool SSFBDD::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) {
+bool SSFBDD::is_implicant(const std::vector<int> &varorder, const std::vector<bool> &implicant) const {
     assert(varorder.size() == implicant.size());
     Cube cube(util->varorder.size(), 2);
     for (size_t i = 0; i < varorder.size(); ++i) {
@@ -503,7 +505,7 @@ bool SSFBDD::is_implicant(const std::vector<int> &varorder, const std::vector<bo
     return util->build_bdd_from_cube(cube).Leq(bdd);
 }
 
-bool SSFBDD::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) {
+bool SSFBDD::is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) const {
     assert(varorder.size() == clause.size());
     BDD clause_bdd = manager.bddZero();
     for (size_t i = 0; i < clause.size(); ++i) {
@@ -520,11 +522,11 @@ bool SSFBDD::is_entailed(const std::vector<int> &varorder, const std::vector<boo
     return bdd.Leq(clause_bdd);
 }
 
-bool SSFBDD::get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) {
+bool SSFBDD::get_clause(int i, std::vector<int> &varorder, std::vector<bool> &clause) const {
     return false;
 }
 
-int SSFBDD::get_model_count() {
+int SSFBDD::get_model_count() const {
     // TODO: not sure if this is correct
     return bdd.CountMinterm(util->varorder.size());
 }

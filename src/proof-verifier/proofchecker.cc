@@ -67,12 +67,12 @@ ProofChecker::ProofChecker(std::string &task_file)
 }
 
 template<>
-ActionSet *ProofChecker::get_set_expression<ActionSet>(int set_id) {
+const ActionSet *ProofChecker::get_set_expression<ActionSet>(int set_id) const {
     return actionsets[set_id].get();
 }
 
 template<>
-StateSet *ProofChecker::get_set_expression<StateSet>(int set_id) {
+const StateSet *ProofChecker::get_set_expression<StateSet>(int set_id) const {
     return formulas[set_id].get();
 }
 
@@ -700,7 +700,7 @@ template<class T>
 bool ProofChecker::check_rule_ur(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.empty());
 
-    SetUnion *runion = dynamic_cast<SetUnion *>(get_set_expression<T>(right_id));
+    const SetUnion *runion = dynamic_cast<const SetUnion *>(get_set_expression<T>(right_id));
     if (!runion) {
         std::cerr << "Error when applying rule UR: right side is not a union" << std::endl;
         return false;
@@ -719,7 +719,7 @@ template<class T>
 bool ProofChecker::check_rule_ul(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.empty());
 
-    SetUnion *runion = dynamic_cast<SetUnion *>(get_set_expression<T>(right_id));
+    const SetUnion *runion = dynamic_cast<const SetUnion *>(get_set_expression<T>(right_id));
     if (!runion) {
         std::cerr << "Error when applying rule UL: right side is not a union" << std::endl;
         return false;
@@ -738,7 +738,7 @@ template<class T>
 bool ProofChecker::check_rule_ir(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.empty());
 
-    SetIntersection *lintersection = dynamic_cast<SetIntersection *>(get_set_expression<T>(left_id));
+    const SetIntersection *lintersection = dynamic_cast<const SetIntersection *>(get_set_expression<T>(left_id));
     if (!lintersection) {
         std::cerr << "Error when applying rule IR: left side is not an intersection" << std::endl;
         return false;
@@ -757,7 +757,7 @@ template <class T>
 bool ProofChecker::check_rule_il(int conclusion_id, int left_id, int right_id, std::vector<int> &premise_ids) {
     assert(premise_ids.empty());
 
-    SetIntersection *lintersection = dynamic_cast<SetIntersection *>(get_set_expression<T>(left_id));
+    const SetIntersection *lintersection = dynamic_cast<const SetIntersection *>(get_set_expression<T>(left_id));
     if (!lintersection) {
         std::cerr << "Error when applying rule IL: left side is not an intersection" << std::endl;
         return false;
@@ -779,12 +779,12 @@ bool ProofChecker::check_rule_di(int conclusion_id, int left_id, int right_id, s
     int e0,e1,e2;
 
     // left side
-    SetIntersection *si = dynamic_cast<SetIntersection *>(get_set_expression<T>(left_id));
+    const SetIntersection *si = dynamic_cast<const SetIntersection *>(get_set_expression<T>(left_id));
     if (!si) {
         std::cerr << "Error when applying rule DI: left is not an intersection" << std::endl;
         return false;
     }
-    SetUnion *su = dynamic_cast<SetUnion *>(get_set_expression<T>(si->get_left_id()));
+    const SetUnion *su = dynamic_cast<const SetUnion *>(get_set_expression<T>(si->get_left_id()));
     if (!su) {
         std::cerr << "Error when applying rule DI: left side of left is not a union" << std::endl;
         return false;
@@ -794,12 +794,12 @@ bool ProofChecker::check_rule_di(int conclusion_id, int left_id, int right_id, s
     e2 = si->get_right_id();
 
     // right side
-    su = dynamic_cast<SetUnion *>(get_set_expression<T>(right_id));
+    su = dynamic_cast<const SetUnion *>(get_set_expression<T>(right_id));
     if (!su) {
         std::cerr << "Error when applying rule DI: right is not a union" << std::endl;
         return false;
     }
-    si = dynamic_cast<SetIntersection *>(get_set_expression<T>(su->get_left_id()));
+    si = dynamic_cast<const SetIntersection *>(get_set_expression<T>(su->get_left_id()));
     if (!si) {
         std::cerr << "Error when applying rule DI: left side of right is not an intersection" << std::endl;
         return false;
@@ -808,7 +808,7 @@ bool ProofChecker::check_rule_di(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule DI: left side of right does not match with left" << std::endl;
         return false;
     }
-    si = dynamic_cast<SetIntersection *>(get_set_expression<T>(su->get_right_id()));
+    si = dynamic_cast<const SetIntersection *>(get_set_expression<T>(su->get_right_id()));
     if (!si) {
 
         std::cerr << "Error when applying rule DI: right side of right is not an intersection" << std::endl;
@@ -832,7 +832,7 @@ bool ProofChecker::check_rule_su(int conclusion_id, int left_id, int right_id, s
            kbentries[premise_ids[1]]);
 
     int e0,e1,e2;
-    StateSetUnion *su = dynamic_cast<StateSetUnion *>(get_set_expression<T>(left_id));
+    const StateSetUnion *su = dynamic_cast<const StateSetUnion *>(get_set_expression<T>(left_id));
     if (!su) {
         std::cerr << "Error when applying rule SU: left is not a union" << std::endl;
         return false;
@@ -873,7 +873,7 @@ bool ProofChecker::check_rule_si(int conclusion_id, int left_id, int right_id, s
            kbentries[premise_ids[1]]);
 
     int e0,e1,e2;
-    StateSetIntersection *si = dynamic_cast<StateSetIntersection*>(get_set_expression<T>(right_id));
+    const StateSetIntersection *si = dynamic_cast<const StateSetIntersection*>(get_set_expression<T>(right_id));
     if (!si) {
         std::cerr << "Error when applying rule SI: right is not an intersection" << std::endl;
         return false;
@@ -956,7 +956,7 @@ bool ProofChecker::check_rule_at(int conclusion_id, int left_id, int right_id, s
 
     int s0, s1, a0, a1;
     s1 = right_id;
-    auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
+    const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(left_id));
     if (!progression) {
         std::cerr << "Error when applying rule AT: left side is not a progression" << std::endl;
         return false;
@@ -969,7 +969,7 @@ bool ProofChecker::check_rule_at(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule AT: knowledge #" << premise_ids[0] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledege0->get_left_id()));
+    progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledege0->get_left_id()));
     if (!progression || progression->get_stateset_id() != s0 || subset_knowledege0->get_right_id() != s1) {
         std::cerr << "Error when applying rule AT: knowledge #" << premise_ids[0] << " does not state S[A] subseteq S'" << std::endl;
         return false;
@@ -999,13 +999,13 @@ bool ProofChecker::check_rule_au(int conclusion_id, int left_id, int right_id, s
 
     int s0,s1,a0,a1;
     s1 = right_id;
-    auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
+    const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(left_id));
     if (!progression) {
         std::cerr << "Error when applying rule AU: left side is not a progression" << std::endl;
         return false;
     }
     s0 = progression->get_stateset_id();
-    auto action_union = dynamic_cast<ActionSetUnion *>(get_set_expression<ActionSet>(progression->get_actionset_id()));
+    const ActionSetUnion *action_union = dynamic_cast<const ActionSetUnion *>(get_set_expression<ActionSet>(progression->get_actionset_id()));
     if (!action_union) {
         std::cerr << "Error when applying rule AU: left side is not a progression of A cup A'" << std::endl;
         return false;
@@ -1018,7 +1018,7 @@ bool ProofChecker::check_rule_au(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule AU: knowledge #" << premise_ids[0] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!progression || progression->get_actionset_id() != a0 ||
          progression->get_stateset_id() != s0 || subset_knowledge->get_right_id() != s1) {
         std::cerr << "Error when applying rule AU: knowledge #" << premise_ids[0] << " does not state S[A] subseteq S'" << std::endl;
@@ -1030,7 +1030,7 @@ bool ProofChecker::check_rule_au(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule AU: knowledge #" << premise_ids[1] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!progression || progression->get_actionset_id() != a1 ||
         progression->get_stateset_id() != s0 || subset_knowledge->get_right_id() != s1) {
         std::cerr << "Error when applying rule AU: knowledge #" << premise_ids[0] << " does not state S[A'] subseteq S'" << std::endl;
@@ -1050,7 +1050,7 @@ bool ProofChecker::check_rule_pt(int conclusion_id, int left_id, int right_id, s
 
     int s0,s1,s2,a0;
     s2 = right_id;
-    auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
+    const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(left_id));
     if (!progression) {
         std::cerr << "Error when applying rule PT: left side is not a progression" << std::endl;
         return false;
@@ -1063,7 +1063,7 @@ bool ProofChecker::check_rule_pt(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule PT: knowledge #" << premise_ids[0] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!progression || progression->get_actionset_id() != a0 ||
         progression->get_stateset_id() != s0 || subset_knowledge->get_right_id() != s2) {
         std::cerr << "Error when applying rule PT: knowledge #" << premise_ids[0] << " does not state S[A] subseteq S''" << std::endl;
@@ -1092,12 +1092,12 @@ bool ProofChecker::check_rule_pu(int conclusion_id, int left_id, int right_id, s
            kbentries[premise_ids[1]]);
 
     int s0,s1,s2,a0;
-    auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
+    const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(left_id));
     if (!progression) {
         std::cerr << "Error when applying rule PU: left side is not a progresion" << std::endl;
         return false;
     }
-    auto state_union = dynamic_cast<StateSetUnion *>(get_set_expression<StateSet>(progression->get_stateset_id()));
+    const StateSetUnion *state_union = dynamic_cast<const StateSetUnion *>(get_set_expression<StateSet>(progression->get_stateset_id()));
     if (!state_union) {
         std::cerr << "Error when applying rule PU: left side is not a progression of a state set union" << std::endl;
         return false;
@@ -1112,7 +1112,7 @@ bool ProofChecker::check_rule_pu(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule PU: knowledge #" << premise_ids[0] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!progression || progression->get_actionset_id() != a0 ||
         progression->get_stateset_id() != s0 || subset_knowledge->get_right_id() != s2) {
         std::cerr << "Error when applying rule PU: knowledge #" << premise_ids[0] << " does not state S[A] subseteq S''" << std::endl;
@@ -1124,7 +1124,7 @@ bool ProofChecker::check_rule_pu(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule PU: knowledge #" << premise_ids[1] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!progression || progression->get_actionset_id() != a0 ||
         progression->get_stateset_id() != s1 || subset_knowledge->get_right_id() != s2) {
         std::cerr << "Error when applying rule PU: knowledge #" << premise_ids[1] << " does not state S'[A] subseteq S''" << std::endl;
@@ -1142,19 +1142,19 @@ bool ProofChecker::check_rule_pr(int conclusion_id, int left_id, int right_id, s
            kbentries[premise_ids[0]]);
 
     int s0,s1,a0;
-    auto regression = dynamic_cast<StateSetRegression *>(get_set_expression<StateSet>(left_id));
+    const StateSetRegression *regression = dynamic_cast<const StateSetRegression *>(get_set_expression<StateSet>(left_id));
     if (!regression) {
         std::cerr << "Error when applying rule PR: left side is not a regression" << std::endl;
         return false;
     }
-    auto negation = dynamic_cast<StateSetNegation *>(get_set_expression<StateSet>(regression->get_stateset_id()));
+    const StateSetNegation *negation = dynamic_cast<const StateSetNegation *>(get_set_expression<StateSet>(regression->get_stateset_id()));
     if (!negation) {
         std::cerr << "Error when applying rule PR: left side is not a regression of a negation" << std::endl;
         return false;
     }
     s1 = negation->get_child_id();
     a0 = regression->get_actionset_id();
-    negation = dynamic_cast<StateSetNegation *>(get_set_expression<StateSet>(right_id));
+    negation = dynamic_cast<const StateSetNegation *>(get_set_expression<StateSet>(right_id));
     if (!negation) {
         std::cerr << "Error when applying rule PR: right side is not a negation" << std::endl;
         return false;
@@ -1166,7 +1166,7 @@ bool ProofChecker::check_rule_pr(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule PR: knowledge #" << premise_ids[0] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!progression || progression->get_actionset_id() != a0 ||
             progression->get_stateset_id() != s0 || subset_knowledge->get_right_id() != s1) {
         std::cerr << "Error when applying rule PR: knowledge #" << premise_ids[0] << " does not state S[A] subseteq S'" << std::endl;
@@ -1184,19 +1184,19 @@ bool ProofChecker::check_rule_rp(int conclusion_id, int left_id, int right_id, s
            kbentries[premise_ids[0]]);
 
     int s0,s1,a0;
-    auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
+    const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(left_id));
     if (!progression) {
         std::cerr << "Error when applying rule RP: left side is not a progression" << std::endl;
         return false;
     }
-    auto negation = dynamic_cast<StateSetNegation *>(get_set_expression<StateSet>(progression->get_stateset_id()));
+    const StateSetNegation *negation = dynamic_cast<const StateSetNegation *>(get_set_expression<StateSet>(progression->get_stateset_id()));
     if (!negation) {
         std::cerr << "Error when applying rule RP: left side is not a progression of a negation" << std::endl;
         return false;
     }
     s1 = negation->get_child_id();
     a0 = progression->get_actionset_id();
-    negation = dynamic_cast<StateSetNegation *>(get_set_expression<StateSet>(right_id));
+    negation = dynamic_cast<const StateSetNegation *>(get_set_expression<StateSet>(right_id));
     if (!negation) {
         std::cerr << "Error when applying rule RP: right side is not a negation" << std::endl;
         return false;
@@ -1208,7 +1208,7 @@ bool ProofChecker::check_rule_rp(int conclusion_id, int left_id, int right_id, s
         std::cerr << "Error when applying rule RP: knowledge #" << premise_ids[0] << " is not state subset knowledge" << std::endl;
         return false;
     }
-    auto regression = dynamic_cast<StateSetRegression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
+    const StateSetRegression *regression = dynamic_cast<const StateSetRegression *>(get_set_expression<StateSet>(subset_knowledge->get_left_id()));
     if (!regression || regression->get_actionset_id() != a0 ||
             regression->get_stateset_id() != s0 || subset_knowledge->get_right_id() != s1) {
         std::cerr << "Error when applying rule RP: knowledge #" << premise_ids[0] << " does not state [A]S subseteq S'" << std::endl;
@@ -1230,8 +1230,8 @@ bool ProofChecker::check_statement_B1(int conclusion_id, int left_id, int right_
     bool ret = false;
 
     try {
-        std::vector<StateSetVariable *> left;
-        std::vector<StateSetVariable *> right;
+        std::vector<const StateSetVariable *> left;
+        std::vector<const StateSetVariable *> right;
         bool gather_variables_successfull = false;
 
         gather_variables_successfull = get_set_expression<StateSet>(left_id)->gather_intersection_variables(formulas, left, right);
@@ -1248,9 +1248,13 @@ bool ProofChecker::check_statement_B1(int conclusion_id, int left_id, int right_
                     + " is not a union of literals of the same type.";
             throw std::runtime_error(msg);
         }
-
         assert(left.size() + right.size() > 0);
-        StateSetFormalism *reference_formula = get_reference_formula({left ,right});
+
+        std::vector<const StateSetVariable *> allformulas;
+        allformulas.reserve(left.size() + right.size());
+        allformulas.insert(allformulas.end(), left.begin(), left.end());
+        allformulas.insert(allformulas.end(), right.begin(), right.end());
+        const StateSetFormalism *reference_formula = get_reference_formula(allformulas);
         if (!reference_formula) {
             std::string msg = "Error when checking statement B1: no concrete subformula!";
             throw std::runtime_error(msg);
@@ -1277,28 +1281,28 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
     bool ret = false;
 
     try {
-        std::vector<StateSetVariable *> prog;
-        std::vector<StateSetVariable *> left;
-        std::vector<StateSetVariable *> right;
+        std::vector<const StateSetVariable *> prog;
+        std::vector<const StateSetVariable *> left;
+        std::vector<const StateSetVariable *> right;
         std::unordered_set<int> actions;
-        StateSet *prog_formula = nullptr;
-        StateSet *left_formula = nullptr;
-        StateSet *right_formula = get_set_expression<StateSet>(right_id);
+        const StateSet *prog_formula = nullptr;
+        const StateSet *left_formula = nullptr;
+        const StateSet *right_formula = get_set_expression<StateSet>(right_id);
 
         /*
          * We expect the left side to either be a progression or an intersection with
          * a progression on the left side
          */
-        auto progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(left_id));
+        const StateSetProgression *progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(left_id));
         if (!progression) { // left side is not a progression, check if it is an intersection
-            auto intersection = dynamic_cast<StateSetIntersection *>(get_set_expression<StateSet>(left_id));
+            auto intersection = dynamic_cast<const StateSetIntersection *>(get_set_expression<StateSet>(left_id));
             if (!intersection) {
                 std::string msg = "Error when checking statement B2: set expression #"
                         + std::to_string(left_id)
                         + " is not a progression or intersection.";
                 throw std::runtime_error(msg);
             }
-            progression = dynamic_cast<StateSetProgression *>(get_set_expression<StateSet>(intersection->get_left_id()));
+            progression = dynamic_cast<const StateSetProgression *>(get_set_expression<StateSet>(intersection->get_left_id()));
             if (!progression) { // the intersection does not have a progression on the left
                 std::string msg = "Error when checking statement B2: set expression #"
                         + std::to_string(left_id)
@@ -1307,7 +1311,7 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
             }
             left_formula = get_set_expression<StateSet>(intersection->get_right_id());
         }
-        ActionSet *action_set = get_set_expression<ActionSet>(progression->get_actionset_id());
+        const ActionSet *action_set = get_set_expression<ActionSet>(progression->get_actionset_id());
         action_set->get_actions(actionsets, actions);
         prog_formula = get_set_expression<StateSet>(progression->get_stateset_id());
 
@@ -1343,9 +1347,14 @@ bool ProofChecker::check_statement_B2(int conclusion_id, int left_id, int right_
                     + " is not a union of literals.";
             throw std::runtime_error(msg);
         }
-
         assert(prog.size() > 0);
-        StateSetFormalism *reference_formula = get_reference_formula({prog, left ,right});
+
+        std::vector<const StateSetVariable *> allformulas;
+        allformulas.reserve(prog.size() + left.size() + right.size());
+        allformulas.insert(allformulas.end(), prog.begin(), prog.end());
+        allformulas.insert(allformulas.end(), left.begin(), left.end());
+        allformulas.insert(allformulas.end(), right.begin(), right.end());
+        const StateSetFormalism *reference_formula = get_reference_formula(allformulas);
         if (!reference_formula) {
             std::string msg = "Error when checking statement B2: no concrete subformula!";
             throw std::runtime_error(msg);
@@ -1371,28 +1380,28 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
     bool ret = false;
 
     try {
-        std::vector<StateSetVariable *> reg;
-        std::vector<StateSetVariable *> left;
-        std::vector<StateSetVariable *> right;
+        std::vector<const StateSetVariable *> reg;
+        std::vector<const StateSetVariable *> left;
+        std::vector<const StateSetVariable *> right;
         std::unordered_set<int> actions;
-        StateSet *reg_formula = nullptr;
-        StateSet *left_formula = nullptr;
-        StateSet *right_formula = get_set_expression<StateSet>(right_id);
+        const StateSet *reg_formula = nullptr;
+        const StateSet *left_formula = nullptr;
+        const StateSet *right_formula = get_set_expression<StateSet>(right_id);
 
         /*
          * We expect the left side to either be a regression or an intersection with
          * a regression on the left side
          */
-        auto regression = dynamic_cast<StateSetRegression *>(get_set_expression<StateSet>(left_id));
+        const StateSetRegression *regression = dynamic_cast<const StateSetRegression *>(get_set_expression<StateSet>(left_id));
         if (!regression) { // left side is not a regression, check if it is an intersection
-            auto intersection = dynamic_cast<StateSetIntersection *>(get_set_expression<StateSet>(left_id));
+            const StateSetIntersection *intersection = dynamic_cast<const StateSetIntersection *>(get_set_expression<StateSet>(left_id));
             if (!intersection) {
                 std::string msg = "Error when checking statement B3: set expression #"
                         + std::to_string(left_id)
                         + " is not a regression or intersection.";
                 throw std::runtime_error(msg);
             }
-            regression = dynamic_cast<StateSetRegression *>(get_set_expression<StateSet>(intersection->get_left_id()));
+            regression = dynamic_cast<const StateSetRegression *>(get_set_expression<StateSet>(intersection->get_left_id()));
             if (!regression) { // the intersection does not have a regression on the left
                 std::string msg = "Error when checking statement B3: set expression #"
                         + std::to_string(left_id)
@@ -1401,7 +1410,7 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
             }
             left_formula = get_set_expression<StateSet>(intersection->get_right_id());
         }
-        ActionSet *action_set = get_set_expression<ActionSet>(regression->get_actionset_id());
+        const ActionSet *action_set = get_set_expression<ActionSet>(regression->get_actionset_id());
         action_set->get_actions(actionsets, actions);
         reg_formula = get_set_expression<StateSet>(regression->get_stateset_id());
 
@@ -1437,9 +1446,14 @@ bool ProofChecker::check_statement_B3(int conclusion_id, int left_id, int right_
                     + " is not a union of literals.";
             throw std::runtime_error(msg);
         }
-
         assert(reg.size() > 0);
-        StateSetFormalism *reference_formula = get_reference_formula({reg, left ,right});
+
+        std::vector<const StateSetVariable *> allformulas;
+        allformulas.reserve(reg.size() + left.size() + right.size());
+        allformulas.insert(allformulas.end(), reg.begin(), reg.end());
+        allformulas.insert(allformulas.end(), left.begin(), left.end());
+        allformulas.insert(allformulas.end(), right.begin(), right.end());
+        const StateSetFormalism *reference_formula = get_reference_formula(allformulas);
         if (!reference_formula) {
             std::string msg = "Error when checking statement B1: no concrete subformula!";
             throw std::runtime_error(msg);
@@ -1468,51 +1482,44 @@ bool ProofChecker::check_statement_B4(int conclusion_id, int left_id, int right_
     try {
         bool left_positive = true;
         bool right_positive = true;
-        StateSet *left = get_set_expression<StateSet>(left_id);
-        StateSet *right = get_set_expression<StateSet>(right_id);
-        auto lvar = dynamic_cast<StateSetVariable *>(left);
-        auto rvar = dynamic_cast<StateSetVariable *>(right);
+        const StateSet *left = get_set_expression<StateSet>(left_id);
+        const StateSet *right = get_set_expression<StateSet>(right_id);
+        const StateSetFormalism *lformula = dynamic_cast<const StateSetFormalism *>(left);
+        const StateSetFormalism *rformula = dynamic_cast<const StateSetFormalism *>(right);
+        // TODO: document that we do not allow constants in B4 (we can use B1, every formalism should support CL...)
 
-        if (!lvar) {
-            auto lvar_neg = dynamic_cast<StateSetNegation *>(left);
+        if (!lformula) {
+            const StateSetNegation *lvar_neg = dynamic_cast<const StateSetNegation *>(left);
             if (!lvar_neg) {
                 std::string msg = "Error when checking statement B4: set expression #"
                         + std::to_string(left_id) + " is not a set literal.";
                 throw std::runtime_error(msg);
             }
-            lvar = dynamic_cast<StateSetVariable *>(get_set_expression<StateSet>(lvar_neg->get_child_id()));
+            lformula = dynamic_cast<const StateSetFormalism *>(get_set_expression<StateSet>(lvar_neg->get_child_id()));
             left_positive = false;
-            if (!lvar) {
+            if (!lformula) {
                 std::string msg = "Error when checking statement B4: set expression #"
                         + std::to_string(left_id) + " is not a set literal.";
                 throw std::runtime_error(msg);
             }
         }
-        if (!rvar) {
-            auto rvar_neg = dynamic_cast<StateSetNegation *>(left);
+        if (!rformula) {
+            const StateSetNegation *rvar_neg = dynamic_cast<const StateSetNegation *>(left);
             if (!rvar_neg) {
                 std::string msg = "Error when checking statement B4: set expression #"
                         + std::to_string(right_id) + " is not a set literal.";
                 throw std::runtime_error(msg);
             }
-            rvar = dynamic_cast<StateSetVariable *>(get_set_expression<StateSet>(rvar_neg->get_child_id()));
+            rformula = dynamic_cast<const StateSetFormalism *>(get_set_expression<StateSet>(rvar_neg->get_child_id()));
             right_positive = false;
-            if (!rvar) {
+            if (!rformula) {
                 std::string msg = "Error when checking statement B4: set expression #"
                         + std::to_string(right_id) + " is not a set literal.";
                 throw std::runtime_error(msg);
             }
         }
 
-        // TODO: currently, left cannot be a constant but right can. We probably want to overthink this
-        StateSetFormalism *lformalism = dynamic_cast<StateSetFormalism *>(lvar);
-        StateSetFormalism *rformalism = dynamic_cast<StateSetFormalism *>(rvar);
-        if (!lformalism || !rformalism) {
-            std::string msg = "Error when checking statement B4: left and/or right is no concrete formalism!";
-            throw std::runtime_error(msg);
-        }
-
-        if(!lformalism->check_statement_b4(rformalism, left_positive, right_positive)) {
+        if(!lformula->check_statement_b4(rformula, left_positive, right_positive)) {
             std::string msg = "Error when checking statement B4: set expression #"
                     + std::to_string(left_id) + " is not a subset of set expression #"
                     + std::to_string(right_id) + ".";
@@ -1531,8 +1538,8 @@ bool ProofChecker::check_statement_B4(int conclusion_id, int left_id, int right_
 // check if A \subseteq A'
 bool ProofChecker::check_statement_B5(int conclusion_id, int left_id, int right_id, std::vector<int> &) {
     std::unordered_set<int> left_indices, right_indices;
-    ActionSet *left_set = get_set_expression<ActionSet>(right_id);
-    ActionSet *right_set = get_set_expression<ActionSet>(right_id);
+    const ActionSet *left_set = get_set_expression<ActionSet>(right_id);
+    const ActionSet *right_set = get_set_expression<ActionSet>(right_id);
     left_set->get_actions(actionsets, left_indices);
     right_set->get_actions(actionsets, right_indices);
 
@@ -1548,16 +1555,16 @@ bool ProofChecker::check_statement_B5(int conclusion_id, int left_id, int right_
     return true;
 }
 
-StateSetFormalism *ProofChecker::get_reference_formula(std::vector<std::reference_wrapper<std::vector<StateSetVariable *>>> vars) {
-    StateSetFormalism *ret = nullptr;
-    for (std::vector<StateSetVariable *> &vec : vars) {
-        for (StateSetVariable *var : vec) {
-            ret = dynamic_cast<StateSetFormalism *>(var);
-            if(ret) {
-                return ret;
-            }
+// TODO: would it be better to make a vector of vectors?
+const StateSetFormalism *ProofChecker::get_reference_formula(std::vector<const StateSetVariable *> &vars) const {
+    const StateSetFormalism *ret = nullptr;
+    for (const StateSetVariable *var : vars) {
+        ret = dynamic_cast<const StateSetFormalism *>(var);
+        if(ret) {
+            return ret;
         }
     }
+    return nullptr;
 }
 
 

@@ -5,18 +5,18 @@ StateSetUnion::StateSetUnion(std::stringstream &input, Task &) {
     input >> id_right;
 }
 
-int StateSetUnion::get_left_id() {
+int StateSetUnion::get_left_id() const {
     return id_left;
 }
 
-int StateSetUnion::get_right_id() {
+int StateSetUnion::get_right_id() const {
     return id_right;
 }
 
 bool StateSetUnion::gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                           std::vector<StateSetVariable *> &positive,
-                                           std::vector<StateSetVariable *> &negative,
-                                           bool must_be_variable) {
+                                           std::vector<const StateSetVariable *> &positive,
+                                           std::vector<const StateSetVariable *> &negative,
+                                           bool must_be_variable) const {
     if (must_be_variable) {
         return false;
     }
@@ -31,18 +31,18 @@ StateSetIntersection::StateSetIntersection(std::stringstream &input, Task &) {
     input >> id_right;
 }
 
-int StateSetIntersection::get_left_id() {
+int StateSetIntersection::get_left_id() const {
     return id_left;
 }
 
-int StateSetIntersection::get_right_id() {
+int StateSetIntersection::get_right_id() const {
     return id_right;
 }
 
 bool StateSetIntersection::gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                                         std::vector<StateSetVariable *> &positive,
-                                                         std::vector<StateSetVariable *> &negative,
-                                                         bool must_be_variable) {
+                                                         std::vector<const StateSetVariable *> &positive,
+                                                         std::vector<const StateSetVariable *> &negative,
+                                                         bool must_be_variable) const {
     if (must_be_variable) {
         return false;
     }
@@ -56,14 +56,14 @@ StateSetNegation::StateSetNegation(std::stringstream &input, Task &) {
     input >> id_child;
 }
 
-int StateSetNegation::get_child_id() {
+int StateSetNegation::get_child_id() const {
     return id_child;
 }
 
 bool StateSetNegation::gather_union_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                              std::vector<StateSetVariable *> &positive,
-                                              std::vector<StateSetVariable *> &negative,
-                                              bool must_be_variable) {
+                                              std::vector<const StateSetVariable *> &positive,
+                                              std::vector<const StateSetVariable *> &negative,
+                                              bool must_be_variable) const {
     if (must_be_variable) {
         return false;
     }
@@ -71,9 +71,9 @@ bool StateSetNegation::gather_union_variables(const std::deque<std::unique_ptr<S
 }
 
 bool StateSetNegation::gather_intersection_variables(const std::deque<std::unique_ptr<StateSet>> &formulas,
-                                                     std::vector<StateSetVariable *> &positive,
-                                                     std::vector<StateSetVariable *> &negative,
-                                                     bool must_be_variable) {
+                                                     std::vector<const StateSetVariable *> &positive,
+                                                     std::vector<const StateSetVariable *> &negative,
+                                                     bool must_be_variable) const {
     if (must_be_variable) {
         return false;
     }
@@ -87,11 +87,11 @@ StateSetProgression::StateSetProgression(std::stringstream &input, Task &) {
     input >> id_actionset;
 }
 
-int StateSetProgression::get_actionset_id() {
+int StateSetProgression::get_actionset_id() const {
     return id_actionset;
 }
 
-int StateSetProgression::get_stateset_id() {
+int StateSetProgression::get_stateset_id() const {
     return id_stateset;
 }
 StateSetBuilder<StateSetProgression> progression_builder("p");
@@ -102,11 +102,11 @@ StateSetRegression::StateSetRegression(std::stringstream &input, Task &) {
     input >> id_actionset;
 }
 
-int StateSetRegression::get_actionset_id() {
+int StateSetRegression::get_actionset_id() const {
     return id_actionset;
 }
 
-int StateSetRegression::get_stateset_id() {
+int StateSetRegression::get_stateset_id() const {
     return id_stateset;
 }
 StateSetBuilder<StateSetRegression> regression_builder("r");

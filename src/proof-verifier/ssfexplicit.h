@@ -31,39 +31,39 @@ public:
     SSFExplicit(std::stringstream &input, Task &task);
     virtual ~SSFExplicit() {}
 
-    virtual bool check_statement_b1(std::vector<StateSetVariable *> &left,
-                                    std::vector<StateSetVariable *> &right);
-    virtual bool check_statement_b2(std::vector<StateSetVariable *> &progress,
-                                    std::vector<StateSetVariable *> &left,
-                                    std::vector<StateSetVariable *> &right,
-                                    std::unordered_set<int> &action_indices);
-    virtual bool check_statement_b3(std::vector<StateSetVariable *> &regress,
-                                    std::vector<StateSetVariable *> &left,
-                                    std::vector<StateSetVariable *> &right,
-                                    std::unordered_set<int> &action_indices);
-    virtual bool check_statement_b4(StateSetFormalism *right,
-                                    bool left_positive, bool right_positive);
+    virtual bool check_statement_b1(std::vector<const StateSetVariable *> &left,
+                                    std::vector<const StateSetVariable *> &right) const;
+    virtual bool check_statement_b2(std::vector<const StateSetVariable *> &progress,
+                                    std::vector<const StateSetVariable *> &left,
+                                    std::vector<const StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices) const;
+    virtual bool check_statement_b3(std::vector<const StateSetVariable *> &regress,
+                                    std::vector<const StateSetVariable *> &left,
+                                    std::vector<const StateSetVariable *> &right,
+                                    std::unordered_set<int> &action_indices) const;
+    virtual bool check_statement_b4(const StateSetFormalism *right,
+                                    bool left_positive, bool right_positive) const;
 
-    virtual bool supports_mo() { return true; }
-    virtual bool supports_ce() { return true; }
-    virtual bool supports_im() { return true; }
-    virtual bool supports_me() { return true; }
-    virtual bool supports_todnf() { return true; }
-    virtual bool supports_tocnf() { return false; }
-    virtual bool supports_ct() { return true; }
-    virtual bool is_nonsuccint() { return true; }
+    virtual bool supports_mo() const { return true; }
+    virtual bool supports_ce() const { return true; }
+    virtual bool supports_im() const { return true; }
+    virtual bool supports_me() const { return true; }
+    virtual bool supports_todnf() const { return true; }
+    virtual bool supports_tocnf() const { return false; }
+    virtual bool supports_ct() const { return true; }
+    virtual bool is_nonsuccint() const { return true; }
 
     // expects the model in the varorder of the formula;
     virtual bool is_contained(const std::vector<bool> &model) const ;
-    virtual bool is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant);
-    virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause);
-    virtual bool get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause);
-    virtual int get_model_count();
+    virtual bool is_implicant(const std::vector<int> &vars, const std::vector<bool> &implicant) const;
+    virtual bool is_entailed(const std::vector<int> &varorder, const std::vector<bool> &clause) const;
+    virtual bool get_clause(int i, std::vector<int> &vars, std::vector<bool> &clause) const;
+    virtual int get_model_count() const;
 
-    virtual const std::vector<int> &get_varorder();
+    virtual const std::vector<int> &get_varorder() const;
 
-    virtual SSFExplicit *get_compatible(StateSetVariable *stateset) override;
-    virtual SSFExplicit *get_constant(ConstantType ctype) override;
+    virtual const SSFExplicit *get_compatible(const StateSetVariable *stateset) const override;
+    virtual const SSFExplicit *get_constant(ConstantType ctype) const override;
 
     /*
      * model is expected to have the same varorder (ie we need no transformation).
